@@ -2,7 +2,7 @@ import copy
 import importlib.metadata
 import logging
 import typing as typing
-from typing import Any, Dict, List, MutableMapping, Optional
+from typing import Any, Dict, List, MutableMapping, Optional, Set
 
 from curator.curator import Curator, ProjectCurationError
 from curator.scheduling_models import FileModel
@@ -34,7 +34,6 @@ from utils.decorators import api_retry
 
 from .curation_keys import (
     BACKPROP_SCOPES,
-    CHILD_SCOPES,
     RESOLVED_SCOPES,
     FormCurationTags,
 )
@@ -71,21 +70,17 @@ class FormCurator(Curator):
         self.__prev_scope = None
 
         # get expected cross-sectional derived variables by scope
-        self.__scope_reference = {
-            scope: self.__extract_attributes(scope) for scope in BACKPROP_SCOPES
-        }
+        # these will get back-propagated at the end of each subject's curation
+        self.__scope_reference: Dict[str, Set[str]] = {}
 
-        # due to the nature of UDS/NP, it also includes additional scopes
-        # TODO: this is currently a hack because the ETL process cannot
-        # pull multiple sources (e.g. file.info and subject.info), so for
-        # now we are stuffing the necessary variables back into the file
-        # level
-        for scope, child_scopes in CHILD_SCOPES.items():
+        for scope, child_scopes in BACKPROP_SCOPES.items():
             if scope not in self.__scope_reference:
-                self.__scope_reference[scope] = []
+                self.__scope_reference[scope] = set([])
+
+            self.__scope_reference[scope].update(self.__extract_attributes(scope))
 
             for child_scope in child_scopes:
-                self.__scope_reference[scope].extend(
+                self.__scope_reference[scope].update(
                     self.__extract_attributes(child_scope)
                 )
 
@@ -98,7 +93,7 @@ class FormCurator(Curator):
                 ALL_RX_CLASSES, combination_rx_classes=COMBINATION_RX_CLASSES
             )
 
-    def __extract_attributes(self, scope: str) -> List[str]:
+    def __extract_attributes(self, scope: str) -> Set[str]:
         """Extracts the attributes for the given scope.
 
         Args:
@@ -121,11 +116,13 @@ class FormCurator(Curator):
         # subject.info.derived.cross-sectional,
         # so parse out and strip down to the derived variable name
         parent_location = "subject.info.derived.cross-sectional."
-        return [
-            x.replace(parent_location, "")
-            for x in attributes
-            if x.startswith(parent_location)
-        ]
+        return set(
+            [
+                x.replace(parent_location, "")
+                for x in attributes
+                if x.startswith(parent_location)
+            ]
+        )
 
     def get_table(
         self, subject: Subject, subject_table: SymbolTable, file_entry: FileEntry
@@ -343,12 +340,13 @@ class FormCurator(Curator):
         subject: Subject,
         subject_table: SymbolTable,
         processed_files: List[FileModel],
+        old_subject_info: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Run post-curating on the entire subject.
 
         1. Run cross-module scope derived curations
         2. Run subject-level missingness curations across all scopes
-        3. Pushes final subject_table back to FW
+        3. Pushes final subject_table back to FW (if changed)
         4. Tags affiliates and UDS participants
         5. Run a second pass over forms that require back-prop and apply
             cross-sectional values.
@@ -386,7 +384,10 @@ class FormCurator(Curator):
         # 3. push subject metadata; need to replace due to potentially
         # cleaned-up metadata and subject-level missingness
         if subject_table:
-            subject.replace_info(subject_table.to_dict())  # type: ignore
+            new_subject_info = subject_table.to_dict()
+            if new_subject_info != old_subject_info:
+                log.debug(f"Subject {subject.label} metadata changed, updating")
+                subject.replace_info(new_subject_info)  # type: ignore
 
         derived = subject_table.get("derived", {})
 
@@ -567,7 +568,8 @@ class FormCurator(Curator):
 
     @api_retry
     def apply_file_curation(self, file: FileModel, affiliate: int) -> None:
-        """Applies the file-specific curated information back to FW.
+        """Applies the file-specific curated information back to FW. Only
+        updates as necessary.
 
         Grabs file.info.derived (derived variables) and
         file.info.resolved (resolved raw + missingness data) and pushes
@@ -579,25 +581,31 @@ class FormCurator(Curator):
                 "Cannot apply file curation to FW; processed file missing file_info"
             )
 
-        file_entry = self.sdk_client.get_file(file.file_id)
+        file_entry = None
 
         # collect metadata into a single API call
         updated_info = {}
         for curation_type in ["derived", "resolved"]:
             curated_file_info = file.file_info.get(curation_type)
-            if curated_file_info:
+            old_info = file.old_info.get(curation_type)
+
+            if curated_file_info and curated_file_info != old_info:
                 updated_info.update({curation_type: curated_file_info})
 
         if file.file_info.get("affiliate", None) != affiliate:
             updated_info["affiliate"] = affiliate
 
         if updated_info:
+            if file_entry is None:
+                file_entry = self.sdk_client.get_file(file.file_id)
+
+            log.debug(f"{file.filename} metadata changed, updating")
             file_entry.update_info(updated_info)
 
         # add curation tag
-        if self.curation_tag not in file_entry.tags:
-            file_entry.add_tag(self.curation_tag)
+        if self.curation_tag not in file.file_tags:
+            if file_entry is None:
+                file_entry = self.sdk_client.get_file(file.file_id)
 
-        # TODO - remove after cleaned up, moving data to file.info
-        if FormCurationTags.AFFILIATE in file_entry.tags:
-            file_entry.delete_tag(FormCurationTags.AFFILIATE)
+            if self.curation_tag not in file_entry.tags:
+                file_entry.add_tag(self.curation_tag)

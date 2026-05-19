@@ -112,6 +112,9 @@ class TestRun:
         mock_processor.process_request.return_value = True
         mock_processor.deleted_items = DeletedItems()
 
+        mock_context = MagicMock()
+        mock_context.config.job.get.return_value = "test-job-id"
+
         with (
             patch(
                 "form_deletion_app.main.find_identifier", return_value=mock_identifier
@@ -130,6 +133,7 @@ class TestRun:
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
                 check_sbsq_visits=True,
+                context=mock_context,
             )
 
         mock_processor.process_request.assert_called_once()
@@ -155,6 +159,9 @@ class TestRun:
             captured_kwargs.update(kwargs)
             return mock_processor
 
+        mock_context = MagicMock()
+        mock_context.config.job.get.return_value = "test-job-id"
+
         with (
             patch("form_deletion_app.main.find_identifier", return_value=None),
             patch(
@@ -171,6 +178,7 @@ class TestRun:
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
                 check_sbsq_visits=True,
+                context=mock_context,
             )
 
         assert captured_kwargs.get("identifier") is None
@@ -191,6 +199,9 @@ class TestRun:
         mock_processor.process_request.return_value = True
         mock_processor.deleted_items = deleted
 
+        mock_context = MagicMock()
+        mock_context.config.job.get.return_value = "test-job-id"
+
         with (
             patch("form_deletion_app.main.find_identifier", return_value=None),
             patch(
@@ -207,6 +218,7 @@ class TestRun:
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
                 check_sbsq_visits=True,
+                context=mock_context,
             )
 
         mock_update.assert_called_once()

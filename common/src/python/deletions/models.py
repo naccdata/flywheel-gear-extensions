@@ -57,6 +57,7 @@ class DeleteInfoModel(BaseModel):
 
     delete_response: DeleteResponse
     processed_timestamp: Optional[datetime] = None
+    job_id: Optional[str] = None
 
     def get_deleted_visits_list(self) -> Optional[str]:
         """Returns the list of deleted visits as a newline-joined string."""

@@ -12,7 +12,7 @@ from error_logging.qc_status_log_creator import (
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, SubjectAdaptor
 from identifiers.model import IdentifierObject
-from keys.keys import DefaultValues, MetadataKeys
+from keys.keys import CLINICAL_MODULES, DefaultValues, MetadataKeys
 from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
@@ -69,6 +69,8 @@ class FormDeletionProcessor:
         )
 
         self.__deleted_items: DeletedItems = DeletedItems()
+
+        self.__acq_remover: Optional[AcquisitionRemover] = None
 
     @property
     def deleted_items(self) -> DeletedItems:
@@ -240,6 +242,211 @@ class FormDeletionProcessor:
 
         return False
 
+    def __has_remaining_clinical_forms(self, subject: SubjectAdaptor) -> bool:
+        """Check if any UDS, MDS, or BDS acquisitions remain for the subject in
+        the ingest project or the retrospective project.
+
+        Args:
+            subject: Subject adaptor object in ingest project
+
+        Returns:
+            True if at least one clinical form exists, False otherwise
+        """
+
+        filters = (
+            f"acquisition.label{DefaultValues.FW_SEARCH_OR}"
+            f"[{','.join(CLINICAL_MODULES)}]"
+        )
+        columns = ["file.name", "file.file_id"]
+
+        results = self.__project.proxy.get_matching_acquisition_files_info(
+            container_id=subject.id,
+            dv_title=f"Clinical forms for {self.__naccid}",
+            columns=columns,
+            filters=filters,
+        )
+        if results:
+            return True
+
+        retro_project_label = self.__project.label.replace(
+            DefaultValues.FORM_PRJ_LABEL, DefaultValues.LEGACY_PRJ_LABEL
+        )
+        retro_projects = self.__project.proxy.find_projects(
+            group_id=self.__project.group, project_label=retro_project_label
+        )
+        if not retro_projects:
+            return False
+
+        retro_subject = retro_projects[0].subjects.find_first(f"label={self.__naccid}")
+        if not retro_subject:
+            return False
+
+        results = self.__project.proxy.get_matching_acquisition_files_info(
+            container_id=retro_subject.id,
+            dv_title=f"Clinical forms for {self.__naccid}",
+            columns=columns,
+            filters=filters,
+        )
+
+        return bool(results)
+
+    def __cleanup_orphan_module_errorlogs(self) -> bool:
+        """Deletes the error logs file for the orphaned module from the ingest
+        project.
+
+        Note: This method uses the list of orphaned visit info populated
+        while removing any orphaned acquisitions.
+
+        Returns:
+            True if all deletions succeeded, False otherwise
+        """
+
+        if not self.__acq_remover:
+            return True
+
+        success = True
+        for visit_keys in self.__acq_remover.get_orphaned_visit_details():
+            orphaned_module = visit_keys.module
+            log_name = self.__qc_log_manager.get_qc_log_filename(
+                visit_keys=visit_keys, project=self.__project
+            )
+            if not log_name:
+                log.error(
+                    "Failed to derive the error log name for orphaned visit "
+                    f"{orphaned_module}/{visit_keys.date}"
+                )
+                success = False
+                continue
+
+            errorlog_file = self.__project.get_file(name=log_name)
+            if not errorlog_file:
+                log.warning(
+                    f"No error log found for orphaned visit "
+                    f"{orphaned_module}/{visit_keys.date}"
+                )
+                continue
+
+            # No need to check the return value or add an error
+            # Orphaned visits are deleted anyway
+            # Calling the method to add a log entry
+            self.__is_log_modified_after_request(errorlog_file)
+
+            if not self.__delete_error_log(filename=log_name):
+                log.error(f"Failed to delete orphaned error log {log_name}")
+                success = False
+                continue
+
+            self.__deleted_items.logs.append(log_name)
+
+        return success
+
+    def __cleanup_acquisitions(self) -> bool:
+        """Finds the subject in the project and removes its acquisitions,
+        including any NP/MLST acquisitions that become orphaned as a result.
+
+        Returns:
+            True if all operations succeeded (or subject not found), False on
+            any error
+        """
+        if not self.__naccid:
+            return True
+
+        subject = self.__project.find_subject(self.__naccid)
+        if not subject:
+            return True
+
+        module_configs = self.__form_configs.module_configs.get(self.__module)
+        if not module_configs:
+            self.__add_delete_failed_error(
+                f"No module configs found for module {self.__module}"
+            )
+            return False
+
+        # For longitudinal modules, check whether there are any QC passed
+        # subsequent visits. To bypass this check, set
+        # longitudinal_check=False in gear configs.
+        if (
+            self.__check_sbsq_visits
+            and module_configs.longitudinal
+            and self.__has_qc_passed_subsequent_visits(
+                subject=subject, module_configs=module_configs
+            )
+        ):
+            self.__add_delete_failed_error("Subject has QC passed subsequent visits")
+            return False
+
+        self.__acq_remover = AcquisitionRemover(
+            proxy=self.__project.proxy,
+            primary_project_id=self.__project.id,
+            module=self.__module,
+            naccid=self.__naccid,
+            form_configs=self.__form_configs,
+            module_configs=module_configs,
+            delete_request=self.__delete_request,
+            deleted_items=self.__deleted_items,
+            dependent_modules=self.__dependent_modules,
+        )
+
+        if not self.__acq_remover.cleanup_acquisitions():
+            self.__add_delete_failed_error(
+                "Failed to remove the acquisition files for this delete request"
+            )
+            return False
+
+        return True
+
+    def __remove_orphaned_modules(self) -> bool:
+        """If the deleted module was a clinical form (UDS/MDS/BDS) and no
+        clinical forms remain for the subject, removes all NP and MLST
+        acquisitions and their error logs.
+
+        the AcquisitionRemover used for the primary deletion
+        is reused to remove orphaned acquisitions
+
+        Returns:
+            True if nothing to do or all removals succeeded, False otherwise
+        """
+        if not self.__naccid or not self.__acq_remover:
+            return True
+
+        subject = self.__project.find_subject(label=self.__naccid)
+        if not subject:  # subject removed during delete process
+            return True
+
+        if self.__module not in CLINICAL_MODULES:
+            return True
+
+        # More clinical forms present in the subject
+        if self.__has_remaining_clinical_forms(subject=subject):
+            return True
+
+        orphan_modules = self.__form_configs.get_modules_dependent_on_clinical_forms()
+        if not orphan_modules:
+            return True
+
+        log.info(
+            f"No clinical forms remain for {self.__naccid}, "
+            f"removing orphaned {orphan_modules} acquisitions"
+        )
+
+        success = True
+        acquisitions_removed = self.__acq_remover.cleanup_orphaned_acquisitions(
+            orphan_modules
+        )
+        if not acquisitions_removed:
+            self.__add_delete_failed_error(
+                f"Failed to remove orphaned {orphan_modules} acquisitions"
+            )
+            success = False
+
+        if not self.__cleanup_orphan_module_errorlogs():
+            self.__add_delete_failed_error(
+                f"Failed to remove orphaned {orphan_modules} log files"
+            )
+            success = False
+
+        return success
+
     def process_request(self) -> bool:
         """Process delete request.
 
@@ -276,50 +483,13 @@ class FormDeletionProcessor:
             )
             return False
 
-        if self.__naccid:
-            subject = self.__project.find_subject(self.__naccid)
-            # If subject exists in the project, remove the respective acquisitions
-            if subject:
-                module_configs = self.__form_configs.module_configs.get(self.__module)
-                if not module_configs:
-                    self.__add_delete_failed_error(
-                        f"No module configs found for module {self.__module}"
-                    )
-                    return False
+        if not self.__cleanup_acquisitions():
+            return False
 
-                # For longitudinal modules,
-                #   check whether there are any QC passed subsequent visits.
-                # Need more info from the user to process these requests,
-                #   need to re-validate subsequent visits if the user
-                #   is not planning to resubmit the deleted visit
-                # To bypass this check, set longitudinal_check=False in gear configs
-                if (
-                    self.__check_sbsq_visits
-                    and module_configs.longitudinal
-                    and self.__has_qc_passed_subsequent_visits(
-                        subject=subject, module_configs=module_configs
-                    )
-                ):
-                    self.__add_delete_failed_error(
-                        "Subject has QC passed subsequent visits"
-                    )
-                    return False
+        if not self.__cleanup_log_files(error_log_name=error_log_name):
+            return False
 
-                acq_remover = AcquisitionRemover(
-                    proxy=self.__project.proxy,
-                    module=self.__module,
-                    naccid=self.__naccid,
-                    form_configs=self.__form_configs,
-                    module_configs=module_configs,
-                    delete_request=self.__delete_request,
-                    deleted_items=self.__deleted_items,
-                    dependent_modules=self.__dependent_modules,
-                )
-
-                if not acq_remover.cleanup_acquisitions():
-                    self.__add_delete_failed_error(
-                        "Failed to remove the acquisition files for this delete request"
-                    )
-                    return False
-
-        return self.__cleanup_log_files(error_log_name=error_log_name)
+        # When a clinical form is deleted, remove any modules/forms
+        # that have become orphaned.
+        # e.g. MLST or NP need an existing UDS/MDS/BDS form
+        return self.__remove_orphaned_modules()

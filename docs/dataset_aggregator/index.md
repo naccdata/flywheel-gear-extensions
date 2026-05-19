@@ -1,6 +1,6 @@
 # Dataset Aggregator
 
-Aggregates most recent FW datasets across centers. Removes duplicates caused by transferred participants.
+Aggregates most recent FW datasets across centers. Also checks for duplicates based on duplicate criteria, and resolves as specified.
 
 Results get written to `{output_prefix}/%Y%m%d-%H%M%S/tables` for each table, e.g.
 
@@ -18,12 +18,41 @@ A provenance file `provenance.json` is also written at the top level (e.g. `my-b
 Then for each table:
 
 1. Aggregate each center's data for that table (if it exists) into an open file handler.
-2. Inspect the aggregated table for transfer duplicates
-    1. If detected, find the current ADCID for all all transfer duplicates by querying the Identifiers API by NACCID
-    2. Remove rows corresponding to the old ADCID
+2. Inspect the aggregated table for duplicates
+    * Based on the `duplicates_criteria_json` optional configuration file (see [format below](#duplicates-criteria-format)). If provided, two rows are considered a duplicate for a given table if ALL fields in the list match. If a table has no duplicate criteria, all rows will be kept.
+    * Each table can specify what to do when duplicates are encountered with the `on_duplicate` field:
+        * `drop_all`: Drops all duplicate rows- default if not specified
+        * `keep_all`: Keeps all duplicate rows
+        * `active_only`: Only keeps rows for the NACCID's current center
+    * Dropped rows are reported reported as part of the gear output
 5. Upload the aggregated table to S3. The current timestamp and a `tables` directory will be appended to the output prefix as `{output_prefix}/%Y%m%d-%H%M%S/tables`
 
 > Note we perform an entire `download -> aggregate -> clean -> upload` loop once per table. This is due to the fact that the resulting parquets tend to be exceptionally large, and at the cost of some efficiency it's better to process each table one at a time and clean up as we go instead of trying to process all of them at once, otherwise you risk OOMs. In general much of this code was written to prioritize memory over efficiency.
+
+## Duplicates Criteria Format
+
+Example:
+
+```json
+{
+    "table_name": {
+        "criteria": [
+            "list",
+            "of",
+            "fields"
+        ],
+        "on_duplicate": "active_only"
+    },
+    "uds": {
+        "criteria": [
+            "naccid",
+            "visitdate"
+        ]
+    },
+}
+```
+
+If `on_duplicate` is not specified, it will default to `drop_all`.
 
 ## Assumptions
 
@@ -42,7 +71,7 @@ dataset
 
 Additionally, it assumes all datasets belong to the same bucket, and that the files can be cleanly merged without conflict.
 
-In terms of the FW dataset itself, it assumes there is only one parquet per table.
+In terms of the FW dataset itself, it assumes there is only one parquet per table, and that each table has both a `naccid` and `adcid` column (in order to resolve duplicates). This is largely dictated by the data model JSON that was used in the ETL to generate the dataset.
 
 ## Other Notes
 

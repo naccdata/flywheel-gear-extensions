@@ -142,12 +142,12 @@ class TestDetermineScope:
 
     def test_genetics(self):
         """Test general genetics files."""
-        assert fm("NACCXXX_historic_apoe_genotype.json").scope == "historic_apoe"
-        assert fm("NACCXXX_apoe_genotype.json").scope == "apoe"
+        assert fm("NACCXXX_historic_apoe_genotype.json").scope == "ncrad_historic_apoe"
+        assert fm("NACCXXX_apoe_genotype.json").scope == "ncrad_apoe"
         assert fm("NACCXXX_niagads_availability.json").scope == "niagads_availability"
 
         # dummy cases for APOE
-        assert fm("NACCXXX_historical_apoe_genotype.json").scope == "apoe"
+        assert fm("NACCXXX_historical_apoe_genotype.json").scope == "ncrad_apoe"
         assert fm("apoe_historic_genotype.json").scope is None
 
     def test_ncrad_biosamples(self):

@@ -13,6 +13,7 @@ from .models.container_id_view_input import ContainerIdViewInput
 from .models.container_output import ContainerOutput
 from .models.data_view import DataView
 from .models.deleted_result import DeletedResult
+from .models.file_version_output import FileVersionOutput
 from .models.gear_rule import GearRule
 from .models.gear_rule_input import GearRuleInput
 from .models.group import Group
@@ -58,6 +59,9 @@ class Client:
     # the code says returns FileOutput but has no definition
     # documentation says returns FileEntry, so going with it
     def get_file(self, file_id: str) -> FileEntry:
+        ...
+
+    def get_file_versions(self, file_id: str) -> List[FileVersionOutput]:
         ...
 
     # type of group is actually GroupInput which has a common mixin with group
