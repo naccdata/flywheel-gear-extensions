@@ -53,8 +53,8 @@ Implement a shared Python client library at `common/src/python/authorization/` t
 - [x] 3. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Implement AuthorizationClient operations
-  - [ ] 4.1 Implement grant and revoke methods
+- [x] 4. Implement AuthorizationClient operations
+  - [x] 4.1 Implement grant and revoke methods
     - Create `common/src/python/authorization/client.py`
     - Implement `AuthorizationClient.__init__` accepting `transport`, `max_retries`, `base_backoff`
     - Implement `grant()`: POST to `/grants`, return `GrantResult`, treat 409 as success
@@ -64,14 +64,14 @@ Implement a shared Python client library at `common/src/python/authorization/` t
     - Log successful operations at debug, idempotent outcomes at debug, errors at error level
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 10.1, 10.2, 10.4_
 
-  - [ ] 4.2 Write property tests for grant and revoke (Properties 1, 3, 4, 6)
+  - [x] 4.2 Write property tests for grant and revoke (Properties 1, 3, 4, 6)
     - **Property 1: Request construction correctness** — verify correct HTTP method, path, and JSON body for grant/revoke
     - **Property 3: Idempotent status codes yield success** — verify 409 on grant and 404 on revoke return success
     - **Property 4: Validation errors propagate message** — verify 400 raises ValidationError with API message
     - **Property 6: Immediate failure on non-retriable errors** — verify non-503/non-idempotent errors fail immediately
     - **Validates: Requirements 2.1, 2.3, 2.4, 2.6, 3.1, 3.3, 3.4, 3.6**
 
-  - [ ] 4.3 Implement batch method with chunking
+  - [x] 4.3 Implement batch method with chunking
     - Implement `batch()` on `AuthorizationClient`
     - Split operations into chunks of ≤100, preserving order
     - POST each chunk to `/grants/batch`
@@ -80,79 +80,79 @@ Implement a shared Python client library at `common/src/python/authorization/` t
     - Return aggregate `BatchResult` with total, succeeded, failed, and error details
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
 
-  - [ ] 4.4 Write property tests for batch operations (Properties 7, 8, 9)
+  - [x] 4.4 Write property tests for batch operations (Properties 7, 8, 9)
     - **Property 7: Batch chunking respects size limit** — verify ⌈N/100⌉ requests each with ≤100 operations
     - **Property 8: Batch chunking preserves order** — verify concatenation of chunks equals original list
     - **Property 9: Batch result aggregation** — verify aggregate totals across multi-chunk execution
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.7**
 
-  - [ ] 4.5 Implement get_user_permissions method
+  - [x] 4.5 Implement get_user_permissions method
     - Implement `get_user_permissions()` on `AuthorizationClient`
     - GET to `/users/{userId}/permissions` with optional type and relation query params
     - Return typed `UserPermissions` model
     - Retry on 503, raise on other errors
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [ ] 4.6 Implement set_resource_parents method
+  - [x] 4.6 Implement set_resource_parents method
     - Implement `set_resource_parents()` on `AuthorizationClient`
     - PUT to `/resources/{type}/{resourceId}/parents`
     - Return typed `ResourceParents` model
     - Raise `ValidationError` on 400, retry on 503, raise on other errors
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-  - [ ] 4.7 Implement health_check method
+  - [x] 4.7 Implement health_check method
     - Implement `health_check()` on `AuthorizationClient`
     - GET to `/health`
     - Return `HealthResult` on 200
     - Return `HealthResult(status="unhealthy")` on 503 (no exception)
     - _Requirements: 7.1, 7.2, 7.3_
 
-  - [ ] 4.8 Write property tests for query, parents, and retry (Properties 1, 5, 6)
+  - [x] 4.8 Write property tests for query, parents, and retry (Properties 1, 5, 6)
     - **Property 1: Request construction correctness** — verify correct method, path, and body for get_user_permissions and set_resource_parents
     - **Property 5: Retry on 503 with exponential backoff** — verify retry count and delay pattern, then ServiceUnavailableError
     - **Property 6: Immediate failure on non-retriable errors** — verify non-503 errors fail immediately for query/parents
     - **Validates: Requirements 5.1, 5.3, 5.4, 6.1, 6.4, 6.5, 8.1, 8.2, 8.4**
 
-- [ ] 5. Checkpoint - Ensure all tests pass
+- [x] 5. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Implement factory and response parsing
-  - [ ] 6.1 Implement factory function
+- [x] 6. Implement factory and response parsing
+  - [x] 6.1 Implement factory function
     - Create `common/src/python/authorization/factory.py`
     - Implement `create_authorization_client()` that resolves base URL from parameter or `AUTHORIZATION_API_URL` env var
     - Raise `ConfigurationError` if no URL resolvable
     - Instantiate `SigV4Transport` and return configured `AuthorizationClient`
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-  - [ ] 6.2 Write property tests for response model round-trip and parse errors (Properties 2, 10)
+  - [x] 6.2 Write property tests for response model round-trip and parse errors (Properties 2, 10)
     - **Property 2: Response model round-trip** — verify serialize-then-parse produces equivalent model for all response types
     - **Property 10: Malformed response raises ParseError with raw content** — verify non-conforming JSON raises ParseError with original bytes
     - **Validates: Requirements 9.2, 9.3**
 
-  - [ ] 6.3 Wire up package exports
+  - [x] 6.3 Wire up package exports
     - Update `common/src/python/authorization/__init__.py` to export public API
     - Export: `AuthorizationClient`, `create_authorization_client`, all models, all exceptions, `HttpTransport`, `HttpResponse`
     - Ensure the package is importable as `from authorization import ...`
     - _Requirements: 11.2_
 
-- [ ] 7. Integration and unit tests
-  - [ ] 7.1 Write unit tests for client instantiation and configuration
+- [x] 7. Integration and unit tests
+  - [x] 7.1 Write unit tests for client instantiation and configuration
     - Test explicit URL parameter, env var fallback, and missing URL raises ConfigurationError
     - Test default and custom max_retries/base_backoff values
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [ ] 7.2 Write unit tests for health check and logging behavior
+  - [x] 7.2 Write unit tests for health check and logging behavior
     - Test health check request construction and response parsing
     - Test 503 on health returns unhealthy result (no exception)
     - Test logging: debug for success, warning for retry, error for failures
     - _Requirements: 7.1, 7.2, 7.3, 10.1, 10.2, 10.3, 10.4, 10.5_
 
-  - [ ] 7.3 Write unit tests for SigV4Transport signing
+  - [x] 7.3 Write unit tests for SigV4Transport signing
     - Test that SigV4Transport produces valid Authorization headers
     - Use botocore test utilities or moto for credential mocking
     - _Requirements: 1.4_
 
-- [ ] 8. Final checkpoint - Ensure all tests pass
+- [x] 8. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

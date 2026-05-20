@@ -32,7 +32,12 @@ class SigV4Transport:
     subtyping — no explicit inheritance is needed.
     """
 
-    def __init__(self, base_url: str, region: str | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        region: str | None = None,
+        timeout: float = 30.0,
+    ) -> None:
         """Initialize the SigV4 transport.
 
         Args:
@@ -41,11 +46,13 @@ class SigV4Transport:
             region: AWS region for signing. If not provided, the region
                 is resolved from the botocore session (environment or
                 config file).
+            timeout: Request timeout in seconds. Defaults to 30 seconds.
         """
         self._base_url = base_url.rstrip("/")
         self._session = Session()
         self._region = region or self._session.get_config_variable("region")
         self._credentials = self._session.get_credentials()
+        self._timeout = timeout
 
     def request(
         self,
@@ -89,7 +96,7 @@ class SigV4Transport:
         )
 
         try:
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=self._timeout) as response:
                 return _Response(
                     status_code=response.status,
                     body=response.read(),

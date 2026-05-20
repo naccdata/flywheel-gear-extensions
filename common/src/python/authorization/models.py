@@ -67,17 +67,6 @@ class SetParentsRequestModel(BaseModel):
     parents: list[ParentRelationshipModel]
 
 
-class PermissionCheckRequestModel(BaseModel):
-    """Request model for checking a specific permission."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    user_id: str = Field(alias="userId")
-    relation: str
-    type: str
-    resource_id: str = Field(alias="resourceId")
-
-
 # --- Response Models ---
 
 
