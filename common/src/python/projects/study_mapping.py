@@ -47,6 +47,7 @@ from flywheel_adaptor.flywheel_proxy import (
 )
 from keys.types import DatatypeNameType
 
+from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
 
@@ -528,10 +529,23 @@ class DistributionMapper(StudyMapper):
 
 class StudyMappingVisitor(StudyVisitor):
     def __init__(
-        self, flywheel_proxy: FlywheelProxy, admin_permissions: List[AccessPermission]
+        self,
+        flywheel_proxy: FlywheelProxy,
+        admin_permissions: List[AccessPermission],
+        hierarchy_seeder: Optional[ResourceHierarchySeeder] = None,
     ) -> None:
+        """Initialize the StudyMappingVisitor.
+
+        Args:
+            flywheel_proxy: The proxy for the Flywheel instance.
+            admin_permissions: The admin access permissions.
+            hierarchy_seeder: Optional ResourceHierarchySeeder instance for
+                seeding resource parent relationships in the Authorization
+                Service. When None, hierarchy seeding is skipped.
+        """
         self.__admin_permissions = admin_permissions
         self.__fw = flywheel_proxy
+        self.__hierarchy_seeder = hierarchy_seeder
         self.__study: Optional[StudyModel] = None
         self.__aggregation_mapper: Optional[AggregationMapper] = None
         self.__distribution_mapper: Optional[DistributionMapper] = None
@@ -580,6 +594,19 @@ class StudyMappingVisitor(StudyVisitor):
 
         for center in study.centers:
             self.visit_center(center)
+
+        # Seed hierarchy for study-scoped dashboards and pages
+        if self.__hierarchy_seeder is not None:
+            self.__seed_study_dashboards_and_pages(study)
+
+        # Seed hierarchy for community-scoped pages
+        if self.__hierarchy_seeder is not None:
+            community_pages = study.get_pages_by_level("community")
+            for page_name in community_pages:
+                page_label = self.__project_label(f"page-{page_name}")
+                self.__hierarchy_seeder.seed_community_page(
+                    resource_id=page_label,
+                )
 
         # Map study-level pipelines for each mapper
         if aggregation_mapper:
@@ -644,7 +671,105 @@ class StudyMappingVisitor(StudyVisitor):
                 datatypes=self.__distribution_datatypes,
             )
 
+        # Seed hierarchy for center-scoped data pipelines
+        if self.__hierarchy_seeder is not None:
+            self.__seed_center_pipelines(center_model=center_model)
+
         center.update_project_info(portal_info)
+
+    def __seed_center_pipelines(self, center_model: StudyCenterModel) -> None:
+        """Seed hierarchy for center-scoped data pipelines.
+
+        Calls seed_center_pipeline for each pipeline project label that was
+        created by the aggregation and distribution mappers.
+
+        Args:
+            center_model: the center study model with center_id
+        """
+        assert self.__study, "study must be set"
+        assert self.__hierarchy_seeder is not None
+
+        study_id = self.__study.study_id
+        center_id = center_model.center_id
+
+        # Seed aggregation pipelines (accepted + ingest/sandbox per datatype)
+        # Only if aggregation mapper ran (not skipped for co-enrolled affiliated)
+        if self.__aggregation_mapper and not (
+            self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        ):
+            # accepted project
+            accepted_label = self.__project_label("accepted")
+            self.__hierarchy_seeder.seed_center_pipeline(
+                resource_id=accepted_label,
+                study_id=study_id,
+                center_id=center_id,
+            )
+
+            # ingest and sandbox pipelines for each aggregation datatype
+            for pipeline in ["ingest", "sandbox"]:
+                for datatype in self.__aggregation_datatypes:
+                    pipeline_label = self.__project_label(
+                        f"{pipeline}-{datatype.lower()}"
+                    )
+                    self.__hierarchy_seeder.seed_center_pipeline(
+                        resource_id=pipeline_label,
+                        study_id=study_id,
+                        center_id=center_id,
+                    )
+
+            # retrospective pipelines (if study has legacy)
+            if self.__study.has_legacy():
+                for datatype in self.__aggregation_datatypes:
+                    retro_label = self.__project_label(
+                        f"retrospective-{datatype.lower()}"
+                    )
+                    self.__hierarchy_seeder.seed_center_pipeline(
+                        resource_id=retro_label,
+                        study_id=study_id,
+                        center_id=center_id,
+                    )
+
+        # Seed distribution pipelines
+        if self.__distribution_mapper:
+            for datatype in self.__distribution_datatypes:
+                dist_label = self.__project_label(f"distribution-{datatype.lower()}")
+                self.__hierarchy_seeder.seed_center_pipeline(
+                    resource_id=dist_label,
+                    study_id=study_id,
+                    center_id=center_id,
+                )
+
+    def __seed_study_dashboards_and_pages(self, study: StudyModel) -> None:
+        """Seed hierarchy for study-scoped dashboards and pages.
+
+        Calls seed_study_dashboard for each study-level dashboard and
+        seed_study_page for each study-level page.
+
+        Args:
+            study: the study model
+        """
+        assert self.__hierarchy_seeder is not None
+
+        study_id = study.study_id
+
+        # Seed study-level dashboards
+        study_dashboards = study.get_dashboards_by_level("study")
+        for dashboard_name in study_dashboards:
+            dashboard_label = self.__project_label(f"dashboard-{dashboard_name}")
+            self.__hierarchy_seeder.seed_study_dashboard(
+                resource_id=dashboard_label,
+                study_id=study_id,
+            )
+
+        # Seed study-level pages
+        study_pages = study.get_pages_by_level("study")
+        for page_name in study_pages:
+            page_label = self.__project_label(f"page-{page_name}")
+            self.__hierarchy_seeder.seed_study_page(
+                resource_id=page_label,
+                study_id=study_id,
+            )
 
     def __handle_dashboards_and_pages(
         self, center: CenterGroup, study_info: CenterStudyMetadata
@@ -675,6 +800,15 @@ class StudyMappingVisitor(StudyVisitor):
                 self.__add_dashboard(
                     center=center, study_info=study_info, dashboard_name=dashboard_name
                 )
+                if self.__hierarchy_seeder is not None:
+                    dashboard_label = self.__project_label(
+                        f"dashboard-{dashboard_name}"
+                    )
+                    self.__hierarchy_seeder.seed_center_dashboard(
+                        resource_id=dashboard_label,
+                        study_id=self.__study.study_id,
+                        center_id=center.id,
+                    )
 
         # Handle pages by level
         # Note: Only center-level pages are created here.
@@ -687,6 +821,13 @@ class StudyMappingVisitor(StudyVisitor):
                 self.__add_page(
                     center=center, study_info=study_info, page_name=page_name
                 )
+                if self.__hierarchy_seeder is not None:
+                    page_label = self.__project_label(f"page-{page_name}")
+                    self.__hierarchy_seeder.seed_center_page(
+                        resource_id=page_label,
+                        study_id=self.__study.study_id,
+                        center_id=center.id,
+                    )
 
     def __add_dashboard(
         self,
