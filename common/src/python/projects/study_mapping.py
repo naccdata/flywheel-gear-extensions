@@ -46,6 +46,7 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 from keys.types import DatatypeNameType
+
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup

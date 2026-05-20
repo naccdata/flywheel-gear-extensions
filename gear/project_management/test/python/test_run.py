@@ -36,8 +36,9 @@ def mock_gear_context() -> MagicMock:
 def empty_project_file(tmp_path: Path) -> Path:
     """Create a minimal YAML project file that produces an empty study list.
 
-    Uses a single empty YAML document so load_all_from_stream returns [None],
-    then patches StudyModel.create to return a mock so no real parsing occurs.
+    Uses a single empty YAML document so load_all_from_stream returns
+    [None], then patches StudyModel.create to return a mock so no real
+    parsing occurs.
     """
     project_file = tmp_path / "empty-project.yaml"
     project_file.write_text("---\n{}\n")
@@ -45,7 +46,9 @@ def empty_project_file(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def visitor(mock_client_wrapper: MagicMock, empty_project_file: Path) -> ProjectCreationVisitor:
+def visitor(
+    mock_client_wrapper: MagicMock, empty_project_file: Path
+) -> ProjectCreationVisitor:
     """Create a ProjectCreationVisitor with mocked dependencies."""
     return ProjectCreationVisitor(
         admin_id="nacc",
