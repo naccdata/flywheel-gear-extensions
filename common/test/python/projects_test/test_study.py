@@ -691,6 +691,101 @@ class TestStudyModelSerialization:
         assert study.funding_organization is None
 
 
+class TestPageConfigCommunityLevel:
+    """Tests for PageConfig community level support (Task 1.2).
+
+    Requirements: 12.1, 12.2, 12.4
+    """
+
+    def test_page_config_community_level_passes_validation(self):
+        """Test that PageConfig with level='community' passes validation."""
+        config = PageConfig(name="test", level="community")
+        assert config.name == "test"
+        assert config.level == "community"
+
+    def test_page_config_center_level_passes_validation(self):
+        """Test that PageConfig with level='center' passes validation."""
+        config = PageConfig(name="center-page", level="center")
+        assert config.name == "center-page"
+        assert config.level == "center"
+
+    def test_page_config_study_level_passes_validation(self):
+        """Test that PageConfig with level='study' passes validation."""
+        config = PageConfig(name="study-page", level="study")
+        assert config.name == "study-page"
+        assert config.level == "study"
+
+    def test_page_config_defaults_to_center_level(self):
+        """Test that PageConfig defaults level to 'center' when not
+        specified."""
+        config = PageConfig(name="default-page")
+        assert config.level == "center"
+
+    def test_plain_string_pages_default_to_center_level(self):
+        """Test that plain string pages in StudyModel default to
+        level='center'."""
+        study = StudyModel.create(
+            {
+                "study": "Test Study",
+                "study-id": "test",
+                "centers": ["ac"],
+                "datatypes": [{"name": "form", "mode": "aggregation"}],
+                "pages": ["overview", "reports"],
+                "study-type": "primary",
+            }
+        )
+        assert study.pages is not None
+        assert len(study.pages) == 2
+        for page in study.pages:
+            assert isinstance(page, PageConfig)
+            assert page.level == "center"
+
+    def test_invalid_level_value_rejected(self):
+        """Test that invalid level values are rejected by PageConfig."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            PageConfig(name="bad-page", level="invalid")  # type: ignore[arg-type]
+
+    def test_invalid_level_value_rejected_via_study_model(self):
+        """Test that invalid page level values are rejected via
+        StudyModel.create."""
+        with pytest.raises(StudyError):
+            StudyModel.create(
+                {
+                    "study": "Invalid Page Level",
+                    "study-id": "invalid",
+                    "centers": ["ac"],
+                    "datatypes": [{"name": "form", "mode": "aggregation"}],
+                    "pages": [{"name": "bad-page", "level": "invalid"}],
+                    "study-type": "primary",
+                }
+            )
+
+    def test_community_page_via_dict_format(self):
+        """Test that community pages can be created via dict format in
+        StudyModel."""
+        study = StudyModel.create(
+            {
+                "study": "Community Pages Study",
+                "study-id": "community-test",
+                "centers": ["ac"],
+                "datatypes": [{"name": "form", "mode": "aggregation"}],
+                "pages": [
+                    {"name": "center-page", "level": "center"},
+                    {"name": "study-page", "level": "study"},
+                    {"name": "community-page", "level": "community"},
+                ],
+                "study-type": "primary",
+            }
+        )
+        assert study.pages is not None
+        assert len(study.pages) == 3
+        assert study.pages[0].level == "center"
+        assert study.pages[1].level == "study"
+        assert study.pages[2].level == "community"
+
+
 class TestStudyCenterModel:
     def test_validation(self):
         # valid
