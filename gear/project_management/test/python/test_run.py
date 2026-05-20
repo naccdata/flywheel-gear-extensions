@@ -33,19 +33,25 @@ def mock_gear_context() -> MagicMock:
 
 
 @pytest.fixture
-def visitor(mock_client_wrapper: MagicMock) -> ProjectCreationVisitor:
+def empty_project_file(tmp_path: Path) -> Path:
+    """Create a minimal YAML project file that produces an empty study list.
+
+    Uses a single empty YAML document so load_all_from_stream returns [None],
+    then patches StudyModel.create to return a mock so no real parsing occurs.
+    """
+    project_file = tmp_path / "empty-project.yaml"
+    project_file.write_text("---\n{}\n")
+    return project_file
+
+
+@pytest.fixture
+def visitor(mock_client_wrapper: MagicMock, empty_project_file: Path) -> ProjectCreationVisitor:
     """Create a ProjectCreationVisitor with mocked dependencies."""
     return ProjectCreationVisitor(
         admin_id="nacc",
         client=mock_client_wrapper,
-        project_filepath=Path("/fake/project.yaml"),
+        project_filepath=empty_project_file,
     )
-
-
-@pytest.fixture
-def mock_study_list() -> list:
-    """Return a mock study list."""
-    return []
 
 
 class TestRunClientCreationSuccess:
@@ -56,8 +62,10 @@ class TestRunClientCreationSuccess:
 
     @patch("project_app.run.run")
     @patch("project_app.run.create_authorization_client")
+    @patch("project_app.run.StudyModel.create", return_value=MagicMock())
     def test_successful_client_creation_passes_client_to_main_run(
         self,
+        mock_study_create: MagicMock,
         mock_create_client: MagicMock,
         mock_main_run: MagicMock,
         visitor: ProjectCreationVisitor,
@@ -67,10 +75,7 @@ class TestRunClientCreationSuccess:
         mock_auth_client = MagicMock(spec=AuthorizationClient)
         mock_create_client.return_value = mock_auth_client
 
-        with patch.object(
-            visitor, "_ProjectCreationVisitor__get_study_list", return_value=[]
-        ):
-            visitor.run(mock_gear_context)
+        visitor.run(mock_gear_context)
 
         mock_main_run.assert_called_once()
         call_kwargs = mock_main_run.call_args[1]
@@ -85,8 +90,10 @@ class TestRunClientCreationConfigurationError:
 
     @patch("project_app.run.run")
     @patch("project_app.run.create_authorization_client")
+    @patch("project_app.run.StudyModel.create", return_value=MagicMock())
     def test_configuration_error_results_in_none_client(
         self,
+        mock_study_create: MagicMock,
         mock_create_client: MagicMock,
         mock_main_run: MagicMock,
         visitor: ProjectCreationVisitor,
@@ -97,10 +104,7 @@ class TestRunClientCreationConfigurationError:
             "Missing AUTHORIZATION_API_URL"
         )
 
-        with patch.object(
-            visitor, "_ProjectCreationVisitor__get_study_list", return_value=[]
-        ):
-            visitor.run(mock_gear_context)
+        visitor.run(mock_gear_context)
 
         mock_main_run.assert_called_once()
         call_kwargs = mock_main_run.call_args[1]
@@ -108,8 +112,10 @@ class TestRunClientCreationConfigurationError:
 
     @patch("project_app.run.run")
     @patch("project_app.run.create_authorization_client")
+    @patch("project_app.run.StudyModel.create", return_value=MagicMock())
     def test_configuration_error_logs_error(
         self,
+        mock_study_create: MagicMock,
         mock_create_client: MagicMock,
         mock_main_run: MagicMock,
         visitor: ProjectCreationVisitor,
@@ -121,12 +127,7 @@ class TestRunClientCreationConfigurationError:
             "Missing AUTHORIZATION_API_URL"
         )
 
-        with (
-            patch.object(
-                visitor, "_ProjectCreationVisitor__get_study_list", return_value=[]
-            ),
-            caplog.at_level(logging.ERROR),
-        ):
+        with caplog.at_level(logging.ERROR):
             visitor.run(mock_gear_context)
 
         assert any(
@@ -148,8 +149,10 @@ class TestRunClientCreationMissingConfig:
 
     @patch("project_app.run.run")
     @patch("project_app.run.create_authorization_client")
+    @patch("project_app.run.StudyModel.create", return_value=MagicMock())
     def test_missing_config_results_in_none_client_and_error_log(
         self,
+        mock_study_create: MagicMock,
         mock_create_client: MagicMock,
         mock_main_run: MagicMock,
         visitor: ProjectCreationVisitor,
@@ -162,12 +165,7 @@ class TestRunClientCreationMissingConfig:
             "No base URL configured: AUTHORIZATION_API_URL not set"
         )
 
-        with (
-            patch.object(
-                visitor, "_ProjectCreationVisitor__get_study_list", return_value=[]
-            ),
-            caplog.at_level(logging.ERROR),
-        ):
+        with caplog.at_level(logging.ERROR):
             visitor.run(mock_gear_context)
 
         # Client should be None
