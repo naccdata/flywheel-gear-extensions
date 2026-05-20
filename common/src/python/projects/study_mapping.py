@@ -46,7 +46,6 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 from keys.types import DatatypeNameType
-
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
@@ -552,6 +551,23 @@ class StudyMappingVisitor(StudyVisitor):
         self.__aggregation_datatypes: List[str] = []
         self.__distribution_datatypes: List[str] = []
 
+    def __should_skip_aggregation(self, center_model: StudyCenterModel) -> bool:
+        """Check if aggregation should be skipped for this center.
+
+        Aggregation is skipped for co-enrolled centers in affiliated studies.
+
+        Args:
+            center_model: the center study model
+
+        Returns:
+            True if aggregation should be skipped.
+        """
+        assert self.__study, "study must be set"
+        return (
+            self.__study.study_type == "affiliated"
+            and center_model.enrollment_pattern == "co-enrollment"
+        )
+
     def visit_study(self, study: StudyModel) -> None:
         """Creates FW containers for the study.
 
@@ -595,12 +611,10 @@ class StudyMappingVisitor(StudyVisitor):
         for center in study.centers:
             self.visit_center(center)
 
-        # Seed hierarchy for study-scoped dashboards and pages
+        # Seed hierarchy for study-scoped and community-scoped resources
         if self.__hierarchy_seeder is not None:
             self.__seed_study_dashboards_and_pages(study)
 
-        # Seed hierarchy for community-scoped pages
-        if self.__hierarchy_seeder is not None:
             community_pages = study.get_pages_by_level("community")
             for page_name in community_pages:
                 page_label = self.__project_label(f"page-{page_name}")
@@ -651,9 +665,8 @@ class StudyMappingVisitor(StudyVisitor):
         self.__handle_dashboards_and_pages(center=center, study_info=study_info)
 
         # Skip aggregation for co-enrolled affiliated studies
-        if self.__aggregation_mapper and not (
-            self.__study.study_type == "affiliated"
-            and center_model.enrollment_pattern == "co-enrollment"
+        if self.__aggregation_mapper and not self.__should_skip_aggregation(
+            center_model
         ):
             self.__aggregation_mapper.map_center_pipelines(
                 center=center,
@@ -694,9 +707,8 @@ class StudyMappingVisitor(StudyVisitor):
 
         # Seed aggregation pipelines (accepted + ingest/sandbox per datatype)
         # Only if aggregation mapper ran (not skipped for co-enrolled affiliated)
-        if self.__aggregation_mapper and not (
-            self.__study.study_type == "affiliated"
-            and center_model.enrollment_pattern == "co-enrollment"
+        if self.__aggregation_mapper and not self.__should_skip_aggregation(
+            center_model
         ):
             # accepted project
             accepted_label = self.__project_label("accepted")
