@@ -15,6 +15,8 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
+from authorization import ConfigurationError, create_authorization_client
+from authorization.client import AuthorizationClient
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -88,10 +90,20 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
         Raises:
             AssertionError: If admin group ID or project list is not provided.
         """
+        authorization_client: Optional[AuthorizationClient] = None
+        try:
+            authorization_client = create_authorization_client()
+        except ConfigurationError as error:
+            log.error(
+                "Authorization client creation failed, hierarchy seeding disabled: %s",
+                error,
+            )
+
         run(
             proxy=self.proxy,
             admin_group=self.admin_group(admin_id=self.__admin_id),
             study_list=self.__get_study_list(self.__project_filepath),
+            authorization_client=authorization_client,
         )
 
 

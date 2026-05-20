@@ -3,7 +3,7 @@
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, Mapping, Optional, Self
+from typing import Any, Dict, List, Literal, Mapping, Optional, Self, get_args
 
 from pydantic import (
     AliasGenerator,
@@ -93,6 +93,11 @@ class StudyVisitor(ABC):
 
 StudyMode = Literal["aggregation", "distribution"]
 StudyType = Literal["primary", "affiliated"]
+DashboardLevel = Literal["center", "study"]
+PageLevel = Literal["center", "study", "community"]
+
+VALID_DASHBOARD_LEVELS: tuple[str, ...] = get_args(DashboardLevel)
+VALID_PAGE_LEVELS: tuple[str, ...] = get_args(PageLevel)
 
 
 class DatatypeConfig(BaseModel):
@@ -134,18 +139,20 @@ class DashboardConfig(BaseModel):
     )
 
     name: str
-    level: Literal["center", "study"] = "center"
+    level: DashboardLevel = "center"
 
 
 class PageConfig(BaseModel):
     """Configuration for a single page within a study.
 
     This model pairs a page name with its organizational level,
-    enabling pages to be created at different levels (center or study).
+    enabling pages to be created at different levels (center, study,
+    or community).
 
     Attributes:
         name: The page name
-        level: The organizational level for this page ("center" or "study")
+        level: The organizational level for this page
+            ("center", "study", or "community")
     """
 
     model_config = ConfigDict(
@@ -155,7 +162,7 @@ class PageConfig(BaseModel):
     )
 
     name: str
-    level: Literal["center", "study"] = "center"
+    level: PageLevel = "center"
 
 
 class StudyModel(BaseModel):
@@ -311,7 +318,7 @@ class StudyModel(BaseModel):
         # This is a fallback for type safety
         return []
 
-    def get_dashboards_by_level(self, level: Literal["center", "study"]) -> List[str]:
+    def get_dashboards_by_level(self, level: DashboardLevel) -> List[str]:
         """Get list of dashboards with the specified level.
 
         Args:
@@ -338,7 +345,7 @@ class StudyModel(BaseModel):
 
         return []
 
-    def get_pages_by_level(self, level: Literal["center", "study"]) -> list[str]:
+    def get_pages_by_level(self, level: PageLevel) -> list[str]:
         """Get list of pages with the specified level.
 
         Args:
@@ -644,10 +651,11 @@ class StudyModel(BaseModel):
     def _validate_page_configs(cls, configs: list[PageConfig]) -> list[PageConfig]:
         """Validate that all page configs have valid levels."""
         for config in configs:
-            if config.level not in ["center", "study"]:
+            if config.level not in VALID_PAGE_LEVELS:
                 raise ValueError(
                     f"Invalid level '{config.level}' for page "
-                    f"'{config.name}'. Level must be 'center' or 'study'"
+                    f"'{config.name}'. Level must be one of"
+                    f" {VALID_PAGE_LEVELS}"
                 )
         return configs
 
@@ -657,10 +665,10 @@ class StudyModel(BaseModel):
         configs = []
         for item in items:
             level = item.get("level", "center")
-            if level not in ["center", "study"]:
+            if level not in VALID_PAGE_LEVELS:
                 raise ValueError(
                     f"Invalid level '{level}' for page '{item['name']}'. "
-                    "Level must be 'center' or 'study'"
+                    f"Level must be one of {VALID_PAGE_LEVELS}"
                 )
             configs.append(PageConfig(name=item["name"], level=level))
         return configs
@@ -711,19 +719,21 @@ class StudyModel(BaseModel):
         # but we verify here for completeness
         dashboard_configs = self.get_dashboard_configs()
         for dashboard_config in dashboard_configs:
-            if dashboard_config.level not in ["center", "study"]:
+            if dashboard_config.level not in VALID_DASHBOARD_LEVELS:
                 raise ValueError(
                     f"Invalid level '{dashboard_config.level}' for dashboard "
-                    f"'{dashboard_config.name}'. Level must be 'center' or 'study'"
+                    f"'{dashboard_config.name}'. Level must be one of"
+                    f" {VALID_DASHBOARD_LEVELS}"
                 )
 
         # Validate all page levels are valid
         page_configs = self.get_page_configs()
         for page_config in page_configs:
-            if page_config.level not in ["center", "study"]:
+            if page_config.level not in VALID_PAGE_LEVELS:
                 raise ValueError(
                     f"Invalid level '{page_config.level}' for page "
-                    f"'{page_config.name}'. Level must be 'center' or 'study'"
+                    f"'{page_config.name}'. Level must be one of"
+                    f" {VALID_PAGE_LEVELS}"
                 )
 
         return self

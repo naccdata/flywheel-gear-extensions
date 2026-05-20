@@ -11,17 +11,40 @@ The `kiro-pants-power` automates Pants build system and devcontainer operations 
 
 The power now supports intent-based parameters for simpler usage without needing to understand Pants target syntax.
 
+## MCP Configuration
+
+The power discovers the workspace folder from the `WORKSPACE_FOLDER` environment variable, which uses Kiro's `${workspaceFolder}` variable substitution to automatically resolve to the current workspace root.
+
+The MCP config in `.kiro/settings/mcp.json` should include:
+
+```json
+{
+  "command": "uvx",
+  "args": [
+    "--from", "git+https://github.com/naccdata/kiro-pants-power",
+    "pants-devcontainer-power"
+  ],
+  "env": {
+    "WORKSPACE_FOLDER": "${workspaceFolder}"
+  }
+}
+```
+
+If task agents encounter working directory errors, verify `WORKSPACE_FOLDER` is set in the MCP config `env` object.
+
 ## Quick Reference
 
 ### Most Common Operations
 
 **Complete Quality Check** (recommended before commits):
-```
+
+```text
 Use: full_quality_check tool
 ```
 
 **Individual Steps**:
-```
+
+```text
 Use: pants_fix tool with scope="all"      # Format all code (always run first)
 Use: pants_lint tool with scope="all"     # Check linting
 Use: pants_check tool with scope="all"    # Type checking
@@ -29,7 +52,8 @@ Use: pants_test tool with scope="all"     # Run all tests
 ```
 
 **Build Packages**:
-```
+
+```text
 Use: pants_package tool with scope="all"
 Use: pants_package tool with scope="directory", path="nacc-common"
 ```
@@ -56,7 +80,8 @@ All Pants tools support these parameters:
 ### Before Committing Code
 
 Always run the complete quality check:
-```
+
+```text
 Use: full_quality_check tool
 ```
 
@@ -65,7 +90,8 @@ This runs: fix → lint → check → test in sequence and stops on first failur
 ### During Development
 
 Focus on specific areas you're changing:
-```
+
+```text
 Use: pants_test tool with scope="directory", path="common/test/python"
 Use: pants_fix tool with scope="directory", path="gear/form_qc_checker/src/python"
 ```
@@ -73,7 +99,8 @@ Use: pants_fix tool with scope="directory", path="gear/form_qc_checker/src/pytho
 ### Run Specific Tests
 
 Filter tests by name without needing to know exact file paths:
-```
+
+```text
 Use: pants_test tool with scope="all", test_filter="test_create"
 Use: pants_test tool with scope="directory", path="common/test/python", test_filter="not test_slow"
 ```
@@ -81,7 +108,8 @@ Use: pants_test tool with scope="directory", path="common/test/python", test_fil
 ### When Tests Fail
 
 Run tests for specific module to isolate issues:
-```
+
+```text
 Use: pants_test tool with scope="file", path="common/test/python/test_identifier.py"
 Use: pants_test tool with scope="directory", path="common/test/python/identifiers"
 ```
@@ -89,14 +117,16 @@ Use: pants_test tool with scope="directory", path="common/test/python/identifier
 ### When Seeing Weird Errors
 
 Clear Pants cache to resolve stale state:
-```
+
+```text
 Use: pants_clear_cache tool
 ```
 
 ### After Dependency Changes
 
 Rebuild the devcontainer:
-```
+
+```text
 Use: container_rebuild tool
 ```
 
@@ -104,7 +134,7 @@ Use: container_rebuild tool
 
 The power automatically starts the container when needed. Manual control is rarely required, but available:
 
-```
+```text
 Use: container_start tool     # Idempotent - safe to call multiple times
 Use: container_stop tool      # Stop container
 Use: container_rebuild tool   # Rebuild from scratch
@@ -113,20 +143,29 @@ Use: container_rebuild tool   # Rebuild from scratch
 ## Troubleshooting
 
 ### "Container not running" errors
+
 - Power should auto-start container
 - If it fails, check Docker Desktop is running
 - Try: container_start tool explicitly
 
 ### "Pants not found" errors
+
 - Pants needs to be installed in container
 - Run: `devcontainer exec --workspace-folder . bash get-pants.sh`
 - Or use: container_exec tool with command="bash get-pants.sh"
 
 ### Stale cache or "file not found" errors
+
 - Use: pants_clear_cache tool
 - Then retry the failing command
 
+### Working directory or path resolution errors
+
+- Verify `WORKSPACE_FOLDER` is set in the MCP config `env` object with value `"${workspaceFolder}"`
+- Reconnect the MCP server after config changes
+
 ### Test or lint failures
+
 - Review error output carefully
 - Fix reported issues
 - Use: pants_fix tool with scope="all" to auto-fix formatting
@@ -135,6 +174,7 @@ Use: container_rebuild tool   # Rebuild from scratch
 ## Manual Scripts Fallback
 
 If the power is unavailable, use scripts in `bin/`:
+
 - `./bin/start-devcontainer.sh` - Start container
 - `./bin/exec-in-devcontainer.sh <command>` - Execute command
 - `./bin/terminal.sh` - Open interactive shell
@@ -142,6 +182,5 @@ If the power is unavailable, use scripts in `bin/`:
 ## Additional Resources
 
 - Power documentation: Activate the power to see full documentation
-- Pants documentation: https://www.pantsbuild.org
-- DevContainer CLI: https://github.com/devcontainers/cli
-
+- Pants documentation: <https://www.pantsbuild.org>
+- DevContainer CLI: <https://github.com/devcontainers/cli>
