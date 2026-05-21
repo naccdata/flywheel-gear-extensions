@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.3.1
+
+* Add `freeze_date` and `etl_date` to provenance info
+
 ## 0.3.0
 
 * Add logic to conditionally handle duplicate transfers by either keeping the active row only, keeping both, or dropping both
