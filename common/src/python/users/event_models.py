@@ -59,6 +59,9 @@ class EventCategory(Enum):
     # Wrong-IdP category
     WRONG_IDP_SELECTION = "Wrong IdP Selection"
 
+    # Authorization sync category
+    AUTHORIZATION_SYNC = "Authorization Sync"
+
     def to_field_name(self) -> str:
         """Convert category to template field name (snake_case).
 
