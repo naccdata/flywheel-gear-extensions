@@ -26,13 +26,7 @@ The Authorization API enforces this model:
 
 ### Resource ID Naming Convention
 
-Resource IDs use the existing Flywheel project label scheme:
-
-- `data_pipeline`: `{stage}-{datatype}{suffix}` — e.g., `ingest-form`, `ingest-form-dvcid`, `distribution-data-freeze`
-- `dashboard`: `{name}{suffix}` — e.g., `adrc-reports`, `payment-tracker-clariti`
-- `page`: `{name}{suffix}` — e.g., `community-resources`, `quick-access-link-generator`
-
-Where `suffix` is empty for the primary study (adrc) and `-{study_id}` for affiliated studies.
+Resource IDs follow the existing Flywheel project label naming convention (see References: project naming). The translator resolves resource IDs from study context using that convention.
 
 ### Gear's Current Authorization Model
 
@@ -57,7 +51,7 @@ The gear processes `DirectoryAuthorizations` from the NACC Directory (REDCap) an
 | `view`         | `DashboardResource` | `dashboard`     | `viewer`          |
 | `view`         | `PageResource`      | `page`          | `viewer`          |
 
-`submitter` and `viewer` are independent relations in the OpenFGA schema — `submitter` does NOT imply `viewer`. The gear must grant both `submitter` and `viewer` when the user has `submit-audit`. When downgrading from `submit-audit` to `view`, the diff logic revokes `submitter` and keeps `viewer`.
+`submitter` and `viewer` are independent relations in the OpenFGA schema — `submitter` does NOT imply `viewer`. The invariant is: a user with `submit-audit` on a resource always holds both `submitter` and `viewer` relations; a user with only `view` holds only `viewer`.
 
 ### Sync Model
 
@@ -75,21 +69,18 @@ The 100-operation batch limit is not a concern for a single user (typical max ~3
 
 A module that translates the gear's authorization vocabulary to the API's vocabulary:
 
-- Maps `Activity` (action + resource) to `(type, relation)` pairs using a simple module-level constant (no external config file — the mapping is small and well-defined)
-- Resolves resource IDs from study context (study_id, center group ID, datatype, etc.)
+- Maps `Activity` (action + resource) to `(type, relation)` pairs; the mapping should be co-located with the translator (a module-level constant is the expected starting point)
+- Resolves resource IDs from study context (study_id, center group ID, datatype, etc.) using the project naming convention
 - Receives the already-resolved center group ID from the caller (does not perform adcid → group ID lookup itself)
-- Handles the suffix logic (primary study = no suffix, affiliated = `-{study_id}`)
 - Determines resource scope (center-scoped, study-scoped, general)
 
 ### 2. Authorization Sync Process
 
-A process that, given a user (identified by `registry_id`) and their authorizations:
+A process that, given a user (identified by `registry_id`) and their authorizations, synchronizes the user's grants in the Authorization API to match their computed authorizations:
 
-1. Translates the user's activities to the set of grants they should have
-2. Queries the Authorization API for the user's current grants (via the client library)
-3. Computes the diff (grants to add, grants to revoke)
-4. Applies the diff via batch operations (via the client library)
-5. Retries on transient failures (503); logs errors if retries are exhausted but does not block Flywheel processing
+- Translates the user's activities to the set of grants they should have
+- Ensures the user's actual grants in the Authorization API match the desired set (adding missing grants, revoking stale ones) via the client library
+- Retries on transient failures (503); logs errors if retries are exhausted but does not block Flywheel processing
 
 ### 3. Integration with User Management Gear
 
@@ -98,7 +89,6 @@ Add the authorization sync as a step in the user processing pipeline:
 - After the gear computes what a user should have (existing logic unchanged)
 - Call the authorization sync process with the user's `registry_id` and translated grants
 - The existing Flywheel role assignment continues unchanged (parallel output)
-- Auth service sync retries on transient failures; if retries are exhausted, log the failure (the Portal depends on this data being current) but do not block Flywheel processing
 - Failed syncs should be reported via the existing `UserEventCollector` pattern so operators have visibility
 
 ## Design Considerations
@@ -109,6 +99,20 @@ Add the authorization sync as a step in the user processing pipeline:
 - The user ID in the Authorization API is the `registry_id` (ePPN from CILogon), passed as-is
 - The center group ID (string) is passed to the translator by the caller — no adcid resolution needed in this layer
 - No rate limiting concerns at current scale (hundreds of users, nightly runs, sequential batch calls)
+
+### Suggested Sync Approach
+
+The API is grant/revoke based (no "replace all" endpoint), so the expected approach is:
+
+1. Query current grants via `GET /users/{userId}/permissions`
+2. Compute the diff against desired state
+3. Apply adds/revokes via `POST /grants/batch`
+
+The 100-operation batch limit is not a concern for a single user (typical max ~30-50 grants). If it ever exceeds 100, the client chunks into multiple batch calls.
+
+### Fault Isolation
+
+Auth service sync failures must not block Flywheel processing. The Portal depends on authorization data being current, so failures should be logged prominently and reported via `UserEventCollector`, but the gear run should continue.
 
 ## Dependencies
 
