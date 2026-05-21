@@ -1,6 +1,6 @@
 """Pydantic request and response models for the Authorization API."""
 
-from typing import Literal
+from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -143,6 +143,32 @@ class UserPermissions(BaseModel):
 
     user_id: str = Field(alias="userId")
     permissions: dict[str, list[PermissionEntry]]
+
+    def to_grants(self, factory: "Callable[[str, str, str, str], Any]") -> set:
+        """Convert permissions to a set of grant objects via a factory.
+
+        Iterates over all permission entries and calls the factory for
+        each, passing (user_id, resource_type, resource_id, relation).
+
+        Args:
+            factory: Callable that creates a hashable grant object from
+                the four identifying fields.
+
+        Returns:
+            Set of grant objects produced by the factory.
+        """
+        grants: set = set()
+        for resource_type, entries in self.permissions.items():
+            for entry in entries:
+                grants.add(
+                    factory(
+                        self.user_id,
+                        resource_type,
+                        entry.resource_id,
+                        entry.relation,
+                    )
+                )
+        return grants
 
 
 class ParentRelationship(BaseModel):
