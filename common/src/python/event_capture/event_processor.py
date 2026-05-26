@@ -307,6 +307,10 @@ class QCEventProcessor:
         Returns:
             QCEventData if extraction successful, None otherwise
         """
+        # Reload file to ensure .info metadata is populated
+        # (files.find() returns FileOutput objects without full metadata)
+        json_file = json_file.reload()
+
         # Extract visit metadata from JSON file (includes packet)
         # Note: DataIdentificationExtractor is imported from
         # event_capture.visit_extractor
