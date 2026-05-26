@@ -46,7 +46,7 @@ def upload_to_flywheel(
         df = df.drop(labels=extra_fields, axis=1, errors="ignore")
 
     try:
-        csv_contents = df.to_csv(index=False, doublequote=False)
+        csv_contents = df.to_csv(index=False)
     except (TypeError, ValueError) as error:
         raise GearExecutionError(
             f"Problem occurred while generating CSV file: {error}"
