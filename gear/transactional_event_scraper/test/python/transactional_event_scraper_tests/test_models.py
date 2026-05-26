@@ -86,7 +86,9 @@ def test_config_get_date_range():
     date_range = config.get_date_range()
     assert date_range is not None
     assert date_range.start_date is None
-    assert date_range.end_date == datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    assert date_range.end_date == datetime(
+        2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc
+    )
 
     # Test with both dates
     config = TransactionalEventScraperConfig(
@@ -95,4 +97,6 @@ def test_config_get_date_range():
     date_range = config.get_date_range()
     assert date_range is not None
     assert date_range.start_date == datetime(2024, 1, 1, tzinfo=timezone.utc)
-    assert date_range.end_date == datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    assert date_range.end_date == datetime(
+        2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc
+    )
