@@ -99,6 +99,7 @@ class DataIdentificationExtractor:
 
         Args:
             forms_json: Dictionary with forms metadata (ptid, visitdate, module, etc.)
+                May contain the full form data payload or just metadata fields.
 
         Returns:
             DataIdentification instance or None if required fields are missing/invalid
@@ -107,15 +108,33 @@ class DataIdentificationExtractor:
             return None
 
         # Check for required fields before attempting to create DataIdentification
-        if not forms_json.get("module"):
+        module = forms_json.get("module")
+        if not module:
             return None
 
         try:
-            # Map visitdate to date for from_visit_metadata
-            # forms.json uses normalized field names after upload processing
-            mapped_data = {**forms_json}
-            if "visitdate" in mapped_data:
-                mapped_data["date"] = mapped_data.pop("visitdate")
+            # Extract only the fields relevant to DataIdentification.
+            # forms.json may contain the full form data (hundreds of fields),
+            # so we must select only the keys that from_visit_metadata accepts.
+            relevant_keys = {
+                "adcid",
+                "ptid",
+                "naccid",
+                "visitnum",
+                "module",
+                "packet",
+                "modality",
+            }
+            mapped_data = {k: forms_json[k] for k in relevant_keys if k in forms_json}
+
+            # Resolve the date field based on module.
+            # NP module uses npformdate; all others use visitdate.
+            # Fall back to visitdate if module-specific field is not present.
+            date_field = "npformdate" if module.upper() == "NP" else "visitdate"
+            date_value = forms_json.get(date_field) or forms_json.get("visitdate")
+            if date_value:
+                mapped_data["date"] = date_value
+
             return DataIdentification.from_visit_metadata(**mapped_data)
         except (ValidationError, ValueError, TypeError):
             return None
