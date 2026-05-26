@@ -2,9 +2,18 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.0.5
 
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+* Fixed timezone-aware datetime comparison in date range filtering (Flywheel SDK returns UTC-aware timestamps)
+* Fixed `from_forms_json` to extract only relevant keys from form data payload (was passing hundreds of form fields as kwargs)
+* Added legacy filename fallback when looking up QC status logs (tries with visitnum first, then without)
+* Added NP module date field support (`npformdate` instead of `visitdate`)
+* Date field resolution falls back to `visitdate` when module-specific field is not present
+* Improved error logging: `_extract_from_filename` now raises instead of swallowing errors, caller logs the reason
+* Added warning-level logging in Phase 2 when metadata extraction or QC log lookup fails
+* Reload JSON files before accessing `.info` metadata (files.find() returns incomplete objects)
+* Removed `debug` config option from manifest
 
 ## 1.0.0
 
