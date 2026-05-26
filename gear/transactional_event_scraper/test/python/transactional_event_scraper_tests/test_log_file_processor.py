@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+import pytest
 from event_capture.log_file_processor import (
     _extract_from_filename,
     extract_event_from_log,
@@ -45,7 +46,7 @@ class TestExtractFromFilename:
         assert metadata.module == "LBD"
 
     def test_extract_from_filename_invalid_pattern(self):
-        """Test extraction returns None for invalid filename pattern."""
+        """Test extraction raises TypeError for invalid filename pattern."""
         invalid_filenames = [
             "not-a-qc-log.txt",
             "110001_2024-01-15_qc-status.log",  # Missing module
@@ -56,8 +57,8 @@ class TestExtractFromFilename:
         ]
 
         for filename in invalid_filenames:
-            metadata = _extract_from_filename(filename)
-            assert metadata is None, f"Should return None for: {filename}"
+            with pytest.raises((TypeError, ValueError)):
+                _extract_from_filename(filename)
 
     def test_extract_from_filename_max_ptid_length(self):
         """Test extraction with maximum PTID length (10 chars)."""
@@ -68,11 +69,11 @@ class TestExtractFromFilename:
         assert metadata.ptid == "1234567890"
 
     def test_extract_from_filename_ptid_too_long(self):
-        """Test extraction fails when PTID exceeds 10 characters."""
+        """Test extraction raises TypeError when PTID exceeds 10 characters."""
         filename = "12345678901_2024-04-15_UDS_qc-status.log"
-        metadata = _extract_from_filename(filename)
 
-        assert metadata is None
+        with pytest.raises(TypeError):
+            _extract_from_filename(filename)
 
 
 class TestExtractEventFromLog:
