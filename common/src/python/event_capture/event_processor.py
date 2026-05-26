@@ -307,12 +307,21 @@ class QCEventProcessor:
         # event_capture.visit_extractor
         visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
         if not visit_metadata:
+            info_keys = list(json_file.info.keys()) if json_file.info else None
+            log.warning(
+                f"No forms.json metadata found for {json_file.name} "
+                f"(info keys: {info_keys})"
+            )
             return None
 
         # Find corresponding QC status log
         qc_log_file = self._find_qc_status_for_json_file(json_file)
         if not qc_log_file:
-            log.debug(f"No QC status log found for {json_file.name}")
+            log.warning(
+                f"No QC status log found for {json_file.name} "
+                f"(ptid={visit_metadata.ptid}, date={visit_metadata.date}, "
+                f"module={visit_metadata.module})"
+            )
             return None
 
         # Extract QC status
@@ -332,7 +341,8 @@ class QCEventProcessor:
 
         Uses the ErrorLogTemplate to generate the expected QC log filename
         based on the JSON file's metadata, then looks up that file in the
-        project.
+        project. Tries the current format first (with visitnum), then falls
+        back to legacy format (without visitnum).
 
         Args:
             json_file: The form JSON file to find QC log for
@@ -345,12 +355,21 @@ class QCEventProcessor:
         if not data_id:
             return None
 
-        # Generate expected QC log filename
+        # Try current format first (with visitnum)
         qc_log_name = self._error_log_template.instantiate(data_id)
+        if qc_log_name:
+            try:
+                result = self._project.get_file(qc_log_name)
+                if result:
+                    return result
+            except Exception:
+                pass
+
+        # Fall back to legacy format (without visitnum)
+        qc_log_name = self._error_log_template.instantiate_legacy(data_id)
         if not qc_log_name:
             return None
 
-        # Look up in project files
         try:
             return self._project.get_file(qc_log_name)
         except Exception:
