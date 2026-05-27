@@ -2,8 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.0.5
+## 1.1.0
 
+* Push unmatched submit events in Phase 3 instead of only warning — mirrors live pipeline where submit events are independent of JSON file availability
+* Remove date filter from Phase 2 JSON file processing — date range now only controls which submissions are scraped, maximizing QC event matching
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 * Fixed timezone-aware datetime comparison in date range filtering (Flywheel SDK returns UTC-aware timestamps)
 * Fixed `from_forms_json` to extract only relevant keys from form data payload (was passing hundreds of form fields as kwargs)
