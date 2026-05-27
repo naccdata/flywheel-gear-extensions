@@ -232,13 +232,13 @@ class QCEventProcessor:
         a matching submit event, and either enriches and captures the
         matched events or logs a warning about the unmatched QC event.
 
+        No date filter is applied here — Phase 2 processes all JSON files
+        to maximize matching with submit events from Phase 1. The date
+        filter controls scope via Phase 1 (QC log discovery) only.
+
         Args:
             json_file: The form JSON file to process
         """
-        # Apply date filter
-        if self._date_filter and not self._date_filter.includes_file(json_file.created):
-            log.debug(f"Skipping {json_file.name} - outside date range")
-            return
 
         # Extract QC event data
         qc_event_data = self._extract_qc_event_data(json_file)
