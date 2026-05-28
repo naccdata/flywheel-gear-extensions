@@ -2,11 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 0.3.0
 
-* Adds notification to REDCap email list on pipeline completion
-* Moves `generate_project_map` to common code
+* Adds optional configuration file `redcap_email_configs` to notify a REDCap email list on pipeline completion
+* Updates to output any dropped rows into a `dropped-rows.csv` file
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+* Moves `generate_project_map` to common code
 
 ## 0.2.3
 

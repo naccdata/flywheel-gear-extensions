@@ -13,10 +13,11 @@
             "modules": [
                 "FTLD",
                 "LBD",
-                "MLST",
-                "BDS",
+                "DS",
                 "CLS",
                 "NP",
+                "MLST",
+                "BDS",
                 "UDS"
             ],
             "tags": [
@@ -40,8 +41,7 @@
                 ],
                 "configs": {
                     "apikey_path_prefix": "/sandbox/flywheel/gearbot",
-                    "database_mode": "dev",
-                    "sender_email": "nacchelp@uw.edu"
+                    "database_mode": "dev"
                 }
             },
             "notify_user": true,
@@ -53,9 +53,10 @@
                 "UDS",
                 "FTLD",
                 "LBD",
-                "MLST",
+                "DS",
                 "BDS",
                 "CLS",
+                "MLST",
                 "NP"
             ],
             "tags": [
@@ -91,9 +92,10 @@
                 "UDS",
                 "FTLD",
                 "LBD",
-                "MLST",
+                "DS",
                 "BDS",
                 "CLS",
+                "MLST",
                 "NP"
             ],
             "tags": [

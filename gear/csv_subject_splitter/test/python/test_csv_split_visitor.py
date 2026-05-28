@@ -170,6 +170,8 @@ class TestCSVSplitVisitor:
             file_id="123456789",
             file_name="dummy_file.csv",
             flywheel_path="fw://dummy-container/dummy_file.csv",
+            created_date="2025-12-03T20:03:35.752000+00:00",
+            modified_date="2025-12-05T20:03:35.752000+00:00",
         )
 
         visitor = CSVSplitVisitor(

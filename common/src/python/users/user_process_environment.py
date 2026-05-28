@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Literal, Optional
 
+from authorization_sync.sync_service import AuthorizationSyncService
 from centers.nacc_group import NACCGroup
 from flywheel import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -153,6 +154,7 @@ class UserProcessEnvironment:
         notification_client: NotificationClient,
         domain_config: DomainRelationshipConfig | None = None,
         idp_config: IdPDomainConfig | None = None,
+        authorization_sync: Optional[AuthorizationSyncService] = None,
     ) -> None:
         self.__admin_group = admin_group
         self.__authorization_map = authorization_map
@@ -161,6 +163,7 @@ class UserProcessEnvironment:
         self.__notification_client = notification_client
         self.__domain_config = domain_config
         self.__idp_config = idp_config
+        self.__authorization_sync = authorization_sync
 
     @property
     def admin_group(self) -> NACCGroup:
@@ -189,6 +192,10 @@ class UserProcessEnvironment:
     @property
     def idp_config(self) -> IdPDomainConfig | None:
         return self.__idp_config
+
+    @property
+    def authorization_sync(self) -> Optional[AuthorizationSyncService]:
+        return self.__authorization_sync
 
     def add_user(self, user: User) -> str:
         return self.proxy.add_user(user)

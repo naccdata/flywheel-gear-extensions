@@ -7,17 +7,19 @@ from deletions.models import DeleteRequest
 from form_deletion_app.helpers import AcquisitionRemover
 
 # Expected labels derived from delete_request + uds_module_configs templates
-SESSION_LABEL = "UDS-2024-01-15-1"
+SESSION_LABEL = "FORMS-VISIT-1"
 ACQ_LABEL = "UDS"
 SUBJECT_LABEL = "NACC123456"
-FILENAME = f"{SUBJECT_LABEL}-{SESSION_LABEL}-{ACQ_LABEL}.json"
+FILENAME = f"{SUBJECT_LABEL}_{SESSION_LABEL}_{ACQ_LABEL}.json"
 
 PROJECT_GROUP = "nacc"
 PROJECT_LABEL = "ingest-form-nacc"
+PROJECT_ID = "project-id-123"
 
 
 def make_remover(
     proxy,
+    project_id,
     form_configs,
     uds_module_configs,
     deleted_items,
@@ -27,6 +29,7 @@ def make_remover(
 ):
     return AcquisitionRemover(
         proxy=proxy,
+        primary_project_id=project_id,
         module="UDS",
         naccid=naccid,
         form_configs=form_configs,
@@ -64,6 +67,7 @@ def make_mock_hierarchy(acq_file=None, empty_session_after_delete=True):
 
     mock_session = MagicMock()
     mock_session.id = "session-id-123"
+    mock_session.label = SESSION_LABEL
     mock_session.acquisitions.find_first.return_value = mock_acquisition
     mock_session.reload.return_value = mock_session
     mock_session.acquisitions.return_value = (
@@ -99,7 +103,12 @@ class TestCleanupAcquisitions:
         """No subjects for the NACCID → success with nothing deleted."""
         proxy = make_mock_proxy(subjects=[])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         assert remover.cleanup_acquisitions()
         proxy.delete_acquisition.assert_not_called()
@@ -117,7 +126,12 @@ class TestCleanupAcquisitions:
         proxy = make_mock_proxy(subjects=[mock_subject], project=irrelevant_project)
 
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         assert remover.cleanup_acquisitions()
         proxy.delete_acquisition.assert_not_called()
@@ -134,7 +148,12 @@ class TestCleanupAcquisitions:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         assert remover.cleanup_acquisitions()
         proxy.delete_acquisition.assert_not_called()
@@ -149,7 +168,12 @@ class TestCleanupAcquisitions:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         assert remover.cleanup_acquisitions()
         proxy.delete_acquisition.assert_not_called()
@@ -165,7 +189,12 @@ class TestCleanupAcquisitions:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         assert remover.cleanup_acquisitions()
         proxy.delete_acquisition.assert_not_called()
@@ -181,7 +210,12 @@ class TestCleanupAcquisitions:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         result = remover.cleanup_acquisitions()
 
@@ -202,7 +236,12 @@ class TestCleanupAcquisitions:
         proxy.delete_acquisition.return_value = False
 
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         assert not remover.cleanup_acquisitions()
         assert not deleted_items.acquisitions
@@ -218,7 +257,12 @@ class TestCleanupAcquisitions:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         result = remover.cleanup_acquisitions()
 
@@ -243,7 +287,12 @@ class TestCleanupAcquisitions:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         result = remover.cleanup_acquisitions()
 
@@ -260,7 +309,12 @@ class TestCleanupAcquisitions:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         result = remover.cleanup_acquisitions()
 
@@ -283,6 +337,7 @@ class TestCleanupAcquisitions:
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
             proxy,
+            PROJECT_ID,
             form_configs,
             uds_module_configs,
             deleted_items,
@@ -329,6 +384,7 @@ class TestCleanupAcquisitions:
         dependent_modules = ["TFP"]
         remover = make_remover(
             proxy,
+            PROJECT_ID,
             form_configs_with_dep,
             uds_module_configs,
             deleted_items,
@@ -357,6 +413,7 @@ class TestCleanupAcquisitions:
         # Pass a dependent module "UNKNOWN" that has no entry in form_configs
         remover = make_remover(
             proxy,
+            PROJECT_ID,
             form_configs,
             uds_module_configs,
             deleted_items,
@@ -391,7 +448,12 @@ class TestCompareVisitDetails:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         return remover.cleanup_acquisitions(), proxy
 
@@ -410,7 +472,12 @@ class TestCompareVisitDetails:
 
         proxy = make_mock_proxy(subjects=[mock_subject])
         remover = make_remover(
-            proxy, form_configs, uds_module_configs, deleted_items, delete_request
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
         )
         result = remover.cleanup_acquisitions()
 

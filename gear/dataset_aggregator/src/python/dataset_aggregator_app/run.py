@@ -14,8 +14,8 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
 )
-from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from pydantic import ValidationError
 from storage.dataset import (
@@ -24,6 +24,9 @@ from storage.dataset import (
     ParquetAggregateDataset,
 )
 
+from dataset_aggregator_app.duplicates_handler import (
+    DuplicatesHandler,
+)
 from dataset_aggregator_app.main import run
 
 log = logging.getLogger(__name__)
@@ -35,14 +38,16 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
     def __init__(
         self,
         client: ClientWrapper,
+        duplicates_handler: DuplicatesHandler,
         target_project: str,
         output_uri: str,
-        identifiers_mode: IdentifiersMode,
+        freeze_date: Optional[str] = None,
     ):
         super().__init__(client=client)
+        self.__duplicates_handler = duplicates_handler
         self.__target_project = target_project
         self.__output_uri = output_uri
-        self.__identifiers_mode = identifiers_mode
+        self.__freeze_date = freeze_date
 
     @classmethod
     def create(
@@ -72,15 +77,25 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         if not output_uri:
             raise GearExecutionError("output_uri required")
 
-        identifiers_mode = options.get("identifiers_mode", "prod")
-        if identifiers_mode not in ["dev", "prod"]:
-            raise GearExecutionError(f"invalid identifiers mode: {identifiers_mode}")
+        duplicates_criteria_json = InputFileWrapper.create(
+            input_name="duplicates_criteria_json", context=context
+        )
+
+        if options.get("debug", False):
+            logging.basicConfig(level=logging.DEBUG)
+
+        duplicates_handler = DuplicatesHandler(
+            identifiers_mode=options.get("identifiers_mode", "prod"),
+            output_dir=context.output_dir,
+            duplicates_criteria_json=duplicates_criteria_json,
+        )
 
         return DatasetAggregatorVisitor(
             client=client,
+            duplicates_handler=duplicates_handler,
             target_project=target_project,
             output_uri=output_uri.rstrip("/"),
-            identifiers_mode=identifiers_mode,
+            freeze_date=options.get("freeze_date", None),
         )
 
     def __group_datasets(self, center_ids: List[str]) -> AggregateDataset:
@@ -147,24 +162,42 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         )
 
     def run(self, context: GearContext) -> None:
+        """Run the dataset aggregator."""
+        now = datetime.now()
+        etl_date = now.strftime("%Y%m%d-%H%M%S")
+        if not self.__freeze_date:
+            self.__freeze_date = now.strftime("%Y%m%d")
+
+        # make sure freeze date is correct format
+        try:
+            datetime.strptime(self.__freeze_date, "%Y%m%d")
+        except (ValueError, TypeError) as e:
+            raise GearExecutionError(
+                f"freeze_date must be in YYYYMMDD format: {e}"
+            ) from e
+
         aggregate = self.__group_datasets(self.get_center_ids(context))
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
         # write provenance information to file
         provenance_file = Path(context.work_dir) / "provenance.json"
         with provenance_file.open("w") as fh:
             provenance = self.get_provenance(context)
-            provenance["latest_datasets"] = aggregate.latest_versions
-
+            provenance["dataset_aggregator"] = {
+                "freeze_date": self.__freeze_date,
+                "etl_date": etl_date,
+                "latest_versions": aggregate.latest_versions,
+            }
             json.dump(provenance, fh, indent=4)
 
         run(
             context=context,
             aggregate=aggregate,
-            output_uri=f"{self.__output_uri}/{timestamp}",
-            identifiers_mode=self.__identifiers_mode,
+            output_uri=self.__output_uri,
+            duplicates_handler=self.__duplicates_handler,
             provenance_file=provenance_file,
             dry_run=self.client.dry_run,
+            etl_date=etl_date,
+            freeze_date=self.__freeze_date,
         )
 
 

@@ -82,9 +82,11 @@ def uds_module_configs():
         versions=["3"],
         date_field="visitdate",
         hierarchy_labels=UploadTemplateInfo(
-            session=LabelTemplate(template="$module-$visitdate-$visitnum"),
+            session=LabelTemplate(template="FORMS-VISIT-$visitnum"),
             acquisition=LabelTemplate(template="$module"),
-            filename=LabelTemplate(template="$subject-$session-$acquisition.json"),
+            filename=LabelTemplate(
+                template="${subject}_${session}_${acquisition}.json"
+            ),
         ),
         required_fields=["ptid", "visitdate"],
         longitudinal=True,
@@ -102,7 +104,9 @@ def tfp_module_configs():
         hierarchy_labels=UploadTemplateInfo(
             session=LabelTemplate(template="$module-$tfpdate-$visitnum"),
             acquisition=LabelTemplate(template="$module"),
-            filename=LabelTemplate(template="$subject-$session-$acquisition.json"),
+            filename=LabelTemplate(
+                template="${subject}_${session}_${acquisition}.json"
+            ),
         ),
         required_fields=[],
         supplement_module=SupplementModuleConfigs(
@@ -112,11 +116,67 @@ def tfp_module_configs():
 
 
 @pytest.fixture
+def np_module_configs():
+    return ModuleConfigs(
+        initial_packets=[],
+        followup_packets=[],
+        versions=["11"],
+        date_field="npformdate",
+        hierarchy_labels=UploadTemplateInfo(
+            session=LabelTemplate(template="NP-RECORD-$npformdate"),
+            acquisition=LabelTemplate(template="$module"),
+            filename=LabelTemplate(
+                template="${subject}_${session}_${acquisition}.json"
+            ),
+        ),
+        required_fields=["ptid", "npformdate"],
+        longitudinal=False,
+        preprocess_checks=["clinical-forms"],
+    )
+
+
+@pytest.fixture
+def mlst_module_configs():
+    return ModuleConfigs(
+        initial_packets=["M"],
+        followup_packets=[],
+        versions=["3"],
+        date_field="visitdate",
+        hierarchy_labels=UploadTemplateInfo(
+            session=LabelTemplate(template="MILESTONE-$visitdate"),
+            acquisition=LabelTemplate(template="$module"),
+            filename=LabelTemplate(
+                template="${subject}_${session}_${acquisition}.json"
+            ),
+        ),
+        required_fields=["ptid", "visitdate"],
+        longitudinal=False,
+        preprocess_checks=["clinical-forms"],
+    )
+
+
+@pytest.fixture
 def form_configs(uds_module_configs):
     return FormProjectConfigs(
         primary_key="ptid",
         accepted_modules=["UDS"],
         module_configs={"UDS": uds_module_configs},
+    )
+
+
+@pytest.fixture
+def form_configs_with_np_mlst(
+    uds_module_configs, np_module_configs, mlst_module_configs
+):
+    """FormProjectConfigs with UDS, NP, and MLST modules."""
+    return FormProjectConfigs(
+        primary_key="ptid",
+        accepted_modules=["UDS", "NP", "MLST"],
+        module_configs={
+            "UDS": uds_module_configs,
+            "NP": np_module_configs,
+            "MLST": mlst_module_configs,
+        },
     )
 
 
@@ -137,7 +197,7 @@ def request_time():
 
 @pytest.fixture
 def error_log_name():
-    return "NACC123456-UDS-2024-01-15-1.json"
+    return "adrc1010_2024-01-15_1_uds_qc-status.json"
 
 
 @pytest.fixture

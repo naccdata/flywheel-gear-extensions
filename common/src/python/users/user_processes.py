@@ -608,11 +608,21 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
             authorization.study_id: authorization
             for authorization in entry.study_authorizations
         }
+
+        registry_id = entry.registry_id
+        if not registry_id:
+            log.error(
+                "Cannot update center user without registry_id: %s",
+                entry.email,
+            )
+            return
+
         self.__authorize_user(
             user=entry.fw_user,
             auth_email=registry_address.mail,
             center_id=entry.adcid,
             authorizations=authorizations,
+            registry_id=registry_id,
         )
 
     def __authorize_user(
@@ -622,6 +632,7 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
         auth_email: str,
         center_id: int,
         authorizations: dict[str, StudyAuthorizations],
+        registry_id: str,
     ) -> None:
         """Adds authorizations to the user.
 
@@ -632,6 +643,7 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
         auth_email: the email used in the registry
         center_id: the center of the user
         authorizations: list of authorizations
+        registry_id: the user's registry ID (ePPN)
         """
         center_group = self.__env.admin_group.get_center(center_id)
         if not center_group:
@@ -654,6 +666,30 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
         )
         portal_info = center_group.get_project_info()
         portal_info.apply(visitor)
+
+        # Sync authorizations to the Authorization API (if available)
+        sync_service = self.__env.authorization_sync
+        if sync_service is not None:
+            center_group_id = center_group.label
+            for study_auth in authorizations.values():
+                try:
+                    sync_service.sync_user(
+                        registry_id=registry_id,
+                        authorizations=study_auth,
+                        center_group_id=center_group_id,
+                    )
+                except Exception as error:
+                    # Safety net for programming errors (e.g., TypeError,
+                    # KeyError). Expected API failures are handled inside
+                    # sync_user via the event collector and do not propagate.
+                    log.error(
+                        "Authorization sync failed for user %s, study %s: %s",
+                        registry_id,
+                        study_auth.study_id,
+                        error,
+                    )
+                    # Fault isolation: sync failure must not affect
+                    # Flywheel role assignment
 
     def execute(self, queue: UserQueue[CenterUserEntry]) -> None:
         log.info("**Processing center users")
@@ -701,12 +737,14 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
             )
             return
 
-        fw_user = self.__env.find_user(entry.registry_id)
+        registry_id = entry.registry_id
+
+        fw_user = self.__env.find_user(registry_id)
         if not fw_user:
             log.error(
                 "Expected user %s with ID %s in Flywheel not found",
                 entry.email,
-                entry.registry_id,
+                registry_id,
             )
             return
 
@@ -714,7 +752,10 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
         entry.set_fw_user(fw_user)
 
         self.__authorize_user(
-            user=fw_user, email=entry.email, authorizations=entry.authorizations
+            user=fw_user,
+            email=entry.email,
+            authorizations=entry.authorizations,
+            registry_id=registry_id,
         )
         self.__update_email(user=fw_user, email=entry.email)
 
@@ -722,48 +763,76 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
             self.__center_queue.enqueue(entry)
 
     def __authorize_user(
-        self, *, user: User, email: str, authorizations: Authorizations
+        self,
+        *,
+        user: User,
+        email: str,
+        authorizations: Authorizations,
+        registry_id: str,
     ) -> None:
         """Applies authorizations to give access to general resources.
 
         Processes general authorizations (not tied to specific centers) by creating
         a GeneralAuthorizationVisitor and dispatching page resource activities to it.
+        After the visitor completes, invokes the authorization sync service (if
+        available) to synchronize grants with the Authorization API.
 
         Args:
             user: The Flywheel user to authorize
             email: The user's email address
             authorizations: The general authorizations containing activities
+            registry_id: The user's registry ID (ePPN) for authorization sync
         """
-        # Check if authorizations have any activities
-        if not authorizations.activities:
+        # Apply Flywheel role assignment via GeneralAuthorizationVisitor
+        if authorizations.activities:
+            try:
+                # Retrieve admin_group from environment
+                admin_group = self.__env.admin_group
+
+                # Create GeneralAuthorizationVisitor
+                visitor = GeneralAuthorizationVisitor(
+                    user=user,
+                    authorizations=authorizations,
+                    auth_map=self.__env.authorization_map,
+                    nacc_group=admin_group,
+                    collector=self.collector,
+                )
+
+                # Iterate through activities and process page resources
+                for activity in authorizations.activities.values():
+                    if isinstance(activity.resource, PageResource):
+                        visitor.visit_page_resource(activity.resource)
+            except Exception as error:
+                # Catch unexpected exceptions, log error, don't propagate
+                log.error(
+                    "Unexpected error during general authorization for user %s: %s",
+                    user.id,
+                    str(error),
+                    exc_info=True,
+                )
+        else:
             log.info("No general authorizations for user %s", user.id)
-            return
 
-        try:
-            # Retrieve admin_group from environment
-            admin_group = self.__env.admin_group
-
-            # Create GeneralAuthorizationVisitor
-            visitor = GeneralAuthorizationVisitor(
-                user=user,
-                authorizations=authorizations,
-                auth_map=self.__env.authorization_map,
-                nacc_group=admin_group,
-                collector=self.collector,
-            )
-
-            # Iterate through activities and process page resources
-            for activity in authorizations.activities.values():
-                if isinstance(activity.resource, PageResource):
-                    visitor.visit_page_resource(activity.resource)
-        except Exception as error:
-            # Catch unexpected exceptions, log error, don't propagate
-            log.error(
-                "Unexpected error during general authorization for user %s: %s",
-                user.id,
-                str(error),
-                exc_info=True,
-            )
+        # Sync with Authorization API after Flywheel role assignment completes
+        # (regardless of whether the visitor succeeded or failed)
+        sync_service = self.__env.authorization_sync
+        if sync_service is not None:
+            try:
+                sync_service.sync_user(
+                    registry_id=registry_id,
+                    authorizations=authorizations,
+                )
+            except Exception as error:
+                # Safety net for programming errors (e.g., TypeError, KeyError).
+                # Expected API failures are handled inside sync_user via the
+                # event collector and do not propagate here.
+                log.error(
+                    "Authorization sync failed for user %s: %s",
+                    registry_id,
+                    error,
+                )
+                # Fault isolation: sync failure must not affect
+                # Flywheel role assignment or downstream processing
 
     def __update_email(self, *, user: User, email: str) -> None:
         """Updates user email on FW instance if email is different.

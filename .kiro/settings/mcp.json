@@ -9,7 +9,9 @@
           "git+https://github.com/naccdata/kiro-pants-power",
           "pants-devcontainer-power"
         ],
-        "env": {},
+        "env": {
+          "WORKSPACE_FOLDER": "${workspaceFolder}"
+        },
         "autoApprove": [
           "pants_fix",
           "pants_lint",

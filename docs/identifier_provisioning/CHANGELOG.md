@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.2, 2.2.3
+* Fixes a bug in reporting CSV column header errors
+  
 ## 2.2.1
 * Adds enrollment project URL to transfer request notification
   
