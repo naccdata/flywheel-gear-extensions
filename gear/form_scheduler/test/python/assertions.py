@@ -14,7 +14,7 @@ def assert_valid_qc_pass_event(
     expected_visit_number: str,
     expected_module: str,
     expected_packet: Optional[str] = None,
-    expected_gear_name: str = "form-scheduler",
+    expected_gear_name: str = "form-qc-checker",
     expected_datatype: str = "form",
 ) -> None:
     """Assert that an event is a valid QC-pass event with expected values.

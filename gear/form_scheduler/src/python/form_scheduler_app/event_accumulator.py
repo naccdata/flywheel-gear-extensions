@@ -188,7 +188,7 @@ class EventAccumulator:
                 visit_metadata=visit_metadata,
                 project=project,
                 completion_time=timestamp if timestamp else qc_log_file.modified,
-                gear_name="form-scheduler",
+                gear_name="form-qc-checker",
             )
             if visit_event:
                 self.__event_capture.capture_event(visit_event)

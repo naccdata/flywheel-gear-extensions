@@ -427,7 +427,7 @@ class TestFormSchedulerQueueIntegration:
 
         # Verify event details
         assert event.action == "pass-qc"
-        assert event.gear_name == "form-scheduler"
+        assert event.gear_name == "form-qc-checker"
         assert event.ptid == "adrc1000"
         assert event.visit_date == "2025-03-19"
         assert event.visit_number == "3F"
@@ -936,7 +936,7 @@ class TestFormSchedulerQueueIntegration:
 
         # Verify event details - visitnum should be None
         assert event.action == "pass-qc"
-        assert event.gear_name == "form-scheduler"
+        assert event.gear_name == "form-qc-checker"
         assert event.ptid == "adrc1005"
         assert event.visit_date == "2025-04-15"
         assert event.visit_number is None  # No visitnum for milestone forms
@@ -1077,7 +1077,7 @@ class TestFormSchedulerQueueIntegration:
 
         # Verify event details - visitnum should be None
         assert event.action == "pass-qc"
-        assert event.gear_name == "form-scheduler"
+        assert event.gear_name == "form-qc-checker"
         assert event.ptid == "adrc1006"
         assert event.visit_date == "2025-05-20"
         assert event.visit_number is None  # No visitnum for NP forms
