@@ -95,12 +95,65 @@ class EventGenerator:
         """
         self._project = project
         self._pipeline_adcid: Optional[int] = None
+        self._pipeline_label: Optional[PipelineLabel] = None
 
-        # Get pipeline ADCID
+        # Cache pipeline ADCID
         try:
             self._pipeline_adcid = self._project.get_pipeline_adcid()
         except ProjectError as error:
             log.warning("Failed to get pipeline ADCID: %s", error)
+
+        # Cache pipeline label
+        try:
+            self._pipeline_label = PipelineLabel.model_validate(self._project.label)
+        except (ValidationError, ValueError) as error:
+            log.warning("Project doesn't have expected label: %s", error)
+
+    def _create_event(
+        self,
+        *,
+        action: VisitEventType,
+        visit_metadata: DataIdentification,
+        completion_time: datetime,
+        gear_name: str,
+    ) -> Optional[VisitEvent]:
+        """Create a VisitEvent using cached project metadata.
+
+        Args:
+            action: The event action (e.g. "submit", "pass-qc")
+            visit_metadata: Identification data for the visit/file
+            completion_time: Timestamp for the event
+            gear_name: Name of the gear that produced the event
+
+        Returns:
+            VisitEvent or None if cached metadata is incomplete
+        """
+        if not self._pipeline_label:
+            return None
+
+        if self._pipeline_label.datatype is None:
+            log.warning(
+                "Pipeline project label should include a datatype: %s",
+                self._project.label,
+            )
+            return None
+
+        visit_metadata = visit_metadata.with_updates(adcid=self._pipeline_adcid)
+
+        try:
+            return VisitEvent(
+                action=action,
+                study=self._pipeline_label.study_id,
+                project_label=self._project.label,
+                center_label=self._project.group,
+                gear_name=gear_name,
+                datatype=self._pipeline_label.datatype,
+                data_identification=visit_metadata,
+                timestamp=completion_time,
+            )
+        except ValidationError as error:
+            log.warning("Failed to create visit event: %s", error)
+            return None
 
     def create_submission_event(
         self, event_data: SubmitEventData
@@ -113,10 +166,9 @@ class EventGenerator:
         Returns:
             VisitEvent object for submission, or None if creation fails
         """
-        return create_visit_event(
+        return self._create_event(
             action=ACTION_SUBMIT,
             visit_metadata=event_data.visit_metadata,
-            project=self._project,
             completion_time=event_data.submission_timestamp,
             gear_name="transactional-event-scraper",
         )
@@ -141,10 +193,9 @@ class EventGenerator:
             log.warning("Cannot create qc event: missing QC completion timestamp")
             return None
 
-        return create_visit_event(
+        return self._create_event(
             action=action,
             visit_metadata=event_data.visit_metadata,
-            project=self._project,
             completion_time=event_data.qc_completion_timestamp,
             gear_name="transactional-event-scraper",
         )
