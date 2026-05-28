@@ -37,8 +37,8 @@
       "type": "string"
     },
     "event_actions": {
-      "description": "Maps QC outcome keys (pass, fail, in-review) to event action strings. Example: {\"pass\": \"pass-qc\", \"fail\": \"not-pass-qc\"}",
-      "type": "object",
+      "description": "Maps QC outcome keys (pass, fail, in-review) to event action strings. JSON string. Example: {\"pass\": \"pass-qc\", \"fail\": \"not-pass-qc\"}",
+      "type": "string",
       "optional": true
     },
     "event_environment": {
@@ -59,6 +59,11 @@
       "description": "Skip all write operations",
       "type": "boolean",
       "default": false
+    },
+    "error_configs": {
+      "description": "JSON string describing how to extract errors from upstream gear QC check results. List of objects with check_name, data_key (optional, default 'data'), and field_mapping (message, error_type, error_code, value).",
+      "type": "string",
+      "optional": true
     }
   },
   "command": "/bin/run"

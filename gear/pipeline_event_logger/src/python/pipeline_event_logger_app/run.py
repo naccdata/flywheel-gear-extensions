@@ -1,5 +1,6 @@
 """Entry script for Pipeline Event Logger."""
 
+import json
 import logging
 from typing import Optional
 
@@ -16,6 +17,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from jobs.job_poll import JobPoll
 from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
 
@@ -85,13 +87,17 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
                 "upstream_gear_name is a required configuration parameter"
             )
 
-        event_actions: dict[str, str] = options.get("event_actions", {})
+        event_actions: dict[str, str] = _parse_json_config(
+            options.get("event_actions"), "event_actions", {}
+        )
         event_environment = options.get("event_environment")
         event_bucket_name = options.get("event_bucket")
         dry_run = options.get("dry_run", False)
 
         # Parse error extraction configs
-        error_configs = _parse_error_configs(options.get("error_configs"))
+        error_configs = _parse_error_configs(
+            _parse_json_config(options.get("error_configs"), "error_configs", None)
+        )
 
         event_capture = None
         if event_actions:
@@ -124,9 +130,10 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
     def run(self, context: GearContext) -> None:
         """Main execution method.
 
-        1. Retrieve input file from Flywheel
-        2. Retrieve parent project
-        3. Delegate to PipelineEventLogger business logic
+        1. Wait for other pipeline-event-logger jobs on the same project
+        2. Retrieve input file from Flywheel
+        3. Retrieve parent project
+        4. Delegate to PipelineEventLogger business logic
 
         Args:
             context: The gear execution context
@@ -135,6 +142,33 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
             GearExecutionError: If required data is missing
         """
         log.info("Starting Pipeline Event Logger processing")
+
+        # Wait for other pipeline-event-logger instances to finish
+        # to avoid concurrent writes to the same QC status log file
+        gear_name = self.get_gear_name(context, "pipeline-event-logger")
+        job_id = context.config.job.get("id")
+        project_id = context.config.destination.get("id")
+
+        if job_id and project_id:
+            search_str = JobPoll.generate_search_string(
+                project_ids_list=[project_id],
+                gears_list=[gear_name],
+                states_list=["running", "pending"],
+            )
+            # Wait for other instances that were queued before this job.
+            # Only waiting on older jobs avoids deadlock: if two jobs start
+            # simultaneously, the newer one waits on the older one, not
+            # vice versa.
+            matched_jobs = self.proxy.find_jobs(search_str)
+            older_jobs = [j for j in matched_jobs if j.id != job_id and j.id < job_id]
+            if older_jobs:
+                log.info(
+                    "Waiting for %d other %s job(s) to complete",
+                    len(older_jobs),
+                    gear_name,
+                )
+                for job in older_jobs:
+                    JobPoll.poll_job_status(job)
 
         try:
             file_obj = self.proxy.get_file(self.__file_input.file_id)
@@ -159,6 +193,40 @@ class PipelineEventLoggerVisitor(GearExecutionEnvironment):
             error_configs=self.__error_configs,
             dry_run=self.__dry_run,
         ).run()
+
+
+def _parse_json_config(raw_value, field_name: str, default):
+    """Parse a JSON string config value.
+
+    Flywheel manifests don't reliably support "object" type, so complex
+    configs are passed as JSON strings. Handles both string (from Flywheel)
+    and already-parsed values (from tests or future manifest support).
+
+    Args:
+        raw_value: The raw value from gear options — either a JSON string,
+            an already-parsed dict/list, or None.
+        field_name: Name of the config field (for error messages).
+        default: Default value if raw_value is None or empty.
+
+    Returns:
+        Parsed JSON value, or default if not provided.
+
+    Raises:
+        GearExecutionError: If the value is a string but not valid JSON.
+    """
+    if not raw_value:
+        return default
+
+    # If already parsed (dict or list), return as-is
+    if isinstance(raw_value, (dict, list)):
+        return raw_value
+
+    try:
+        return json.loads(raw_value)
+    except (json.JSONDecodeError, TypeError) as error:
+        raise GearExecutionError(
+            f"Invalid JSON in {field_name} configuration: {error}"
+        ) from error
 
 
 def _parse_error_configs(
