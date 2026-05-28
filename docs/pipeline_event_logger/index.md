@@ -168,6 +168,14 @@ Gear configs are defined in [manifest.json](../../gear/pipeline_event_logger/src
 
 - **`input_file`**: The file processed by the upstream gear. Must have `file.info.qc.{upstream_gear_name}` and `file.info.data_identification` populated.
 
+## Concurrency
+
+Multiple instances of this gear may run concurrently on the same project (e.g., when several files finish upstream QC at once). Because the QC status log update is a read-modify-write operation on a shared project-level file, concurrent writes can cause data loss.
+
+To prevent this, the gear waits for older instances of itself on the same project before processing. On startup, it queries Flywheel for other running or pending `pipeline-event-logger` jobs on the same project and waits for any with a lower job ID to complete. This creates a total ordering that avoids deadlock — newer jobs always yield to older ones.
+
+**Operational note**: A job may appear idle while waiting on older instances. This is expected behavior, not a hang. The gear logs a message when it begins waiting and resumes automatically once the older jobs finish.
+
 ## Processing Flow
 
 1. **Read GearQC**: Reads `file.info.qc.{upstream_gear_name}` and constructs a `GearQC` object representing all check results for the upstream gear. Derives the aggregate QC status (PASS, FAIL, or IN REVIEW) using priority ordering: FAIL > IN REVIEW > PASS. Fails if missing or invalid.
