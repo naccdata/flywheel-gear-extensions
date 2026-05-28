@@ -14,6 +14,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, SubjectAdaptor
 from identifiers.model import IdentifierObject
 from keys.keys import CLINICAL_MODULES, DefaultValues, MetadataKeys
 from nacc_common.data_identification import DataIdentification
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
 
@@ -202,6 +203,46 @@ class FormDeletionProcessor:
 
         return success
 
+    def __has_matching_acquisitions(
+        self, subject: SubjectAdaptor, module_configs: ModuleConfigs
+    ) -> int:
+        """Check whether there's a matching acquisition file for the delete
+        request.
+
+        Args:
+            subject: Flywheel subject adaptor
+            module_configs: Module configs for the primary module
+
+        Returns:
+            int: Number of matching acquisitions
+        """
+        date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
+        visitnum_key = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}"
+        columns = [
+            "file.name",
+            "file.file_id",
+            "file.parents.acquisition",
+            date_col_key,
+        ]
+        filters = f"acquisition.label={self.__module}"
+        filters += f",{date_col_key}=={self.__delete_request.visitdate}"
+
+        if FieldNames.VISITNUM in module_configs.required_fields:
+            columns.append(visitnum_key)
+            filters += f",{visitnum_key}=={self.__delete_request.visitnum}"
+
+        results = self.__project.proxy.get_matching_acquisition_files_info(
+            container_id=subject.id,
+            dv_title=f"{self.__module} visits for {self.__delete_request.visitdate}",
+            columns=columns,
+            filters=filters,
+        )
+
+        if not results:
+            return 0
+
+        return len(results)
+
     def __has_qc_passed_subsequent_visits(
         self, subject: SubjectAdaptor, module_configs: ModuleConfigs
     ) -> bool:
@@ -362,6 +403,31 @@ class FormDeletionProcessor:
             )
             return False
 
+        if (
+            FieldNames.VISITNUM in module_configs.required_fields
+            and not self.__delete_request.visitnum
+        ):
+            self.__add_delete_failed_error(
+                "Require visitnum to process delete requests "
+                f"for module {self.__module}"
+            )
+            return False
+
+        # check for matching acquisition files, do this before subsequent visit check
+        num_matches = self.__has_matching_acquisitions(
+            subject=subject, module_configs=module_configs
+        )
+
+        if num_matches == 0:  # no acquisition to clean
+            return True
+
+        if num_matches > 1:
+            self.__add_delete_failed_error(
+                f"Multiple matching acquisitions ({num_matches}) "
+                "found for the delete request"
+            )
+            return False
+
         # For longitudinal modules, check whether there are any QC passed
         # subsequent visits. To bypass this check, set
         # longitudinal_check=False in gear configs.
@@ -484,9 +550,11 @@ class FormDeletionProcessor:
             return False
 
         if not self.__cleanup_acquisitions():
+            log.error("Failed to clean up acquisition files")
             return False
 
         if not self.__cleanup_log_files(error_log_name=error_log_name):
+            log.error("Failed to clean up error log files")
             return False
 
         # When a clinical form is deleted, remove any modules/forms
