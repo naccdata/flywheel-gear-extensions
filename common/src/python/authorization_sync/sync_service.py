@@ -5,7 +5,13 @@ import logging
 from typing import Protocol
 
 from authorization.exceptions import AuthorizationClientError
-from authorization.models import BatchOperation, BatchResult, UserPermissions
+from authorization.models import (
+    BatchOperation,
+    BatchResult,
+    UserPermissions,
+    UserProfile,
+    UserProfileRequest,
+)
 from users.authorizations import Authorizations
 from users.event_models import (
     EventCategory,
@@ -14,6 +20,7 @@ from users.event_models import (
     UserEventCollector,
     UserProcessEvent,
 )
+from users.user_entry import UserEntry
 
 from authorization_sync.models import DesiredGrant
 from authorization_sync.translator import translate
@@ -35,6 +42,12 @@ class AuthorizationClientProtocol(Protocol):
         self,
         operations: list[BatchOperation],
     ) -> BatchResult: ...
+
+    def put_user_profile(
+        self,
+        profile_user_id: str,
+        request: UserProfileRequest,
+    ) -> UserProfile: ...
 
 
 class AuthorizationSyncService:
@@ -121,6 +134,47 @@ class AuthorizationSyncService:
                 error,
             )
             self._report_failure(registry_id, "sync", error)
+
+    def sync_profile(
+        self,
+        registry_id: str,
+        user_entry: UserEntry,
+    ) -> None:
+        """Push a user profile to the Authorization API.
+
+        Constructs a UserProfileRequest from the user entry fields and
+        calls put_user_profile. Catches AuthorizationClientError and
+        reports via the event collector without raising.
+
+        Skips sync if user_entry.auth_email is None (logs warning).
+
+        Args:
+            registry_id: The user's registry ID (used as Profile_User_ID).
+            user_entry: The user entry containing profile data.
+        """
+        if user_entry.auth_email is None:
+            log.warning(
+                "Skipping profile sync for user %s: auth_email is None",
+                user_entry.email,
+            )
+            return
+
+        try:
+            request = UserProfileRequest(
+                first_name=user_entry.first_name,
+                last_name=user_entry.last_name,
+                email=user_entry.email,
+                auth_email=user_entry.auth_email,
+                active=user_entry.active,
+            )
+            self._client.put_user_profile(registry_id, request)
+        except AuthorizationClientError as error:
+            log.error(
+                "Profile sync failed for user %s: %s",
+                registry_id,
+                error,
+            )
+            self._report_failure(registry_id, "profile_sync", error)
 
     def _report_failure(
         self,

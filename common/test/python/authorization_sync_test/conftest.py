@@ -16,6 +16,8 @@ from authorization.models import (
     BatchResult,
     PermissionEntry,
     UserPermissions,
+    UserProfile,
+    UserProfileRequest,
 )
 from authorization_sync.models import DesiredGrant
 from hypothesis import strategies as st
@@ -287,6 +289,7 @@ class MockAuthorizationClient:
     # Call tracking
     get_user_permissions_calls: list[dict] = field(default_factory=list)
     batch_calls: list[list[BatchOperation]] = field(default_factory=list)
+    put_user_profile_calls: list[dict] = field(default_factory=list)
 
     def get_user_permissions(
         self,
@@ -318,6 +321,26 @@ class MockAuthorizationClient:
             succeeded=len(operations),
             failed=0,
             errors=[],
+        )
+
+    def put_user_profile(
+        self,
+        profile_user_id: str,
+        request: UserProfileRequest,
+    ) -> UserProfile:
+        """Mock put_user_profile that returns a default profile."""
+        self.put_user_profile_calls.append(
+            {"profile_user_id": profile_user_id, "request": request}
+        )
+        if self.error_to_raise is not None:
+            raise self.error_to_raise
+        return UserProfile(
+            user_id=profile_user_id,
+            first_name=request.first_name,
+            last_name=request.last_name,
+            email=request.email,
+            auth_email=request.auth_email,
+            active=request.active if request.active is not None else True,
         )
 
 
