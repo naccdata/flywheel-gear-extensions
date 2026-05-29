@@ -24,6 +24,7 @@ def run(
     target_project: Optional[str] = None,
     staging_project_id: Optional[str] = None,
     downstream_gears: Optional[List[str]] = None,
+    replace_duplicates: bool = False,
 ):
     """Runs the File Distribution process.
 
@@ -38,6 +39,8 @@ def run(
         staging_project_id: Target staging project to write file to instead
         downstream_gears: Gears to wait on before processing the
             next batch when scheduling
+        replace_duplicates: Replace a file even if it's an exact duplicate
+            of an existing file
     """
     # if staging_project_id, really just have to do it once since
     # we're not splitting files
@@ -51,7 +54,7 @@ def run(
             )
 
         staging_project = ProjectAdaptor(project=fw_project, proxy=proxy)
-        copy_file(file, staging_project, proxy.dry_run)
+        copy_file(file, staging_project, proxy.dry_run, replace_duplicates)
         return
 
     assert target_project, "target_project required if no staging_project_id provided"
@@ -79,7 +82,7 @@ def run(
 
         for adcid in batch:
             project = project_map[adcid]
-            copy_file(file, project, proxy.dry_run)
+            copy_file(file, project, proxy.dry_run, replace_duplicates)
             project_ids_list.append(project.id)
 
         if project_ids_list and downstream_gears:

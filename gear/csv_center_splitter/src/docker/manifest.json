@@ -91,8 +91,8 @@
       "type": "string",
       "default": ","
     },
-    "local_run": {
-      "description": "Set to true if executing on a local input file",
+    "replace_duplicates": {
+      "description": "Replace a center-split file even if it's an exact duplicate of an existing file",
       "type": "boolean",
       "default": false
     },
