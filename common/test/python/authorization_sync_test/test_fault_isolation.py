@@ -11,6 +11,8 @@ from authorization.models import (
     BatchOperation,
     BatchResult,
     UserPermissions,
+    UserProfile,
+    UserProfileRequest,
 )
 from authorization_sync.sync_service import AuthorizationSyncService
 from authorization_sync_test.conftest import (
@@ -55,6 +57,21 @@ class PartialFailureClient:
         """Return the configured partial failure result."""
         self.batch_calls.append(operations)
         return self.batch_result
+
+    def put_user_profile(
+        self,
+        profile_user_id: str,
+        request: UserProfileRequest,
+    ) -> UserProfile:
+        """Mock put_user_profile that returns a default profile."""
+        return UserProfile(
+            user_id=profile_user_id,
+            first_name="Test",
+            last_name="User",
+            email=None,
+            auth_email="test@example.com",
+            active=True,
+        )
 
 
 @st.composite
