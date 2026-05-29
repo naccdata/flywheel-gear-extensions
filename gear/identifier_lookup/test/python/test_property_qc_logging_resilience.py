@@ -5,6 +5,7 @@
 **Validates: Requirements 2.4**
 """
 
+import datetime
 from typing import Dict, List
 from unittest.mock import Mock
 
@@ -45,7 +46,14 @@ def visit_data_strategy(draw):
             ),
         )
     )
-    date = draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d")))
+    # Visit dates realistically start from 2000. Using min_value also avoids
+    # a platform bug: on Linux (glibc) strftime('%Y') doesn't zero-pad years
+    # < 1000, producing strings like '31-02-01' that fail date parsing.
+    date = draw(
+        st.dates(min_value=datetime.date(2000, 1, 1)).map(
+            lambda d: d.strftime("%Y-%m-%d")
+        )
+    )
     visitnum = draw(st.integers(min_value=1, max_value=99).map(str))
     adcid = draw(st.integers(min_value=1, max_value=999))
 

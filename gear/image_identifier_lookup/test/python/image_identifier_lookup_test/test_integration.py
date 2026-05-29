@@ -343,7 +343,7 @@ class TestEndToEndFailureFlow:
         _dicom_metadata = {"patient_id": "999999", "study_date": "20240115"}
 
         # Act - error is now captured, not raised
-        success, errors = ImageIdentifierLookup(
+        success, _data_identification = ImageIdentifierLookup(
             lookup_context=_build_lookup_context(
                 pipeline_adcid=42,
                 ptid="110001",

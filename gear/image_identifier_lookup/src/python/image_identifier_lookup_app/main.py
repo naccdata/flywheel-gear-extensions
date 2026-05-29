@@ -20,7 +20,6 @@ from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     QC_STATUS_FAIL,
     QC_STATUS_PASS,
-    FileErrorList,
     QCStatus,
 )
 from outputs.error_writer import ListErrorWriter
@@ -64,7 +63,7 @@ class ImageIdentifierLookup:
         self._success = True
         self._naccid: Optional[str] = None
 
-    def run(self) -> tuple[bool, FileErrorList]:
+    def run(self) -> tuple[bool, Optional[DataIdentification]]:
         """Execute the identifier lookup workflow.
 
         Steps:
@@ -73,7 +72,8 @@ class ImageIdentifierLookup:
         3. Update QC status log and capture events
 
         Returns:
-            Tuple of (success, errors)
+            Tuple of (success, data_identification).
+            Errors are accumulated in the error_writer passed at construction.
 
         Raises:
             GearExecutionError: If processing fails
@@ -83,7 +83,7 @@ class ImageIdentifierLookup:
         self._handle_post_processing(data_identification)
 
         log.info("Image Identifier Lookup processing completed successfully")
-        return self._success, self._error_writer.errors()
+        return self._success, data_identification
 
     def _resolve_naccid(self) -> None:
         """Resolve NACCID — use existing or perform lookup."""
