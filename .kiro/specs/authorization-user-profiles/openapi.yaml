@@ -1,0 +1,1180 @@
+openapi: 3.1.0
+info:
+  title: NACC Authorization API
+  version: 1.0.0
+  description: |
+    Domain-level REST interface to the NACC authorization system.
+    
+    This API provides authorization operations in NACC domain terms — granting access,
+    querying permissions, checking authorization, and managing resource hierarchy.
+    The underlying authorization engine (OpenFGA) is an implementation detail;
+    consumers interact only with this API.
+    
+    See ADR-008 for the architectural decision and rationale.
+  contact:
+    name: NACC Development Team
+
+servers:
+  - url: https://{environment}.api.nacc.example/authorization
+    description: NACC Authorization API
+    variables:
+      environment:
+        default: dev
+        enum: [dev, staging, prod]
+
+tags:
+  - name: Model
+    description: Authorization model metadata — resource types, relations, hierarchy rules, and computed permissions.
+  - name: Permissions
+    description: Query what access exists — user permissions, resource access, and authorization checks.
+  - name: Access Management
+    description: Grant and revoke access to resources and organizations.
+  - name: Resource Hierarchy
+    description: Manage parent relationships that define the resource hierarchy and enable inherited permissions.
+  - name: Batch Operations
+    description: Bulk grant and revoke operations for data loading and synchronization.
+  - name: User Profiles
+    description: CRUD operations for user profile records backed by MySQL.
+  - name: Health
+    description: Operational health checks.
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Model
+  # ---------------------------------------------------------------------------
+  /model:
+    get:
+      operationId: getModel
+      summary: Get authorization model metadata
+      description: |
+        Returns the complete authorization model: all organization types, resource types,
+        their relations, categories, structural relations, computed relations, and valid
+        parent combinations.
+        
+        This is the single source of truth for authorization model semantics. Consumers
+        use this to populate UI dropdowns, validate inputs client-side, and understand
+        the permission structure.
+      tags: [Model]
+      responses:
+        "200":
+          description: Authorization model metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationModel"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /model/types/{type}:
+    get:
+      operationId: getTypeMetadata
+      summary: Get metadata for a specific type
+      description: |
+        Returns metadata for a single organization or resource type, including its
+        relations, category, structural relations, computed relations, and valid
+        parent combinations.
+      tags: [Model]
+      parameters:
+        - $ref: "#/components/parameters/TypePath"
+      responses:
+        "200":
+          description: Type metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TypeMetadata"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Permissions
+  # ---------------------------------------------------------------------------
+  /users/{userId}/permissions:
+    get:
+      operationId: getUserPermissions
+      summary: Get all permissions for a user
+      description: |
+        Returns every resource and organization a user can access, grouped by type.
+        Each entry includes the relation and whether the access is direct, inherited,
+        or both.
+        
+        For inherited permissions, the response includes the inheritance source —
+        which parent organization and role grants the access (e.g., "inherited from
+        admin role on study:study1").
+        
+        This is the primary endpoint Portal uses to render what a user can see.
+      tags: [Permissions]
+      parameters:
+        - $ref: "#/components/parameters/UserIdPath"
+        - name: type
+          in: query
+          description: Filter results to a specific resource or organization type.
+          schema:
+            type: string
+            example: data_pipeline
+        - name: relation
+          in: query
+          description: Filter results to a specific relation.
+          schema:
+            type: string
+            example: viewer
+      responses:
+        "200":
+          description: User permissions grouped by type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPermissions"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /resources/{type}/{resourceId}/access:
+    get:
+      operationId: getResourceAccess
+      summary: Get all users with access to a resource
+      description: |
+        Returns all users who have access to the specified resource, with their
+        relation and whether access is direct, inherited, or both.
+        
+        For inherited access, includes the source (parent organization and role).
+        This is the endpoint the Authorization Interface uses for the resource
+        access view.
+      tags: [Permissions]
+      parameters:
+        - $ref: "#/components/parameters/TypePath"
+        - $ref: "#/components/parameters/ResourceIdPath"
+        - name: relation
+          in: query
+          description: Filter to a specific relation.
+          schema:
+            type: string
+            example: viewer
+      responses:
+        "200":
+          description: Users with access to the resource.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceAccessList"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /check:
+    post:
+      operationId: checkPermission
+      summary: Check whether a user has a specific permission
+      description: |
+        Returns whether the specified user has the specified relation on the
+        specified resource. Validates that the resource type and relation are
+        valid per the authorization model before evaluating.
+        
+        Use this for real-time authorization decisions (e.g., "can this user
+        view this dashboard?").
+      tags: [Permissions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionCheckRequest"
+      responses:
+        "200":
+          description: Permission check result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionCheckResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /users/{userId}/effective-permissions/{type}/{resourceId}:
+    get:
+      operationId: getEffectivePermissions
+      summary: Get all effective relations a user has on a resource
+      description: |
+        Returns all relations the user effectively holds on the specified resource,
+        including both direct and inherited. This answers "what can this user do
+        on this resource?" without requiring the caller to check each relation
+        individually.
+      tags: [Permissions]
+      parameters:
+        - $ref: "#/components/parameters/UserIdPath"
+        - $ref: "#/components/parameters/TypePath"
+        - $ref: "#/components/parameters/ResourceIdPath"
+      responses:
+        "200":
+          description: Effective permissions on the resource.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EffectivePermissions"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ---------------------------------------------------------------------------
+  # Access Management
+  # ---------------------------------------------------------------------------
+  /grants:
+    post:
+      operationId: grantAccess
+      summary: Grant a user access to a resource or organization
+      description: |
+        Grants the specified user the specified relation on the specified resource
+        or organization. Validates that:
+        - The type exists in the authorization model
+        - The relation is user-assignable for that type (not a computed or structural relation)
+        - The user and resource IDs are well-formed
+        
+        Returns 409 if the grant already exists (idempotent consumers should treat
+        409 as success).
+      tags: [Access Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantRequest"
+      responses:
+        "201":
+          description: Access granted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrantResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Grant already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: revokeAccess
+      summary: Revoke a user's access to a resource or organization
+      description: |
+        Revokes the specified user's relation on the specified resource or
+        organization. Same validation as grant.
+        
+        Returns 404 if the grant does not exist.
+      tags: [Access Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeRequest"
+      responses:
+        "200":
+          description: Access revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevokeResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ---------------------------------------------------------------------------
+  # Resource Hierarchy
+  # ---------------------------------------------------------------------------
+  /resources/{type}/{resourceId}/parents:
+    get:
+      operationId: getResourceParents
+      summary: Get the parent organizations of a resource
+      description: |
+        Returns the current parent relationships for a resource — which study,
+        research center, or community it is linked to. This defines the resource's
+        position in the hierarchy and determines inherited permissions.
+      tags: [Resource Hierarchy]
+      parameters:
+        - $ref: "#/components/parameters/TypePath"
+        - $ref: "#/components/parameters/ResourceIdPath"
+      responses:
+        "200":
+          description: Parent relationships for the resource.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceParents"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+    put:
+      operationId: setResourceParents
+      summary: Set the parent organizations of a resource
+      description: |
+        Sets the parent relationships for a resource, replacing any existing parents.
+        Validates that:
+        - The structural relation is valid for the resource type
+        - The parent type matches the expected type for that structural relation
+        - The combination of parents is valid per the authorization model
+        
+        This is the primary way to place a resource in the hierarchy. For example,
+        linking a data pipeline to its parent study and center, or linking a
+        dashboard to its parent community.
+      tags: [Resource Hierarchy]
+      parameters:
+        - $ref: "#/components/parameters/TypePath"
+        - $ref: "#/components/parameters/ResourceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetParentsRequest"
+      responses:
+        "200":
+          description: Parents set successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceParents"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+    delete:
+      operationId: removeResourceParents
+      summary: Remove all parent relationships from a resource
+      description: |
+        Removes all parent relationships from a resource, effectively unlinking it
+        from the hierarchy. This removes any inherited permissions that flowed
+        through those parent relationships.
+        
+        Use with caution — this will immediately revoke inherited access for all
+        users who had it through the hierarchy.
+      tags: [Resource Hierarchy]
+      parameters:
+        - $ref: "#/components/parameters/TypePath"
+        - $ref: "#/components/parameters/ResourceIdPath"
+      responses:
+        "200":
+          description: Parents removed.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ---------------------------------------------------------------------------
+  # Batch Operations
+  # ---------------------------------------------------------------------------
+  /grants/batch:
+    post:
+      operationId: batchModifyAccess
+      summary: Grant and/or revoke access in bulk
+      description: |
+        Accepts a list of grant and/or revoke operations (up to 100 per request).
+        Each operation is validated individually. The entire batch is rejected if
+        any operation fails validation (all-or-nothing semantics).
+        
+        Returns a summary of results. Designed for data loading scripts and
+        synchronization workflows.
+      tags: [Batch Operations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchRequest"
+      responses:
+        "200":
+          description: Batch completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ---------------------------------------------------------------------------
+  # User Profiles
+  # ---------------------------------------------------------------------------
+  /users/{profileUserId}:
+    get:
+      operationId: getUserProfile
+      summary: Get a user profile
+      description: |
+        Returns the user profile for the specified profile user ID.
+      tags: [User Profiles]
+      parameters:
+        - $ref: "#/components/parameters/ProfileUserIdPath"
+      responses:
+        "200":
+          description: User profile found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: putUserProfile
+      summary: Create or update a user profile
+      description: |
+        Creates or updates the user profile for the specified profile user ID.
+        If the profile does not exist, it is created. If it exists, it is updated
+        with the provided fields.
+      tags: [User Profiles]
+      parameters:
+        - $ref: "#/components/parameters/ProfileUserIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileRequest"
+      responses:
+        "200":
+          description: User profile created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteUserProfile
+      summary: Delete a user profile
+      description: |
+        Deletes the user profile for the specified profile user ID.
+      tags: [User Profiles]
+      parameters:
+        - $ref: "#/components/parameters/ProfileUserIdPath"
+      responses:
+        "204":
+          description: User profile deleted.
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /users:
+    get:
+      operationId: getUserProfiles
+      summary: Get user profiles in batch
+      description: |
+        Returns user profiles for the specified profile user IDs. Accepts a
+        comma-separated list of IDs via the `ids` query parameter (maximum 50).
+      tags: [User Profiles]
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: |
+            Comma-separated list of profile user IDs to retrieve (maximum 50).
+          schema:
+            type: string
+            maxLength: 3200
+          example: "Registry000001@naccdata.org,Registry000002@naccdata.org"
+      responses:
+        "200":
+          description: User profiles found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileList"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ---------------------------------------------------------------------------
+  # Health
+  # ---------------------------------------------------------------------------
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      description: |
+        Returns the health status of the API, including connectivity to the
+        authorization engine.
+      tags: [Health]
+      responses:
+        "200":
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+
+  # ---------------------------------------------------------------------------
+  # Parameters
+  # ---------------------------------------------------------------------------
+  parameters:
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      description: |
+        User identifier. This is the user's ID within the authorization system
+        (not prefixed with "user:" — the API handles that internally).
+      schema:
+        type: string
+        example: alice
+
+    TypePath:
+      name: type
+      in: path
+      required: true
+      description: |
+        Organization or resource type as defined in the authorization model
+        (e.g., study, research_center, data_pipeline, dashboard, page).
+      schema:
+        type: string
+        example: data_pipeline
+
+    ResourceIdPath:
+      name: resourceId
+      in: path
+      required: true
+      description: |
+        Resource or organization identifier (e.g., "study1",
+        "study1-center1-clinical-ingest").
+      schema:
+        type: string
+        example: study1-center1-clinical-ingest
+
+    ProfileUserIdPath:
+      name: profileUserId
+      in: path
+      required: true
+      description: |
+        User profile identifier in the format `RegistryNNNNNN@naccdata.org`.
+        This is distinct from the authorization user ID (e.g., "alice") used
+        by the permissions and access management endpoints.
+      schema:
+        type: string
+        pattern: "^Registry\\d{6}@naccdata\\.org$"
+        example: "Registry000001@naccdata.org"
+
+  # ---------------------------------------------------------------------------
+  # Responses
+  # ---------------------------------------------------------------------------
+  responses:
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: validation_error
+            message: "Relation 'submitter' is not valid for type 'dashboard'. Valid relations: viewer, editor."
+
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: not_found
+            message: "Type 'invalid_type' does not exist in the authorization model."
+
+    ServiceUnavailable:
+      description: Authorization engine is unreachable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: service_unavailable
+            message: "Unable to connect to the authorization engine."
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+
+    # --- Model schemas ---
+
+    AuthorizationModel:
+      type: object
+      required: [version, types]
+      properties:
+        version:
+          type: string
+          description: Authorization model version (semantic versioning).
+          example: "2.0.0"
+        types:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/TypeMetadata"
+          description: Map of type name to type metadata.
+
+    TypeMetadata:
+      type: object
+      required: [name, category, relations]
+      properties:
+        name:
+          type: string
+          description: Type name.
+          example: data_pipeline
+        category:
+          type: string
+          enum: [organization, resource]
+          description: Whether this is an organization type or a resource type.
+        description:
+          type: string
+          description: Human-readable description of the type.
+          example: "Datatype-specific data collections for ingest or distribution."
+        relations:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/RelationMetadata"
+          description: Map of relation name to relation metadata.
+        structuralRelations:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/StructuralRelationMetadata"
+          description: |
+            Structural relations that link this type to parent organizations.
+            Only present for resource types that participate in the hierarchy.
+        computedRelations:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ComputedRelationMetadata"
+          description: |
+            Computed relations that derive permissions from the hierarchy.
+            These are never directly assigned — they are resolved by the
+            authorization engine based on structural relations.
+        validParentCombinations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParentCombination"
+          description: |
+            Valid combinations of parent relationships for this type.
+            Only present for resource types with structural relations.
+
+    RelationMetadata:
+      type: object
+      required: [name, assignable]
+      properties:
+        name:
+          type: string
+          example: viewer
+        description:
+          type: string
+          example: "Can view pipeline data."
+        assignable:
+          type: boolean
+          description: |
+            Whether this relation can be directly assigned to a user via the
+            grant endpoint. False for computed and structural relations.
+
+    StructuralRelationMetadata:
+      type: object
+      required: [name, parentType]
+      properties:
+        name:
+          type: string
+          example: parent_study
+        parentType:
+          type: string
+          description: The type of the parent organization.
+          example: study
+        description:
+          type: string
+          example: "Links this resource to its parent study."
+
+    ComputedRelationMetadata:
+      type: object
+      required: [name, sourceRelation, parentRelation, grantsRelation]
+      properties:
+        name:
+          type: string
+          example: study_admin_access
+        description:
+          type: string
+          example: "Grants viewer access to admins of the parent study."
+        sourceRelation:
+          type: string
+          description: The role on the parent organization that grants this computed access.
+          example: admin
+        parentRelation:
+          type: string
+          description: The structural relation traversed to reach the parent.
+          example: parent_study
+        grantsRelation:
+          type: string
+          description: The user-facing relation that this computed relation effectively grants on the resource.
+          example: viewer
+
+    ParentCombination:
+      type: object
+      required: [parents]
+      properties:
+        parents:
+          type: array
+          items:
+            type: string
+          description: |
+            List of structural relation names that form a valid combination.
+            For types where valid combinations depend on additional context
+            (e.g., pipeline_type), the condition field describes when this
+            combination applies.
+          example: ["parent_study", "parent_center"]
+        description:
+          type: string
+          example: "Center ingest pipeline — ingests data from a center for a study."
+        condition:
+          type: string
+          description: |
+            Optional condition describing when this parent combination applies.
+            Used when a single resource type has multiple valid parent
+            combinations that depend on the resource's characteristics.
+          example: "pipeline_type is center-ingest"
+
+    # --- Permission schemas ---
+
+    UserPermissions:
+      type: object
+      required: [userId, permissions]
+      properties:
+        userId:
+          type: string
+          example: alice
+        permissions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/PermissionEntry"
+          description: |
+            Map of type name to list of permission entries. Each entry represents
+            one resource the user can access with a specific relation.
+          example:
+            study:
+              - resourceId: study1
+                relation: admin
+                access: direct
+            data_pipeline:
+              - resourceId: study1-center1-clinical-ingest
+                relation: viewer
+                access: inherited
+                inheritedFrom:
+                  parentType: study
+                  parentId: study1
+                  parentRole: admin
+
+    PermissionEntry:
+      type: object
+      required: [resourceId, relation, access]
+      properties:
+        resourceId:
+          type: string
+          example: study1-center1-clinical-ingest
+        relation:
+          type: string
+          example: viewer
+        access:
+          type: string
+          enum: [direct, inherited, both]
+          description: |
+            How the user has this access:
+            - direct: explicitly granted
+            - inherited: derived from a parent organization role
+            - both: both directly granted and inherited
+        inheritedFrom:
+          $ref: "#/components/schemas/InheritanceSource"
+
+    InheritanceSource:
+      type: object
+      required: [parentType, parentId, parentRole]
+      description: |
+        Describes why inherited access exists, in domain terms.
+        For example: "user is admin of study:study1, which is the parent study
+        of this data pipeline."
+      properties:
+        parentType:
+          type: string
+          description: The type of the parent organization granting inherited access.
+          example: study
+        parentId:
+          type: string
+          description: The ID of the parent organization.
+          example: study1
+        parentRole:
+          type: string
+          description: The user's role on the parent organization that grants this access.
+          example: admin
+
+    ResourceAccessList:
+      type: object
+      required: [type, resourceId, users]
+      properties:
+        type:
+          type: string
+          example: data_pipeline
+        resourceId:
+          type: string
+          example: study1-center1-clinical-ingest
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResourceAccessEntry"
+
+    ResourceAccessEntry:
+      type: object
+      required: [userId, relation, access]
+      properties:
+        userId:
+          type: string
+          example: alice
+        relation:
+          type: string
+          example: viewer
+        access:
+          type: string
+          enum: [direct, inherited, both]
+        inheritedFrom:
+          $ref: "#/components/schemas/InheritanceSource"
+
+    PermissionCheckRequest:
+      type: object
+      required: [userId, relation, type, resourceId]
+      properties:
+        userId:
+          type: string
+          example: alice
+        relation:
+          type: string
+          example: viewer
+        type:
+          type: string
+          example: data_pipeline
+        resourceId:
+          type: string
+          example: study1-center1-clinical-ingest
+
+    PermissionCheckResponse:
+      type: object
+      required: [allowed]
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the user has the specified permission.
+          example: true
+
+    EffectivePermissions:
+      type: object
+      required: [userId, type, resourceId, relations]
+      properties:
+        userId:
+          type: string
+          example: alice
+        type:
+          type: string
+          example: data_pipeline
+        resourceId:
+          type: string
+          example: study1-center1-clinical-ingest
+        relations:
+          type: array
+          items:
+            $ref: "#/components/schemas/EffectiveRelation"
+          description: All relations the user effectively holds on this resource.
+
+    EffectiveRelation:
+      type: object
+      required: [relation, access]
+      properties:
+        relation:
+          type: string
+          example: viewer
+        access:
+          type: string
+          enum: [direct, inherited, both]
+        inheritedFrom:
+          $ref: "#/components/schemas/InheritanceSource"
+
+    # --- Access management schemas ---
+
+    GrantRequest:
+      type: object
+      required: [userId, relation, type, resourceId]
+      properties:
+        userId:
+          type: string
+          description: The user to grant access to.
+          example: charlie
+        relation:
+          type: string
+          description: |
+            The relation to grant. Must be a user-assignable relation for the
+            specified type (not a computed or structural relation).
+          example: viewer
+        type:
+          type: string
+          description: The resource or organization type.
+          example: data_pipeline
+        resourceId:
+          type: string
+          description: The resource or organization ID.
+          example: study1-center1-clinical-ingest
+
+    GrantResponse:
+      type: object
+      required: [userId, relation, type, resourceId]
+      properties:
+        userId:
+          type: string
+        relation:
+          type: string
+        type:
+          type: string
+        resourceId:
+          type: string
+
+    RevokeRequest:
+      type: object
+      required: [userId, relation, type, resourceId]
+      properties:
+        userId:
+          type: string
+          example: charlie
+        relation:
+          type: string
+          example: viewer
+        type:
+          type: string
+          example: data_pipeline
+        resourceId:
+          type: string
+          example: study1-center1-clinical-ingest
+
+    RevokeResponse:
+      type: object
+      required: [userId, relation, type, resourceId]
+      properties:
+        userId:
+          type: string
+        relation:
+          type: string
+        type:
+          type: string
+        resourceId:
+          type: string
+
+    # --- Resource hierarchy schemas ---
+
+    ResourceParents:
+      type: object
+      required: [type, resourceId, parents]
+      properties:
+        type:
+          type: string
+          example: data_pipeline
+        resourceId:
+          type: string
+          example: study1-center1-clinical-ingest
+        parents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParentRelationship"
+
+    ParentRelationship:
+      type: object
+      required: [structuralRelation, parentType, parentId]
+      properties:
+        structuralRelation:
+          type: string
+          description: The structural relation name (e.g., parent_study, parent_center).
+          example: parent_study
+        parentType:
+          type: string
+          description: The type of the parent organization.
+          example: study
+        parentId:
+          type: string
+          description: The ID of the parent organization.
+          example: study1
+
+    SetParentsRequest:
+      type: object
+      required: [parents]
+      properties:
+        parents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParentRelationship"
+          description: |
+            The parent relationships to set. Must be a valid combination per the
+            authorization model's validParentCombinations for this resource type.
+          example:
+            - structuralRelation: parent_study
+              parentType: study
+              parentId: study1
+            - structuralRelation: parent_center
+              parentType: research_center
+              parentId: center1
+
+    # --- Batch schemas ---
+
+    BatchRequest:
+      type: object
+      required: [operations]
+      properties:
+        operations:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/BatchOperation"
+
+    BatchOperation:
+      type: object
+      required: [action, userId, relation, type, resourceId]
+      properties:
+        action:
+          type: string
+          enum: [grant, revoke]
+          description: Whether to grant or revoke this access.
+        userId:
+          type: string
+          example: charlie
+        relation:
+          type: string
+          example: viewer
+        type:
+          type: string
+          example: data_pipeline
+        resourceId:
+          type: string
+          example: study1-center1-clinical-ingest
+
+    BatchResponse:
+      type: object
+      required: [total, succeeded, failed]
+      properties:
+        total:
+          type: integer
+          description: Total number of operations in the batch.
+          example: 10
+        succeeded:
+          type: integer
+          description: Number of operations that succeeded.
+          example: 9
+        failed:
+          type: integer
+          description: Number of operations that failed.
+          example: 1
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/BatchError"
+
+    BatchError:
+      type: object
+      required: [index, error, message]
+      properties:
+        index:
+          type: integer
+          description: Zero-based index of the failed operation in the batch.
+          example: 3
+        error:
+          type: string
+          example: conflict
+        message:
+          type: string
+          example: "Grant already exists."
+
+    # --- Health schemas ---
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: healthy
+        authorizationEngine:
+          type: string
+          enum: [connected, unreachable]
+          example: connected
+
+    # --- Error schemas ---
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code.
+          example: validation_error
+        message:
+          type: string
+          description: Human-readable error description.
+          example: "Relation 'parent_study' is a structural relation and cannot be directly assigned. Use the resource hierarchy endpoints instead."
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error context (optional).
+
+    # --- User Profile schemas ---
+
+    UserProfile:
+      type: object
+      required: [userId, firstName, lastName, authEmail, active]
+      properties:
+        userId:
+          type: string
+          example: "Registry000001@naccdata.org"
+        firstName:
+          type: string
+          example: "Jane"
+        lastName:
+          type: string
+          example: "Doe"
+        email:
+          type: ["string", "null"]
+          format: email
+        authEmail:
+          type: string
+          format: email
+        active:
+          type: boolean
+
+    UserProfileRequest:
+      type: object
+      required: [firstName, lastName, authEmail]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 256
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 256
+        email:
+          type: ["string", "null"]
+          format: email
+        authEmail:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 256
+        active:
+          type: ["boolean", "null"]
+
+    UserProfileList:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserProfile"
