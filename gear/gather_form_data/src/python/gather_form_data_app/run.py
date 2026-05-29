@@ -36,8 +36,16 @@ def _write_module_output(
     gatherers: list[ModuleDataGatherer],
     study_id: str,
 ) -> None:
-    """Writes the data content in each gatherer to a file named with the study-
-    id and the module of the gatherer.
+    """Writes the data content in each gatherer to one or more output files.
+
+    For gatherers with ``split_by_formver=False`` (default), produces a single
+    CSV per module named ``{study_id}-{module}-{date}.csv``.
+
+    For gatherers with ``split_by_formver=True``, produces one CSV per
+    (module, formver) pair, named
+    ``{study_id}-{module}-{formver_label}-{date}.csv`` (e.g.
+    ``adrc-UDS-v4-2026-05-29.csv``). The formver label is normalized via
+    ``formver_label`` (e.g. "1.0" -> "v1", missing -> "unknown").
 
     Args:
       context: the gear context
@@ -46,6 +54,27 @@ def _write_module_output(
     """
     today = date.today().isoformat()
     for gatherer in gatherers:
+        if gatherer.split_by_formver:
+            buckets = gatherer.content_by_formver
+            if not buckets:
+                log.warning(
+                    "skipping output for module %s: no data found",
+                    gatherer.module_name,
+                )
+                continue
+            for formver_label_value, content in buckets.items():
+                if not content:
+                    continue
+                output_filename = (
+                    f"{study_id}-{gatherer.module_name}-"
+                    f"{formver_label_value}-{today}.csv"
+                )
+                with context.open_output(
+                    output_filename, mode="w", encoding="utf-8"
+                ) as output_file:
+                    output_file.write(content)
+            continue
+
         if not gatherer.content:
             log.warning(
                 "skipping output for module %s: no data found",
@@ -71,6 +100,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         info_paths: list[str],
         modules: set[ModuleName],
         study_id: str,
+        formver_split: bool = False,
     ):
         super().__init__(client=client)
         self.__file_input = file_input
@@ -78,6 +108,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
+        self.__formver_split = formver_split
 
     @classmethod
     def create(
@@ -112,6 +143,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
 
         study_id = options.get("study_id", "adrc")
+        formver_split = options.get("formver_split", False)
 
         return GatherFormDataVisitor(
             client=client,
@@ -120,6 +152,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             info_paths=info_paths,
             modules={module for module in get_args(ModuleName) if module in modules},
             study_id=study_id,
+            formver_split=formver_split,
         )
 
     def run(self, context: GearContext) -> None:
@@ -130,6 +163,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                     proxy=self.proxy,
                     module_name=module_name,
                     info_paths=self.__info_paths,
+                    split_by_formver=self.__formver_split,
                 )
             )
 
@@ -182,6 +216,7 @@ class ProjectModeVisitor(GearExecutionEnvironment):
         info_paths: list[str],
         modules: set[str],
         study_id: str,
+        formver_split: bool = False,
     ):
         super().__init__(client=client)
         self.__group_id = group_id
@@ -189,6 +224,7 @@ class ProjectModeVisitor(GearExecutionEnvironment):
         self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
+        self.__formver_split = formver_split
 
     @classmethod
     def create(
@@ -219,6 +255,7 @@ class ProjectModeVisitor(GearExecutionEnvironment):
         include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
         study_id = options.get("study_id", "adrc")
+        formver_split = options.get("formver_split", False)
 
         try:
             config = ProjectModeConfig(
@@ -240,6 +277,7 @@ class ProjectModeVisitor(GearExecutionEnvironment):
             info_paths=config.info_paths,
             modules=config.modules,
             study_id=config.study_id,
+            formver_split=formver_split,
         )
 
     def run(self, context: GearContext) -> None:
@@ -285,6 +323,7 @@ class ProjectModeVisitor(GearExecutionEnvironment):
                 proxy=self.proxy,
                 module_name=module_name,
                 info_paths=self.__info_paths,
+                split_by_formver=self.__formver_split,
             )
             for module_name in self.__modules
         ]

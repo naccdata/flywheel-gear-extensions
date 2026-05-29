@@ -182,6 +182,7 @@ class TestProjectModeOutput:
             mock_gatherer = MagicMock()
             mock_gatherer.module_name = "UDS"
             mock_gatherer.content = "header1,header2\nval1,val2\n"
+            mock_gatherer.split_by_formver = False
             mock_gatherer_cls.return_value = mock_gatherer
 
             visitor.run(mock_context)
@@ -214,6 +215,7 @@ class TestProjectModeOutput:
             mock_gatherer = MagicMock()
             mock_gatherer.module_name = "FTLD"
             mock_gatherer.content = "col1\ndata1\n"
+            mock_gatherer.split_by_formver = False
             mock_gatherer_cls.return_value = mock_gatherer
 
             with patch("gather_form_data_app.run.date") as mock_date:
@@ -246,14 +248,16 @@ class TestProjectModeOutput:
         mock_uds_gatherer = MagicMock()
         mock_uds_gatherer.module_name = "UDS"
         mock_uds_gatherer.content = "header\ndata\n"
+        mock_uds_gatherer.split_by_formver = False
 
         mock_ftld_gatherer = MagicMock()
         mock_ftld_gatherer.module_name = "FTLD"
         mock_ftld_gatherer.content = ""  # Empty - no data
+        mock_ftld_gatherer.split_by_formver = False
 
         with patch("gather_form_data_app.run.ModuleDataGatherer") as mock_gatherer_cls:
 
-            def create_gatherer(proxy, module_name, info_paths):
+            def create_gatherer(proxy, module_name, info_paths, **kwargs):
                 if module_name == "UDS":
                     return mock_uds_gatherer
                 return mock_ftld_gatherer
@@ -271,3 +275,134 @@ class TestProjectModeOutput:
 
         # Warning should be logged for the empty module
         assert "skipping output for module FTLD" in caplog.text
+
+
+class TestProjectModeFormverSplit:
+    """Tests for formver_split=True output behavior in project mode.
+
+    When formver_split is enabled, the gear produces one CSV per
+    (module, formver) pair instead of one CSV per module.
+    """
+
+    def _build_visitor_with_formver_split(self, mock_client: MagicMock):
+        return ProjectModeVisitor(
+            client=mock_client,
+            group_id="test-group",
+            project_name="test-project",
+            info_paths=["forms.json"],
+            modules={"UDS"},
+            study_id="adrc",
+            formver_split=True,
+        )
+
+    def test_produces_one_file_per_formver_bucket(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """A gatherer with two formver buckets produces two output files."""
+        mock_group = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
+        mock_project.label = "test-project"
+        mock_proxy.find_group.return_value = mock_group
+        mock_group.find_project.return_value = mock_project
+
+        visitor = self._build_visitor_with_formver_split(mock_client)
+
+        with patch("gather_form_data_app.run.ModuleDataGatherer") as mock_gatherer_cls:
+            mock_gatherer = MagicMock()
+            mock_gatherer.module_name = "UDS"
+            mock_gatherer.split_by_formver = True
+            mock_gatherer.content_by_formver = {
+                "v3": "naccid\nNACC000001\n",
+                "v4": "naccid,extra\nNACC000002,x\n",
+            }
+            mock_gatherer_cls.return_value = mock_gatherer
+
+            with patch("gather_form_data_app.run.date") as mock_date:
+                mock_date.today.return_value.isoformat.return_value = "2024-01-15"
+                visitor.run(mock_context)
+
+        assert mock_context.open_output.call_count == 2
+        filenames = sorted(mock_context.output_files.keys())
+        assert filenames == [
+            "adrc-UDS-v3-2024-01-15.csv",
+            "adrc-UDS-v4-2024-01-15.csv",
+        ]
+        # Each output file contains its bucket's content
+        assert mock_context.output_files["adrc-UDS-v3-2024-01-15.csv"] == (
+            "naccid\nNACC000001\n"
+        )
+        assert mock_context.output_files["adrc-UDS-v4-2024-01-15.csv"] == (
+            "naccid,extra\nNACC000002,x\n"
+        )
+
+    def test_empty_buckets_are_skipped(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """Buckets with empty content do not produce files."""
+        mock_group = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
+        mock_project.label = "test-project"
+        mock_proxy.find_group.return_value = mock_group
+        mock_group.find_project.return_value = mock_project
+
+        visitor = self._build_visitor_with_formver_split(mock_client)
+
+        with patch("gather_form_data_app.run.ModuleDataGatherer") as mock_gatherer_cls:
+            mock_gatherer = MagicMock()
+            mock_gatherer.module_name = "UDS"
+            mock_gatherer.split_by_formver = True
+            mock_gatherer.content_by_formver = {
+                "v3": "naccid\nNACC000001\n",
+                "v4": "",  # empty
+            }
+            mock_gatherer_cls.return_value = mock_gatherer
+
+            visitor.run(mock_context)
+
+        assert mock_context.open_output.call_count == 1
+        filename = next(iter(mock_context.output_files.keys()))
+        assert "v3" in filename and "v4" not in filename
+
+    def test_gatherer_with_no_buckets_logs_warning(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        """A gatherer that gathered no rows produces no files and logs."""
+        mock_group = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
+        mock_project.label = "test-project"
+        mock_proxy.find_group.return_value = mock_group
+        mock_group.find_project.return_value = mock_project
+
+        visitor = self._build_visitor_with_formver_split(mock_client)
+
+        with patch("gather_form_data_app.run.ModuleDataGatherer") as mock_gatherer_cls:
+            mock_gatherer = MagicMock()
+            mock_gatherer.module_name = "UDS"
+            mock_gatherer.split_by_formver = True
+            mock_gatherer.content_by_formver = {}
+            mock_gatherer_cls.return_value = mock_gatherer
+
+            with caplog.at_level(logging.WARNING):
+                visitor.run(mock_context)
+
+        mock_context.open_output.assert_not_called()
+        assert "skipping output for module UDS" in caplog.text

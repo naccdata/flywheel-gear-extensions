@@ -31,9 +31,7 @@
       "base": "file",
       "optional": true,
       "type": {
-        "enum": [
-          "tabular data"
-        ]
+        "enum": ["tabular data"]
       }
     }
   },
@@ -42,10 +40,7 @@
       "description": "Execution mode: participant_list or project",
       "type": "string",
       "default": "participant_list",
-      "enum": [
-        "participant_list",
-        "project"
-      ]
+      "enum": ["participant_list", "project"]
     },
     "group_id": {
       "description": "Flywheel group ID for the center (required in project mode)",
@@ -86,6 +81,11 @@
       "description": "The study ID",
       "type": "string",
       "default": "adrc"
+    },
+    "formver_split": {
+      "description": "Split output CSVs by form version (one file per module/formver, e.g. uds-v3.csv, uds-v4.csv). Each file has a column set restricted to that exact form version; rows are not column-unioned across versions.",
+      "type": "boolean",
+      "default": false
     }
   },
   "command": "/bin/run"
