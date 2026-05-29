@@ -1,14 +1,23 @@
 # Gather Form Data
 
-This gear takes a CSV file containing a list of participants across centers, gathers form data for each and writes files for each module.
+This gear gathers form data for participants across centers and writes files for each module.
 
-## Input file
+It supports two execution modes:
 
-The input file must have a column named `naccid` with the NACCID for each participant.
+- **Participant list mode** (default): Takes a CSV file listing participants and gathers data for each.
+- **Project mode**: Iterates all subjects in a specified Flywheel group/project.
+
+## Execution Modes
+
+### Participant List Mode
+
+Set `execution_mode` to `"participant_list"` (or leave as default).
+
+Requires the `input_file` input — a CSV file with a column named `naccid` containing the NACCID for each participant.
 
 Note: use the [identifier-lookup](../identifier_lookup/) gear if your input source only has `adcid`, `ptid`.
 
-So, an input file will look like
+Example input file:
 
 ```csv
 "naccid"
@@ -16,24 +25,44 @@ So, an input file will look like
 "NACC000002"
 ```
 
-but may have other columns.
+The file may have other columns.
 
-## Gear configuration
+### Project Mode
 
-The gear manifest config includes the following parameters
+Set `execution_mode` to `"project"`.
 
+Instead of reading from a CSV, the gear resolves a Flywheel group and project, then iterates all subjects in that project. Each subject label is treated as a NACCID.
+
+Requires:
+
+- `group_id` — Flywheel group ID for the center
+- `project_name` — Project label to iterate
+
+The `input_file` input is not required in project mode.
+
+## Gear Configuration
+
+The gear manifest config includes the following parameters:
+
+- `execution_mode` - Default `"participant_list"`.
+  Either `"participant_list"` or `"project"`.
+- `group_id` - Optional.
+  Flywheel group ID for the center (required in project mode).
+- `project_name` - Optional.
+  Project label to iterate (required in project mode).
 - `project_names` - Default `"ingest-form"`.
-  A string containing a comma-separated list of project names to search.
+  A string containing a comma-separated list of project names to search for form data.
 - `include_derived` - Default `false`.
   A Boolean indicating whether to include derived variables or missingness information.
-- `modules` - Default `"UDS,FTLD,LBD"`
+- `modules` - Default `"UDS,FTLD,LBD"`.
   A string containing a comma-separated list of form module names to be included.
+  Valid values: `UDS`, `FTLD`, `LBD`.
 - `study_id` - Default `"adrc"`.
   Should be set if any participants have data from an affiliated study.
 
 ## File Metadata and Tagging
 
-After processing, the gear updates the input file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+In participant list mode, the gear updates the input file with the following metadata after processing. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
 
 1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
    - `name`: `"validation"`
@@ -41,6 +70,8 @@ After processing, the gear updates the input file with the following metadata. S
    - `data`: List of `FileError` objects with error details if any errors occurred
 
 2. **File Tag**: The gear name is added as a simple tag to the input file, indicating the file has been processed by this gear.
+
+Note: In project mode, no input file metadata is updated since there is no input file.
 
 ## Output
 
