@@ -6,6 +6,7 @@ from typing import TextIO
 from data_requests.data_request import (
     DataRequestMatch,
     DataRequestVisitor,
+    ModuleDataError,
     ModuleDataGatherer,
 )
 from inputs.csv_reader import read_csv
@@ -75,8 +76,8 @@ def run_project_mode(
 ) -> bool:
     """Orchestrates per-subject data gathering for project mode.
 
-    Applies each gatherer to each request. Logs warnings for failures
-    and continues processing all subjects.
+    Applies each gatherer to each request. Logs warnings for data access
+    failures and continues processing all subjects.
 
     Args:
         requests: DataRequestMatch objects for each subject
@@ -89,7 +90,7 @@ def run_project_mode(
         for gatherer in gatherers:
             try:
                 gatherer.gather_request_data(request)
-            except Exception as error:
+            except ModuleDataError as error:
                 log.warning(
                     "Error gathering data for subject %s, module %s: %s",
                     request.naccid,

@@ -51,9 +51,10 @@ The gear manifest config includes the following parameters:
 - `project_name` - Optional.
   Project label to iterate (required in project mode).
 - `project_names` - Default `"ingest-form"`.
-  A string containing a comma-separated list of project names to search for form data.
+  A string containing a comma-separated list of project names to search for form data (participant list mode only).
 - `include_derived` - Default `false`.
   A Boolean indicating whether to include derived variables or missingness information.
+  Applies to both execution modes.
 - `modules` - Default `"UDS,FTLD,LBD"`.
   A string containing a comma-separated list of form module names to be included.
   Valid values: `UDS`, `FTLD`, `LBD`.

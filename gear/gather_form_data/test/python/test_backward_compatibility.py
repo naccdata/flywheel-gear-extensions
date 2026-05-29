@@ -34,10 +34,10 @@ def mock_gear_context():
         yield mock_context
 
 
-class TestDefaultModeUsesParticipantList:
-    """When execution_mode is not set, the gear uses GatherFormDataVisitor.
+class TestModeDispatch:
+    """Tests for execution mode selection and input validation.
 
-    Validates: Requirement 9.1
+    Validates: Requirements 1.4, 3.2, 9.1, 9.2, 9.4
     """
 
     def test_default_mode_uses_participant_list(
@@ -52,14 +52,6 @@ class TestDefaultModeUsesParticipantList:
 
         mock_gear_engine.run.assert_called_once_with(gear_type=GatherFormDataVisitor)
 
-
-class TestExplicitParticipantListMode:
-    """When execution_mode is explicitly 'participant_list',
-    GatherFormDataVisitor is used.
-
-    Validates: Requirement 9.2
-    """
-
     def test_explicit_participant_list_mode(
         self, mock_gear_engine: MagicMock, mock_gear_context: MagicMock
     ):
@@ -71,14 +63,6 @@ class TestExplicitParticipantListMode:
         main()
 
         mock_gear_engine.run.assert_called_once_with(gear_type=GatherFormDataVisitor)
-
-
-class TestParticipantListModeRequiresInputFile:
-    """When execution_mode is 'participant_list' and input_file is not
-    provided, the gear logs an error and exits with failure.
-
-    Validates: Requirement 9.4
-    """
 
     def test_participant_list_mode_requires_input_file(
         self, mock_gear_engine: MagicMock, mock_gear_context: MagicMock
@@ -108,13 +92,6 @@ class TestParticipantListModeRequiresInputFile:
         assert exc_info.value.code == 1
         mock_gear_engine.run.assert_not_called()
 
-
-class TestProjectModeDoesNotRequireInputFile:
-    """When execution_mode is 'project', no error about missing input_file.
-
-    Validates: Requirement 3.2
-    """
-
     def test_project_mode_does_not_require_input_file(
         self, mock_gear_engine: MagicMock, mock_gear_context: MagicMock
     ):
@@ -126,14 +103,6 @@ class TestProjectModeDoesNotRequireInputFile:
         main()
 
         mock_gear_engine.run.assert_called_once_with(gear_type=ProjectModeVisitor)
-
-
-class TestInvalidModeExitsWithError:
-    """When execution_mode is an invalid value, error is logged and sys.exit(1)
-    is called.
-
-    Validates: Requirement 1.4
-    """
 
     def test_invalid_mode_exits_with_error(
         self,

@@ -7,7 +7,11 @@
 
 from unittest.mock import Mock, patch
 
-from data_requests.data_request import DataRequestMatch, ModuleDataGatherer
+from data_requests.data_request import (
+    DataRequestMatch,
+    ModuleDataError,
+    ModuleDataGatherer,
+)
 from gather_form_data_app.main import run_project_mode
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -40,7 +44,7 @@ def mock_gatherer_strategy(raises: bool, module_name: str) -> Mock:
     mock = Mock(spec=ModuleDataGatherer)
     mock.module_name = module_name
     if raises:
-        mock.gather_request_data.side_effect = Exception(
+        mock.gather_request_data.side_effect = ModuleDataError(
             f"Simulated error for {module_name}"
         )
     return mock
@@ -53,8 +57,8 @@ class TestRunProjectModeResilience:
     """Property tests for run_project_mode resilience.
 
     Verifies that run_project_mode always returns True regardless of
-    whether individual gatherers raise exceptions, and that all request-
-    gatherer combinations are attempted.
+    whether individual gatherers raise ModuleDataError, and that all
+    request-gatherer combinations are attempted.
     """
 
     @given(
@@ -175,7 +179,7 @@ class TestRunProjectModeResilience:
             def make_side_effect(req_to_fail):
                 def side_effect(req):
                     if req == req_to_fail:
-                        raise Exception("Simulated failure")
+                        raise ModuleDataError("Simulated failure")
 
                 return side_effect
 

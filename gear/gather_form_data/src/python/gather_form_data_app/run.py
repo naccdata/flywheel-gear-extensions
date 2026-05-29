@@ -17,16 +17,47 @@ from gear_execution.gear_execution import (
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
 from outputs.error_writer import ListErrorWriter
+from pydantic import ValidationError
 
 from gather_form_data_app.main import ProjectModeConfig, run, run_project_mode
 
 ModuleName = str
 
 log = logging.getLogger(__name__)
+
+
+def _write_module_output(
+    context: GearContext,
+    gatherers: list[ModuleDataGatherer],
+    study_id: str,
+) -> None:
+    """Writes the data content in each gatherer to a file named with the study-
+    id and the module of the gatherer.
+
+    Args:
+      context: the gear context
+      gatherers: a list of ModuleDataGatherer objects
+      study_id: the study identifier used in output filenames
+    """
+    today = date.today().isoformat()
+    for gatherer in gatherers:
+        if not gatherer.content:
+            log.warning(
+                "skipping output for module %s: no data found",
+                gatherer.module_name,
+            )
+            continue
+
+        output_filename = f"{study_id}-{gatherer.module_name}-{today}.csv"
+        with context.open_output(
+            output_filename, mode="w", encoding="utf-8"
+        ) as output_file:
+            output_file.write(gatherer.content)
 
 
 class GatherFormDataVisitor(GearExecutionEnvironment):
@@ -123,7 +154,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 error_writer=error_writer,
             )
             if success:
-                self.__write_output(context, request_visitor.gatherers)
+                _write_module_output(
+                    context=context,
+                    gatherers=request_visitor.gatherers,
+                    study_id=self.__study_id,
+                )
 
         context.metadata.add_qc_result(
             self.__file_input.file_input,
@@ -134,29 +169,6 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
 
         gear_name = self.get_gear_name(context, "gather-submission-status")
         context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
-
-    def __write_output(self, context: GearContext, gatherers: list[ModuleDataGatherer]):
-        """Using the gear context, writes the data content in each gatherer to
-        a file named with the study-id and the module of the gatherer.
-
-        Args:
-          context: the gear context
-          gatherers: a list of ModuleDataGatherer objects
-        """
-        today = date.today().isoformat()
-        for gatherer in gatherers:
-            if not gatherer.content:
-                log.warning(
-                    "skipping output for module %s: no data found", gatherer.module_name
-                )
-                continue
-
-            output_filename = f"{self.__study_id}-{gatherer.module_name}-{today}.csv"
-            with context.open_output(
-                output_filename, mode="w", encoding="utf-8"
-            ) as output_file:
-                # TODO: manage write errors
-                output_file.write(gatherer.content)
 
 
 class ProjectModeVisitor(GearExecutionEnvironment):
@@ -208,13 +220,18 @@ class ProjectModeVisitor(GearExecutionEnvironment):
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
         study_id = options.get("study_id", "adrc")
 
-        config = ProjectModeConfig(
-            group_id=group_id,
-            project_name=project_name,
-            modules=modules,
-            info_paths=info_paths,
-            study_id=study_id,
-        )
+        try:
+            config = ProjectModeConfig(
+                group_id=group_id,
+                project_name=project_name,
+                modules=modules,
+                info_paths=info_paths,
+                study_id=study_id,
+            )
+        except ValidationError as error:
+            raise GearExecutionError(
+                f"Invalid project mode configuration: {error}"
+            ) from error
 
         return ProjectModeVisitor(
             client=client,
@@ -274,35 +291,20 @@ class ProjectModeVisitor(GearExecutionEnvironment):
 
         run_project_mode(requests=requests, gatherers=gatherers)
 
-        self.__write_output(context, gatherers)
-
-    def __write_output(self, context: GearContext, gatherers: list[ModuleDataGatherer]):
-        """Using the gear context, writes the data content in each gatherer to
-        a file named with the study-id and the module of the gatherer.
-
-        Args:
-          context: the gear context
-          gatherers: a list of ModuleDataGatherer objects
-        """
-        today = date.today().isoformat()
-        for gatherer in gatherers:
-            if not gatherer.content:
-                log.warning(
-                    "skipping output for module %s: no data found",
-                    gatherer.module_name,
-                )
-                continue
-
-            output_filename = f"{self.__study_id}-{gatherer.module_name}-{today}.csv"
-            with context.open_output(
-                output_filename, mode="w", encoding="utf-8"
-            ) as output_file:
-                output_file.write(gatherer.content)
+        _write_module_output(
+            context=context,
+            gatherers=gatherers,
+            study_id=self.__study_id,
+        )
 
 
 def main():
-    """Main method for Gather Form Data."""
+    """Main method for Gather Form Data.
 
+    Determines the execution mode from gear configuration and dispatches
+    to the appropriate visitor. The GearEngine opens its own GearContext
+    internally, so we peek at config here only to select the mode.
+    """
     engine = GearEngine().create_with_parameter_store()
 
     with GearContext() as context:

@@ -19,8 +19,7 @@ from gear_execution.gear_execution import ClientWrapper
 @pytest.fixture
 def mock_client() -> MagicMock:
     """Create a mock ClientWrapper."""
-    client = MagicMock(spec=ClientWrapper)
-    return client
+    return MagicMock(spec=ClientWrapper)
 
 
 @pytest.fixture
@@ -40,7 +39,6 @@ def mock_context() -> MagicMock:
     def fake_open_output(filename, mode="w", encoding="utf-8"):
         buf = StringIO()
         yield buf
-        # Store written content for assertions
         context.output_files[filename] = buf.getvalue()
 
     context.output_files = {}
@@ -80,13 +78,13 @@ def create_mock_subject(label: str, subject_id: str) -> MagicMock:
     return subject
 
 
-class TestProjectModeGroupNotFound:
-    """Test that group not found is handled gracefully.
+class TestProjectModeErrorHandling:
+    """Tests for graceful handling of missing groups, projects, and subjects.
 
-    Validates: Requirement 4.3
+    Validates: Requirements 4.3, 4.4, 4.5
     """
 
-    def test_project_mode_group_not_found(
+    def test_group_not_found(
         self,
         mock_client: MagicMock,
         mock_proxy: MagicMock,
@@ -104,14 +102,7 @@ class TestProjectModeGroupNotFound:
         assert "Group not found: nonexistent-group" in caplog.text
         mock_context.open_output.assert_not_called()
 
-
-class TestProjectModeProjectNotFound:
-    """Test that project not found is handled gracefully.
-
-    Validates: Requirement 4.4
-    """
-
-    def test_project_mode_project_not_found(
+    def test_project_not_found(
         self,
         mock_client: MagicMock,
         mock_proxy: MagicMock,
@@ -135,14 +126,7 @@ class TestProjectModeProjectNotFound:
         assert "Project not found: nonexistent-project" in caplog.text
         mock_context.open_output.assert_not_called()
 
-
-class TestProjectModeEmptyProject:
-    """Test that empty project (no subjects) is handled gracefully.
-
-    Validates: Requirement 4.5
-    """
-
-    def test_project_mode_empty_project(
+    def test_empty_project(
         self,
         mock_client: MagicMock,
         mock_proxy: MagicMock,
@@ -167,13 +151,13 @@ class TestProjectModeEmptyProject:
         mock_context.open_output.assert_not_called()
 
 
-class TestProjectModeProducesOutput:
-    """Test that project mode produces CSV output files.
+class TestProjectModeOutput:
+    """Tests for CSV output file production.
 
-    Validates: Requirements 4.1, 4.2, 7.1
+    Validates: Requirements 4.1, 4.2, 7.1, 7.2
     """
 
-    def test_project_mode_produces_output(
+    def test_produces_output(
         self,
         mock_client: MagicMock,
         mock_proxy: MagicMock,
@@ -194,7 +178,6 @@ class TestProjectModeProducesOutput:
 
         visitor = create_visitor(mock_client, modules={"UDS"}, study_id="adrc")
 
-        # Patch ModuleDataGatherer to simulate data collection
         with patch("gather_form_data_app.run.ModuleDataGatherer") as mock_gatherer_cls:
             mock_gatherer = MagicMock()
             mock_gatherer.module_name = "UDS"
@@ -203,14 +186,13 @@ class TestProjectModeProducesOutput:
 
             visitor.run(mock_context)
 
-        # Verify open_output was called with a filename matching the pattern
         mock_context.open_output.assert_called_once()
         call_args = mock_context.open_output.call_args
         filename = call_args[0][0]
         assert filename.startswith("adrc-UDS-")
         assert filename.endswith(".csv")
 
-    def test_project_mode_output_filename_format(
+    def test_output_filename_format(
         self,
         mock_client: MagicMock,
         mock_proxy: MagicMock,
@@ -242,14 +224,7 @@ class TestProjectModeProducesOutput:
         filename = call_args[0][0]
         assert filename == "mystudy-FTLD-2024-01-15.csv"
 
-
-class TestProjectModeSkipsEmptyModules:
-    """Test that modules with no content don't produce output files.
-
-    Validates: Requirement 7.2
-    """
-
-    def test_project_mode_skips_empty_modules(
+    def test_skips_empty_modules(
         self,
         mock_client: MagicMock,
         mock_proxy: MagicMock,
@@ -268,7 +243,6 @@ class TestProjectModeSkipsEmptyModules:
 
         visitor = create_visitor(mock_client, modules={"UDS", "FTLD"}, study_id="adrc")
 
-        # Create two gatherers: one with content, one without
         mock_uds_gatherer = MagicMock()
         mock_uds_gatherer.module_name = "UDS"
         mock_uds_gatherer.content = "header\ndata\n"
@@ -278,7 +252,7 @@ class TestProjectModeSkipsEmptyModules:
         mock_ftld_gatherer.content = ""  # Empty - no data
 
         with patch("gather_form_data_app.run.ModuleDataGatherer") as mock_gatherer_cls:
-            # Return different gatherers for different module names
+
             def create_gatherer(proxy, module_name, info_paths):
                 if module_name == "UDS":
                     return mock_uds_gatherer
