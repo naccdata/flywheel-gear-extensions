@@ -15,6 +15,7 @@ from outputs.errors import (
 )
 from outputs.outputs import write_csv_to_stream
 from projects.project_mapper import generate_project_map
+from utils.files import check_duplicate_project_file
 
 log = logging.getLogger(__name__)
 
@@ -124,6 +125,7 @@ def run(
     include: Optional[Set[str]] = None,
     downstream_gears: Optional[List[str]] = None,
     delimiter: str = ",",
+    replace_duplicates: bool = False,
 ) -> List[Dict[str, Any]]:
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
@@ -145,6 +147,8 @@ def run(
         downstream_gears: Gears to wait on before processing the
             next batch when scheduling
         delimiter: The CSV's delimiter; defaults to ','
+        replace_duplicates: Replace a center-split file even if it's an
+            exact duplicate of an existing file
 
     Returns:
         The list of dropped rows, if any
@@ -212,14 +216,21 @@ def run(
             project = project_map[f"adcid-{adcid}"]
             filename = f"{adcid}_{input_filename}"
 
-            log.info(
-                f"Uploading {filename} for project {project.label} "  # type: ignore
-                + f"ADCID {adcid} with project ID {project.id}"
-            )  # type: ignore
-
             contents = write_csv_to_stream(
                 headers=visitor.headers, data=data
             ).getvalue()
+
+            if not replace_duplicates and check_duplicate_project_file(
+                project, contents, filename
+            ):
+                log.info(f"Duplicate data, skipping upload of {filename}")
+                continue
+
+            log.info(
+                f"Uploading {filename} for {project.group}/{project.label} "  # type: ignore
+                + f"ADCID {adcid} with project ID {project.id}"
+            )  # type: ignore
+
             if proxy.dry_run:
                 log.info(f"DRY RUN: Would have uploaded {filename}")
                 continue

@@ -2,7 +2,7 @@
   "name": "file-distribution",
   "label": "File Distribution",
   "description": "Gear that distributes files to target projects",
-  "version": "1.1.0",
+  "version": "1.1.1a",
   "author": "NACC",
   "maintainer": "NACC <nacchelp@uw.edu>",
   "cite": "",
@@ -15,7 +15,7 @@
   "custom": {
     "gear-builder": {
       "category": "utility",
-      "image": "naccdata/file-distribution:1.1.0"
+      "image": "naccdata/file-distribution:1.1.1a"
     },
     "flywheel": {
       "suite": "Utility",
@@ -86,6 +86,11 @@
       "description": "If scheduling, comma-delimited string of downstream gears to wait for",
       "type": "string",
       "default": ""
+    },
+    "replace_duplicates": {
+      "description": "Replace a file even if it's an exact duplicate of an existing file",
+      "type": "boolean",
+      "default": false
     }
   },
   "command": "/bin/run"

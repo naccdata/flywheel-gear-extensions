@@ -47,7 +47,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         include: Optional[str] = None,
         exclude: Optional[str] = None,
         delimiter: str = ",",
-        local_run: bool = False,
+        replace_duplicates: bool = False,
         email_client: Optional[EmailListClient] = None,
     ):
         super().__init__(client=client)
@@ -59,7 +59,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         self.__batch_size = batch_size
         self.__downstream_gears = downstream_gears
         self.__delimiter = delimiter
-        self.__local_run = local_run
+        self.__replace_duplicates = replace_duplicates
         self.__email_client = email_client
 
         self.__centers = filter_include_exclude(
@@ -137,26 +137,20 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             include=options.get("include", None),
             exclude=options.get("exclude", None),
             delimiter=options.get("delimiter", ","),
-            local_run=options.get("local_run", False),
+            replace_duplicates=options.get("replace_duplicates", False),
             email_client=email_client,
         )
 
     def run(self, context: GearContext) -> None:
         """Runs the CSV Center Splitter app."""
-        # if local run, give dummy container for local file, otherwise
-        # grab from project
-        if self.__local_run:
-            file_id = "local-container"
-            fw_path = "local-run"
-        else:
-            file_id = self.__file_input.file_id
-            try:
-                file = self.proxy.get_file(file_id)
-                fw_path = self.proxy.get_lookup_path(file)
-            except ApiException as error:
-                raise GearExecutionError(
-                    f"Failed to find the input file: {error}"
-                ) from error
+        file_id = self.__file_input.file_id
+        try:
+            file = self.proxy.get_file(file_id)
+            fw_path = self.proxy.get_lookup_path(file)
+        except ApiException as error:
+            raise GearExecutionError(
+                f"Failed to find the input file: {error}"
+            ) from error
 
         dropped_rows = None
         with open(self.__file_input.filepath, mode="r", encoding="utf-8-sig") as fh:
@@ -174,6 +168,7 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
                 downstream_gears=self.__downstream_gears,
                 include=set(self.__centers),
                 delimiter=self.__delimiter,
+                replace_duplicates=self.__replace_duplicates,
             )
 
         # report out any dropped rows

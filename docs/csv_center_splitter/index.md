@@ -15,7 +15,7 @@ exclude: comma-delimited list of ADCIDs to exclude in the split; will evaluate a
 batch_size: number of centers to batch; will wait for all downstream pipelines to finish running for a given batch before writing others
 downstream_gears: If scheduling, comma-delimited string of downstream gears to wait for
 delimiter: delimiter of the CSV, defaults to ','
-local_run: true if running on a local input file
+replace_duplicates: Replace a center-split file even if it's an exact duplicate of an existing file
 dry_run: whether or not this is a dry run - if so, will do everything except upload to Flywheel
 ```
 
