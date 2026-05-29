@@ -29,10 +29,10 @@ from pydantic import (
 VisitEventType = Literal["submit", "delete", "not-pass-qc", "pass-qc"]
 
 # Visit Event Action constants
-ACTION_SUBMIT = "submit"
-ACTION_DELETE = "delete"
-ACTION_NOT_PASS_QC = "not-pass-qc"
-ACTION_PASS_QC = "pass-qc"
+ACTION_SUBMIT: VisitEventType = "submit"
+ACTION_DELETE: VisitEventType = "delete"
+ACTION_NOT_PASS_QC: VisitEventType = "not-pass-qc"
+ACTION_PASS_QC: VisitEventType = "pass-qc"
 
 
 class VisitEvent(BaseModel):

@@ -22,6 +22,7 @@ from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepositor
 from inputs.parameter_store import ParameterStore
 from keys.keys import MetadataKeys
 from lambdas.lambda_function import LambdaClient, create_lambda_client
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import FileErrorList, GearTags
 from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from outputs.error_writer import ListErrorWriter
@@ -249,7 +250,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
             fw_path=self.proxy.get_lookup_path(file_obj),
         )
 
-        success, errors = ImageIdentifierLookup(
+        success, data_identification = ImageIdentifierLookup(
             lookup_context=lookup_context,
             project=project,
             subject=subject,
@@ -261,13 +262,17 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         ).run()
 
         # Step 5: Update file QC metadata and tags
-        log.info("Updating file QC metadata and tags")
-        self._update_file_metadata(
-            context=context,
-            file_obj=file_obj,
-            success=success,
-            errors=errors,
-        )
+        if self.__dry_run:
+            log.info("DRY RUN: Skipping file metadata updates")
+        else:
+            log.info("Updating file QC metadata and tags")
+            self._update_file_metadata(
+                context=context,
+                file_obj=file_obj,
+                success=success,
+                errors=error_writer.errors(),
+                data_identification=data_identification,
+            )
 
     def _update_file_metadata(
         self,
@@ -276,6 +281,7 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         file_obj,
         success: bool,
         errors: FileErrorList,
+        data_identification: Optional[DataIdentification] = None,
     ) -> None:
         """Update file QC metadata and tags.
 
@@ -283,12 +289,15 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
         - QC result (PASS/FAIL)
         - Validation timestamp
         - Gear tags
+        - DataIdentification (if available)
 
         Args:
             context: Gear context
             file_obj: Flywheel file object
             success: Whether processing succeeded
             errors: Accumulated file errors
+            data_identification: Optional DataIdentification to write
+                to file.info.data_identification
 
         Note:
             Failures in this method are logged but do not fail the gear
@@ -320,6 +329,15 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
                 tags=updated_tags,
                 container_type=context.config.destination["type"],
             )
+
+            # Write data_identification to file.info if available
+            if data_identification is not None:
+                serialized = data_identification.model_dump()
+                context.metadata.update_file_metadata(
+                    self.__file_input.file_input,
+                    container_type=context.config.destination["type"],
+                    info={"data_identification": serialized},
+                )
 
             log.info(
                 f"Successfully updated file QC metadata and tags: "

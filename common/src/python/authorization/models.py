@@ -2,7 +2,7 @@
 
 from typing import Any, Callable, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # --- Request Models ---
 
@@ -210,6 +210,51 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     details: dict | None = None
+
+
+# --- User Profile Models ---
+
+
+class UserProfileRequest(BaseModel):
+    """Request model for creating or updating a user profile."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    first_name: str = Field(alias="firstName", min_length=1, max_length=256)
+    last_name: str = Field(alias="lastName", min_length=1, max_length=256)
+    email: str | None = Field(default=None, alias="email")
+    auth_email: str = Field(alias="authEmail", min_length=1, max_length=256)
+    active: bool | None = Field(default=None, alias="active")
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def must_contain_non_whitespace(cls, v: str) -> str:
+        """Validate that name fields contain at least one non-whitespace
+        character."""
+        if not v.strip():
+            raise ValueError("must contain at least one non-whitespace character")
+        return v
+
+
+class UserProfile(BaseModel):
+    """Response model for a user profile."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    user_id: str = Field(alias="userId")
+    first_name: str = Field(alias="firstName")
+    last_name: str = Field(alias="lastName")
+    email: str | None = Field(default=None)
+    auth_email: str = Field(alias="authEmail")
+    active: bool
+
+
+class UserProfileList(BaseModel):
+    """Response model for batch user profile retrieval."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    users: list[UserProfile]
 
 
 # --- Domain Types ---

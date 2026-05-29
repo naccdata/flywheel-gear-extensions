@@ -88,9 +88,6 @@ def test_event_generator_initialization(mock_project):
     """Test EventGenerator initialization with valid project."""
     generator = EventGenerator(mock_project)
     assert generator is not None
-    assert generator._pipeline_label is not None  # noqa: SLF001
-    assert generator._pipeline_label.datatype == "form"  # noqa: SLF001
-    assert generator._pipeline_label.study_id == "adrc"  # noqa: SLF001
     assert generator._pipeline_adcid == 123  # noqa: SLF001
 
 
@@ -98,8 +95,8 @@ def test_event_generator_initialization_invalid_label(mock_project_invalid_label
     """Test EventGenerator initialization with invalid project label."""
     generator = EventGenerator(mock_project_invalid_label)
     assert generator is not None
-    # Should log warning but not crash
-    assert generator._pipeline_label is None  # noqa: SLF001
+    # Should still initialize without crashing
+    assert generator._pipeline_adcid is not None  # noqa: SLF001
 
 
 def test_create_submission_event_success(mock_project, sample_submit_event_data):

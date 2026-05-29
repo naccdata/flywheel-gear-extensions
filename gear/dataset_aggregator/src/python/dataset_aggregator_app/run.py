@@ -182,7 +182,11 @@ class DatasetAggregatorVisitor(GearExecutionEnvironment):
         provenance_file = Path(context.work_dir) / "provenance.json"
         with provenance_file.open("w") as fh:
             provenance = self.get_provenance(context)
-            provenance["latest_datasets"] = aggregate.latest_versions
+            provenance["dataset_aggregator"] = {
+                "freeze_date": self.__freeze_date,
+                "etl_date": etl_date,
+                "latest_versions": aggregate.latest_versions,
+            }
             json.dump(provenance, fh, indent=4)
 
         run(

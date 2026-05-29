@@ -3,10 +3,12 @@
 import json
 import logging
 import math
+import re
 from collections.abc import Callable
 from typing import Any
 
 from authorization.exceptions import (
+    NotFoundError,
     ParseError,
     UnexpectedError,
     ValidationError,
@@ -27,6 +29,9 @@ from authorization.models import (
     RevokeResult,
     SetParentsRequestModel,
     UserPermissions,
+    UserProfile,
+    UserProfileList,
+    UserProfileRequest,
 )
 from authorization.retry import retry_on_503
 from authorization.transport import HttpResponse, HttpTransport
@@ -41,6 +46,9 @@ _IDEMPOTENT_ERROR_CODES = frozenset({"conflict", "not_found"})
 
 # Per-operation error codes treated as retriable failures
 _RETRIABLE_ERROR_CODES = frozenset({"service_unavailable"})
+
+# Pattern for validating Profile_User_ID format
+_PROFILE_USER_ID_PATTERN = re.compile(r"^Registry\d{6}@naccdata\.org$")
 
 
 class AuthorizationClient:
@@ -81,6 +89,28 @@ class AuthorizationClient:
         if self._sleep is not None:
             kwargs["sleep"] = self._sleep
         return kwargs
+
+    def _validate_profile_user_id(self, profile_user_id: str | None) -> None:
+        """Validate a Profile User ID format.
+
+        Args:
+            profile_user_id: The ID to validate.
+
+        Raises:
+            ValidationError: If the ID is None, empty, or doesn't match
+                the expected pattern.
+        """
+        if not profile_user_id:
+            raise ValidationError(
+                message="A non-empty Profile_User_ID is required",
+            )
+        if not _PROFILE_USER_ID_PATTERN.match(profile_user_id):
+            raise ValidationError(
+                message=(
+                    f"Invalid Profile_User_ID '{profile_user_id}'. "
+                    f"Expected format: RegistryNNNNNN@naccdata.org"
+                ),
+            )
 
     def grant(
         self,
@@ -590,6 +620,305 @@ class AuthorizationClient:
         error_msg = self._extract_error_message(response)
         log.error(
             "Set resource parents unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def put_user_profile(
+        self,
+        profile_user_id: str,
+        request: UserProfileRequest,
+    ) -> UserProfile:
+        """Create or update a user profile.
+
+        Sends a PUT request to /users/{profileUserId} with the profile
+        data serialized as JSON.
+
+        Args:
+            profile_user_id: The profile user ID
+                (RegistryNNNNNN@naccdata.org).
+            request: The profile data to set.
+
+        Returns:
+            The created/updated UserProfile.
+
+        Raises:
+            ValidationError: If profile_user_id is invalid or API
+                returns 400.
+            ServiceUnavailableError: If retries exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        self._validate_profile_user_id(profile_user_id)
+
+        body = request.model_dump_json(by_alias=True).encode()
+        path = f"/users/{profile_user_id}"
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="PUT",
+                path=path,
+                body=body,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Put user profile succeeded: profile_user_id=%s",
+                profile_user_id,
+            )
+            try:
+                return UserProfile.model_validate_json(response.body)
+            except Exception as exc:
+                raise ParseError(
+                    message=(f"Failed to parse put user profile response: {exc}"),
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Put user profile validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        # Any other error status
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Put user profile unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def delete_user_profile(self, profile_user_id: str) -> None:
+        """Delete a user profile. Returns None on 204 or 404 (idempotent).
+
+        Sends a DELETE request to /users/{profileUserId}.
+
+        Args:
+            profile_user_id: The profile user ID
+                (RegistryNNNNNN@naccdata.org).
+
+        Returns:
+            None on successful deletion or if already deleted.
+
+        Raises:
+            ValidationError: If profile_user_id is invalid or API
+                returns 400.
+            ServiceUnavailableError: If retries exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+        """
+        self._validate_profile_user_id(profile_user_id)
+
+        path = f"/users/{profile_user_id}"
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="DELETE",
+                path=path,
+                body=None,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 204:
+            log.debug(
+                "Delete user profile succeeded: profile_user_id=%s",
+                profile_user_id,
+            )
+            return None
+
+        if response.status_code == 404:
+            log.debug(
+                "Delete user profile not found (idempotent): profile_user_id=%s",
+                profile_user_id,
+            )
+            return None
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Delete user profile validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        # Any other error status
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Delete user profile unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def get_user_profile(self, profile_user_id: str) -> UserProfile:
+        """Get a user profile.
+
+        Sends a GET request to /users/{profileUserId} and returns the
+        parsed profile.
+
+        Args:
+            profile_user_id: The profile user ID
+                (RegistryNNNNNN@naccdata.org).
+
+        Returns:
+            The UserProfile for the given ID.
+
+        Raises:
+            ValidationError: If profile_user_id is invalid or API
+                returns 400.
+            NotFoundError: If the profile does not exist (404).
+            ServiceUnavailableError: If retries exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        self._validate_profile_user_id(profile_user_id)
+
+        path = f"/users/{profile_user_id}"
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="GET",
+                path=path,
+                body=None,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Get user profile succeeded: profile_user_id=%s",
+                profile_user_id,
+            )
+            try:
+                return UserProfile.model_validate_json(response.body)
+            except Exception as exc:
+                raise ParseError(
+                    message=(f"Failed to parse get user profile response: {exc}"),
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 404:
+            log.debug(
+                "User profile not found: profile_user_id=%s",
+                profile_user_id,
+            )
+            raise NotFoundError(
+                message=f"User profile not found: {profile_user_id}",
+            )
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Get user profile validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        # Any other error status
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Get user profile unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def get_user_profiles(
+        self,
+        profile_user_ids: list[str],
+    ) -> list[UserProfile]:
+        """Get multiple user profiles by ID.
+
+        Sends a GET request to /users?ids=id1,id2,... with the IDs
+        joined as a comma-separated query parameter.
+
+        Args:
+            profile_user_ids: List of profile user IDs to retrieve.
+
+        Returns:
+            List of UserProfile models.
+
+        Raises:
+            ValidationError: If any ID is invalid or API returns 400.
+            ServiceUnavailableError: If retries exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        for profile_user_id in profile_user_ids:
+            self._validate_profile_user_id(profile_user_id)
+
+        if not profile_user_ids:
+            return []
+
+        path = "/users"
+        ids_param = ",".join(profile_user_ids)
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="GET",
+                path=path,
+                body=None,
+                query_params={"ids": ids_param},
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Get user profiles succeeded: count=%d",
+                len(profile_user_ids),
+            )
+            try:
+                result = UserProfileList.model_validate_json(response.body)
+                return result.users
+            except Exception as exc:
+                raise ParseError(
+                    message=(f"Failed to parse get user profiles response: {exc}"),
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Get user profiles validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        # Any other error status
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Get user profiles unexpected error %d: %s",
             response.status_code,
             error_msg,
         )

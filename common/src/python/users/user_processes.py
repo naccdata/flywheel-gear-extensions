@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Dict, Generic, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Dict, Generic, List, Optional, TypeVar
+
+if TYPE_CHECKING:
+    from authorization_sync.sync_service import AuthorizationSyncService
 
 from centers.center_group import CenterError, CenterGroup
 from coreapi_client.models.identifier import Identifier
@@ -32,6 +37,36 @@ from users.user_registry import DomainCandidate, RegistryError, RegistryPerson
 log = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+def _try_sync_profile(
+    sync_service: "AuthorizationSyncService",
+    registry_id: str,
+    user_entry: UserEntry,
+) -> None:
+    """Attempt to sync a user profile, logging errors without propagating.
+
+    This is a fault-isolation wrapper around sync_service.sync_profile.
+    Expected API failures are handled inside sync_profile via the event
+    collector. This wrapper catches unexpected programming errors
+    (TypeError, KeyError, etc.) so they don't disrupt the calling workflow.
+
+    Args:
+        sync_service: The authorization sync service.
+        registry_id: The user's registry ID (ePPN).
+        user_entry: The user entry containing profile data.
+    """
+    try:
+        sync_service.sync_profile(
+            registry_id=registry_id,
+            user_entry=user_entry,
+        )
+    except Exception as error:
+        log.error(
+            "Profile sync failed for user %s: %s",
+            registry_id,
+            error,
+        )
 
 
 class BaseUserProcess(ABC, Generic[T]):
@@ -433,6 +468,31 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
                 )
                 self.collector.collect(error_event)
 
+    def __sync_inactive_profile(
+        self,
+        entry: UserEntry,
+        person_list: Optional[list[RegistryPerson]],
+    ) -> None:
+        """Sync the inactive user's profile to the Authorization API.
+
+        Resolves the registry_id from the person_list and calls
+        sync_profile. Wrapped in try/except for fault isolation.
+
+        Args:
+            entry: The inactive user entry
+            person_list: The list of registry persons from COmanage lookup
+        """
+        registry_id: Optional[str] = None
+        if person_list:
+            first_person = person_list[0]
+            registry_id = first_person.registry_id()
+        if not registry_id:
+            return
+
+        sync_service = self.__env.authorization_sync
+        if sync_service is not None:
+            _try_sync_profile(sync_service, registry_id, entry)
+
     def visit(self, entry: UserEntry) -> None:
         """Visit method for an inactive user entry.
 
@@ -485,6 +545,9 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
                 error,
                 exc_info=True,
             )
+
+        # Profile sync (mark inactive)
+        self.__sync_inactive_profile(entry, person_list)
 
         # Step 3: REDCap role removal
         try:
@@ -623,6 +686,7 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
             center_id=entry.adcid,
             authorizations=authorizations,
             registry_id=registry_id,
+            entry=entry,
         )
 
     def __authorize_user(
@@ -633,6 +697,7 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
         center_id: int,
         authorizations: dict[str, StudyAuthorizations],
         registry_id: str,
+        entry: CenterUserEntry,
     ) -> None:
         """Adds authorizations to the user.
 
@@ -644,6 +709,7 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
         center_id: the center of the user
         authorizations: list of authorizations
         registry_id: the user's registry ID (ePPN)
+        entry: the center user entry for profile sync
         """
         center_group = self.__env.admin_group.get_center(center_id)
         if not center_group:
@@ -690,6 +756,8 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
                     )
                     # Fault isolation: sync failure must not affect
                     # Flywheel role assignment
+
+            _try_sync_profile(sync_service, registry_id, entry)
 
     def execute(self, queue: UserQueue[CenterUserEntry]) -> None:
         log.info("**Processing center users")
@@ -756,6 +824,7 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
             email=entry.email,
             authorizations=entry.authorizations,
             registry_id=registry_id,
+            entry=entry,
         )
         self.__update_email(user=fw_user, email=entry.email)
 
@@ -769,6 +838,7 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
         email: str,
         authorizations: Authorizations,
         registry_id: str,
+        entry: ActiveUserEntry,
     ) -> None:
         """Applies authorizations to give access to general resources.
 
@@ -782,6 +852,7 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
             email: The user's email address
             authorizations: The general authorizations containing activities
             registry_id: The user's registry ID (ePPN) for authorization sync
+            entry: The active user entry for profile sync
         """
         # Apply Flywheel role assignment via GeneralAuthorizationVisitor
         if authorizations.activities:
@@ -833,6 +904,8 @@ class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
                 )
                 # Fault isolation: sync failure must not affect
                 # Flywheel role assignment or downstream processing
+
+            _try_sync_profile(sync_service, registry_id, entry)
 
     def __update_email(self, *, user: User, email: str) -> None:
         """Updates user email on FW instance if email is different.

@@ -206,7 +206,7 @@ class TestEndToEndEventLogging:
 
         # Verify event structure and content
         assert event.action == "pass-qc"
-        assert event.gear_name == "form-scheduler"
+        assert event.gear_name == "form-qc-checker"
         assert event.ptid == "adrc1000"
         assert event.visit_date == "2025-03-19"
         assert event.visit_number == "3F"
@@ -278,7 +278,7 @@ class TestEndToEndEventLogging:
 
         # Verify event structure and content from JSON fallback
         assert event.action == "pass-qc"
-        assert event.gear_name == "form-scheduler"
+        assert event.gear_name == "form-qc-checker"
         assert event.ptid == "adrc1001"
         assert event.visit_date == "2025-08-22"  # From JSON visitdate
         assert event.visit_number == "4F"

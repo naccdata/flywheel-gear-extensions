@@ -22,6 +22,14 @@ class ServiceUnavailableError(AuthorizationClientError):
     """Raised when retries are exhausted on 503."""
 
 
+class NotFoundError(AuthorizationClientError):
+    """Raised when the API returns 404 (resource not found)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
 class UnexpectedError(AuthorizationClientError):
     """Raised on unexpected HTTP errors (non-retriable 4xx/5xx)."""
 

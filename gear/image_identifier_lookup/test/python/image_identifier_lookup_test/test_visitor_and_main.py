@@ -24,7 +24,7 @@ from image_identifier_lookup_app.extraction import (
 )
 from image_identifier_lookup_app.main import ImageIdentifierLookup
 from image_identifier_lookup_app.run import ImageIdentifierLookupVisitor
-from nacc_common.error_models import FileErrorList
+from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3InterfaceError
 
@@ -353,24 +353,9 @@ class TestMainOrchestration:
         """Test successful end-to-end flow: extraction → lookup → update → QC →
         event."""
         # Arrange - create a real DICOM file
-        from pydicom.dataset import Dataset, FileMetaDataset
-
-        ds = Dataset()
-        file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # type: ignore[assignment]
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5.6.7.8.9"  # type: ignore[assignment]
-        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # type: ignore[assignment]
-        file_meta.ImplementationClassUID = "1.2.3.4"  # type: ignore[assignment]
-        ds.file_meta = file_meta
-        ds.PatientID = "110001"
-        ds.StudyDate = "20240115"
-        ds.Modality = "MR"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.9"
-        ds.StudyInstanceUID = "1.2.840.113619.2.1.1.1"
-
-        dicom_file = tmp_path / "test.dcm"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        dicom_file = create_test_dicom_file(
+            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
+        )
 
         naccid = "NACC123456"
 
@@ -390,7 +375,7 @@ class TestMainOrchestration:
         dicom_metadata = extract_dicom_metadata(dicom_file)
 
         # Act
-        success, _errors = ImageIdentifierLookup(
+        success, data_identification = ImageIdentifierLookup(
             lookup_context=_build_lookup_context(
                 pipeline_adcid=42,
                 ptid="110001",
@@ -419,7 +404,15 @@ class TestMainOrchestration:
 
         # Assert - success
         assert success is True
-        assert not _errors
+        assert not error_writer.errors()
+
+        # Assert - DataIdentification returned
+        assert data_identification is not None
+        assert isinstance(data_identification, DataIdentification)
+        assert data_identification.ptid == "110001"
+        assert data_identification.adcid == 42
+        assert data_identification.modality == "MR"
+        assert data_identification.date == "2024-01-15"
 
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
@@ -439,24 +432,9 @@ class TestMainOrchestration:
     ) -> None:
         """Test idempotency: skip lookup when NACCID already correct."""
         # Arrange - create a real DICOM file
-        from pydicom.dataset import Dataset, FileMetaDataset
-
-        ds = Dataset()
-        file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # type: ignore[assignment]
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5.6.7.8.9"  # type: ignore[assignment]
-        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # type: ignore[assignment]
-        file_meta.ImplementationClassUID = "1.2.3.4"  # type: ignore[assignment]
-        ds.file_meta = file_meta
-        ds.PatientID = "110001"
-        ds.StudyDate = "20240115"
-        ds.Modality = "MR"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.9"
-        ds.StudyInstanceUID = "1.2.840.113619.2.1.1.1"
-
-        dicom_file = tmp_path / "test.dcm"
-        ds.save_as(str(dicom_file), write_like_original=False)
+        dicom_file = create_test_dicom_file(
+            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
+        )
 
         existing_naccid = "NACC123456"
         mock_subject.info = {"naccid": existing_naccid}
@@ -469,7 +447,7 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act
-        success, _errors = ImageIdentifierLookup(
+        success, data_identification = ImageIdentifierLookup(
             lookup_context=_build_lookup_context(
                 pipeline_adcid=42,
                 ptid="110001",
@@ -496,6 +474,11 @@ class TestMainOrchestration:
         # Assert - success
         assert success is True
 
+        # Assert - DataIdentification returned with existing NACCID
+        assert data_identification is not None
+        assert isinstance(data_identification, DataIdentification)
+        assert data_identification.naccid == existing_naccid
+
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     def test_qc_logging_on_success(
@@ -518,8 +501,6 @@ class TestMainOrchestration:
             tmp_path, patient_id="110001", study_date="20240115", modality="MR"
         )
 
-        _ptid = "110001"
-        _adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -579,9 +560,6 @@ class TestMainOrchestration:
             tmp_path, patient_id="110001", study_date="20240115", modality="MR"
         )
 
-        _ptid = "110001"
-        _adcid = 42
-
         # Mock processor to raise error
         mock_processor = Mock()
         mock_processor.lookup_and_update.side_effect = IdentifierRepositoryError(
@@ -594,7 +572,7 @@ class TestMainOrchestration:
         mock_qc_manager_class.return_value = mock_qc_manager
 
         # Act - error is now captured, not raised
-        success, errors = ImageIdentifierLookup(
+        success, data_identification = ImageIdentifierLookup(
             lookup_context=_build_lookup_context(
                 pipeline_adcid=42,
                 ptid="110001",
@@ -618,6 +596,10 @@ class TestMainOrchestration:
         qc_call = mock_qc_manager.update_qc_log.call_args.kwargs
         assert qc_call["status"] == "FAIL"
 
+        # Assert - DataIdentification still returned even on failure
+        assert data_identification is not None
+        assert isinstance(data_identification, DataIdentification)
+
     @patch("image_identifier_lookup_app.main.QCStatusLogManager")
     @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
     def test_event_capture_on_success(
@@ -640,8 +622,6 @@ class TestMainOrchestration:
             tmp_path, patient_id="110001", study_date="20240115", modality="MR"
         )
 
-        _ptid = "110001"
-        _adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -699,8 +679,6 @@ class TestMainOrchestration:
             tmp_path, patient_id="110001", study_date="20240115", modality="MR"
         )
 
-        _ptid = "110001"
-        _adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -734,49 +712,32 @@ class TestMainOrchestration:
         # Assert - event capture was attempted but failure didn't stop processing
         mock_event_capture.capture_event.assert_called_once()
 
-    @patch("image_identifier_lookup_app.main.QCStatusLogManager")
-    @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
-    def test_file_qc_metadata_and_tagging(
+
+class TestRunDataIdentificationReturn:
+    """Tests for the DataIdentification third element of run() return value."""
+
+    def test_run_returns_none_data_identification_without_visit_metadata(
         self,
-        mock_processor_class: Mock,
-        mock_qc_manager_class: Mock,
-        tmp_path: Path,
-        mock_gear_context: Mock,
         mock_project: Mock,
         mock_subject: Mock,
-        mock_file_obj: Mock,
-        mock_file_input: Mock,
         mock_repository: Mock,
         mock_event_capture: Mock,
         error_writer: ListErrorWriter,
     ) -> None:
-        """Test file QC metadata and tagging."""
-        # Arrange - create real DICOM file
-        dicom_file = create_test_dicom_file(
-            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
+        """Test that run() returns None as third element when visit metadata is
+        unavailable (no DICOM enrichment, so no study_date/modality)."""
+        # Arrange - build context WITHOUT dicom_metadata so visit_metadata is None
+        lookup_context = _build_lookup_context(
+            pipeline_adcid=42,
+            ptid="110001",
+            existing_naccid="NACC123456",
+            dicom_metadata=None,
         )
-
-        _ptid = "110001"
-        _adcid = 42
-        naccid = "NACC123456"
-
-        # Mock processor
-        mock_processor = Mock()
-        mock_processor.lookup_and_update.return_value = naccid
-        mock_processor_class.return_value = mock_processor
-
-        # Mock QC manager
-        mock_qc_manager = Mock()
-        mock_qc_manager_class.return_value = mock_qc_manager
+        assert lookup_context.visit_metadata is None
 
         # Act
-        ImageIdentifierLookup(
-            lookup_context=_build_lookup_context(
-                pipeline_adcid=42,
-                ptid="110001",
-                existing_naccid=None,
-                dicom_metadata=extract_dicom_metadata(dicom_file),
-            ),
+        success, data_identification = ImageIdentifierLookup(
+            lookup_context=lookup_context,
             project=mock_project,
             subject=mock_subject,
             identifiers_repository=mock_repository,
@@ -785,8 +746,98 @@ class TestMainOrchestration:
             error_writer=error_writer,
         ).run()
 
-        # Note: File metadata updates are now handled in run.py, not main.py
-        # This test would need to test the visitor.run() method instead
+        # Assert
+        assert success is True
+        assert data_identification is None
+
+    @patch("image_identifier_lookup_app.main.QCStatusLogManager")
+    @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
+    def test_run_returns_data_identification_matching_lookup_context(
+        self,
+        mock_processor_class: Mock,
+        mock_qc_manager_class: Mock,
+        tmp_path: Path,
+        mock_project: Mock,
+        mock_subject: Mock,
+        mock_repository: Mock,
+        mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
+    ) -> None:
+        """Test that the returned DataIdentification matches the one built from
+        the lookup context."""
+        # Arrange - create real DICOM file
+        dicom_file = create_test_dicom_file(
+            tmp_path, patient_id="110001", study_date="20240115", modality="CT"
+        )
+
+        # Mock processor
+        mock_processor = Mock()
+        mock_processor.lookup_and_update.return_value = "NACC999999"
+        mock_processor_class.return_value = mock_processor
+
+        # Mock QC manager
+        mock_qc_manager = Mock()
+        mock_qc_manager.update_qc_log.return_value = "qc-status.log"
+        mock_qc_manager_class.return_value = mock_qc_manager
+
+        lookup_context = _build_lookup_context(
+            pipeline_adcid=99,
+            ptid="220002",
+            existing_naccid=None,
+            dicom_metadata=extract_dicom_metadata(dicom_file),
+        )
+
+        # Act
+        success, data_identification = ImageIdentifierLookup(
+            lookup_context=lookup_context,
+            project=mock_project,
+            subject=mock_subject,
+            identifiers_repository=mock_repository,
+            event_capture=mock_event_capture,
+            gear_name="image-identifier-lookup",
+            error_writer=error_writer,
+        ).run()
+
+        # Assert - DataIdentification matches the lookup context
+        assert data_identification is not None
+        assert isinstance(data_identification, DataIdentification)
+        assert data_identification.ptid == lookup_context.ptid
+        assert data_identification.adcid == lookup_context.pipeline_adcid
+        assert data_identification.modality == "CT"
+        assert data_identification.date == "2024-01-15"
+        assert data_identification.visitnum is None
+
+    def test_run_returns_2_tuple(
+        self,
+        mock_project: Mock,
+        mock_subject: Mock,
+        mock_repository: Mock,
+        mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
+    ) -> None:
+        """Test that run() always returns a 2-tuple."""
+        # Arrange - context without visit metadata
+        lookup_context = _build_lookup_context(
+            pipeline_adcid=42,
+            ptid="110001",
+            existing_naccid="NACC123456",
+            dicom_metadata=None,
+        )
+
+        # Act
+        result = ImageIdentifierLookup(
+            lookup_context=lookup_context,
+            project=mock_project,
+            subject=mock_subject,
+            identifiers_repository=mock_repository,
+            event_capture=mock_event_capture,
+            gear_name="image-identifier-lookup",
+            error_writer=error_writer,
+        ).run()
+
+        # Assert - always a 2-tuple
+        assert isinstance(result, tuple)
+        assert len(result) == 2
 
 
 class TestVisitorRun:
@@ -829,7 +880,7 @@ class TestVisitorRun:
 
         # Mock ImageIdentifierLookup to return success
         mock_instance = Mock()
-        mock_instance.run.return_value = (True, FileErrorList([]))
+        mock_instance.run.return_value = (True, None)
         mock_lookup_class.return_value = mock_instance
 
         with (
@@ -956,8 +1007,6 @@ class TestIntegrationScenarios:
             tmp_path, patient_id="110001", study_date="20240115", modality="MR"
         )
 
-        _ptid = "110001"
-        _adcid = 42
         existing_naccid = "NACC123456"
 
         # Set existing NACCID in subject
@@ -1016,8 +1065,6 @@ class TestIntegrationScenarios:
             tmp_path, patient_id="110001", study_date="20240115", modality="MR"
         )
 
-        _ptid = "110001"
-        _adcid = 42
         naccid = "NACC123456"
 
         # Mock processor
@@ -1049,3 +1096,345 @@ class TestIntegrationScenarios:
         # Assert - processing continued despite QC logging failure
         # Event capture still happened
         mock_event_capture.capture_event.assert_called_once()
+
+
+class TestDataIdentificationFileWrite:
+    """Tests for data_identification write to file metadata via visitor.run().
+
+    Validates Requirements: 2.1, 2.2, 2.3, 2.4, 4.1, 4.2, 4.3, 4.4, 5.1,
+    5.2
+    """
+
+    @patch("image_identifier_lookup_app.run.resolve_dicom_file")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.ImageIdentifierLookup")
+    def test_writes_data_identification_to_file_info(
+        self,
+        mock_lookup_class: Mock,
+        mock_extract_metadata: Mock,
+        mock_resolve_dicom: Mock,
+        visitor: ImageIdentifierLookupVisitor,
+        mock_gear_context: Mock,
+        mock_file_obj: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+    ) -> None:
+        """Test that visitor.run() writes data_identification to file.info when
+        ImageIdentifierLookup returns a DataIdentification."""
+        data_id = DataIdentification.from_visit_metadata(
+            ptid="110001",
+            date="2024-01-15",
+            modality="MR",
+            adcid=42,
+            naccid="NACC123456",
+            visitnum=None,
+        )
+
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_fw_project = Mock()
+        mock_proxy.get_project_by_id.return_value = mock_fw_project
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        mock_resolve_dicom.return_value = (
+            Path("/flywheel/v0/input/input_file/test.dcm"),
+            None,
+        )
+        mock_extract_metadata.return_value = {
+            "patient_id": "110001",
+            "study_date": "20240115",
+            "modality": "MR",
+        }
+
+        mock_instance = Mock()
+        mock_instance.run.return_value = (True, data_id)
+        mock_lookup_class.return_value = mock_instance
+
+        with (
+            patch.object(
+                type(visitor),
+                "proxy",
+                new_callable=PropertyMock,
+                return_value=mock_proxy,
+            ),
+            patch(
+                "image_identifier_lookup_app.run.ProjectAdaptor",
+                return_value=mock_project,
+            ),
+        ):
+            visitor.run(mock_gear_context)
+
+        # Find the call that wrote data_identification
+        update_calls = mock_gear_context.metadata.update_file_metadata.call_args_list
+        data_id_calls = [
+            c
+            for c in update_calls
+            if "info" in c.kwargs and "data_identification" in c.kwargs.get("info", {})
+        ]
+        assert len(data_id_calls) == 1
+        written = data_id_calls[0].kwargs["info"]["data_identification"]
+        assert written == data_id.model_dump()
+
+    @patch("image_identifier_lookup_app.run.resolve_dicom_file")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.ImageIdentifierLookup")
+    def test_skips_data_identification_write_when_none(
+        self,
+        mock_lookup_class: Mock,
+        mock_extract_metadata: Mock,
+        mock_resolve_dicom: Mock,
+        visitor: ImageIdentifierLookupVisitor,
+        mock_gear_context: Mock,
+        mock_file_obj: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+    ) -> None:
+        """Test that visitor.run() does NOT write data_identification to
+        file.info when ImageIdentifierLookup returns None."""
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_fw_project = Mock()
+        mock_proxy.get_project_by_id.return_value = mock_fw_project
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        mock_resolve_dicom.return_value = (
+            Path("/flywheel/v0/input/input_file/test.dcm"),
+            None,
+        )
+        mock_extract_metadata.return_value = {
+            "patient_id": "110001",
+            "study_date": "20240115",
+            "modality": "MR",
+        }
+
+        mock_instance = Mock()
+        mock_instance.run.return_value = (True, None)
+        mock_lookup_class.return_value = mock_instance
+
+        with (
+            patch.object(
+                type(visitor),
+                "proxy",
+                new_callable=PropertyMock,
+                return_value=mock_proxy,
+            ),
+            patch(
+                "image_identifier_lookup_app.run.ProjectAdaptor",
+                return_value=mock_project,
+            ),
+        ):
+            visitor.run(mock_gear_context)
+
+        # Verify no call wrote data_identification
+        update_calls = mock_gear_context.metadata.update_file_metadata.call_args_list
+        data_id_calls = [
+            c
+            for c in update_calls
+            if "info" in c.kwargs and "data_identification" in c.kwargs.get("info", {})
+        ]
+        assert len(data_id_calls) == 0
+
+    @patch("image_identifier_lookup_app.run.resolve_dicom_file")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.ImageIdentifierLookup")
+    def test_flywheel_error_during_metadata_write_does_not_raise(
+        self,
+        mock_lookup_class: Mock,
+        mock_extract_metadata: Mock,
+        mock_resolve_dicom: Mock,
+        visitor: ImageIdentifierLookupVisitor,
+        mock_gear_context: Mock,
+        mock_file_obj: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+    ) -> None:
+        """Test that a FlywheelError during file metadata write is logged but
+        does not raise from visitor.run()."""
+        data_id = DataIdentification.from_visit_metadata(
+            ptid="110001",
+            date="2024-01-15",
+            modality="MR",
+            adcid=42,
+            naccid="NACC123456",
+            visitnum=None,
+        )
+
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_fw_project = Mock()
+        mock_proxy.get_project_by_id.return_value = mock_fw_project
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        mock_resolve_dicom.return_value = (
+            Path("/flywheel/v0/input/input_file/test.dcm"),
+            None,
+        )
+        mock_extract_metadata.return_value = {
+            "patient_id": "110001",
+            "study_date": "20240115",
+            "modality": "MR",
+        }
+
+        mock_instance = Mock()
+        mock_instance.run.return_value = (True, data_id)
+        mock_lookup_class.return_value = mock_instance
+
+        # Make all metadata writes raise FlywheelError
+        mock_gear_context.metadata.add_qc_result.side_effect = FlywheelError(
+            "metadata write failed"
+        )
+
+        with (
+            patch.object(
+                type(visitor),
+                "proxy",
+                new_callable=PropertyMock,
+                return_value=mock_proxy,
+            ),
+            patch(
+                "image_identifier_lookup_app.run.ProjectAdaptor",
+                return_value=mock_project,
+            ),
+        ):
+            # Should NOT raise
+            visitor.run(mock_gear_context)
+
+
+class TestDryRunBehavior:
+    """Tests for dry run behavior with data_identification.
+
+    Validates Requirements: 6.1, 6.2
+    """
+
+    @patch("image_identifier_lookup_app.run.resolve_dicom_file")
+    @patch("image_identifier_lookup_app.run.extract_dicom_metadata")
+    @patch("image_identifier_lookup_app.run.ImageIdentifierLookup")
+    def test_dry_run_skips_file_metadata_update(
+        self,
+        mock_lookup_class: Mock,
+        mock_extract_metadata: Mock,
+        mock_resolve_dicom: Mock,
+        mock_client: Mock,
+        mock_file_input: Mock,
+        mock_repository: Mock,
+        mock_event_capture: Mock,
+        mock_gear_context: Mock,
+        mock_file_obj: Mock,
+        mock_project: Mock,
+        mock_subject: Mock,
+    ) -> None:
+        """Test that data_identification is NOT written to file metadata when
+        dry_run=True."""
+        # Create visitor with dry_run=True
+        dry_run_visitor = ImageIdentifierLookupVisitor(
+            client=mock_client,
+            file_input=mock_file_input,
+            identifiers_repository=mock_repository,
+            event_capture=mock_event_capture,
+            gear_name="image-identifier-lookup",
+            dry_run=True,
+            naccid_field_name="naccid",
+        )
+
+        data_id = DataIdentification.from_visit_metadata(
+            ptid="110001",
+            date="2024-01-15",
+            modality="MR",
+            adcid=42,
+            naccid="NACC123456",
+            visitnum=None,
+        )
+
+        # Mock the proxy property and Flywheel lookups
+        mock_proxy = Mock()
+        mock_proxy.get_file.return_value = mock_file_obj
+        mock_fw_project = Mock()
+        mock_proxy.get_project_by_id.return_value = mock_fw_project
+        mock_project.get_subject_by_id.return_value = mock_subject
+
+        mock_resolve_dicom.return_value = (
+            Path("/flywheel/v0/input/input_file/test.dcm"),
+            None,
+        )
+        mock_extract_metadata.return_value = {
+            "patient_id": "110001",
+            "study_date": "20240115",
+            "modality": "MR",
+        }
+
+        # ImageIdentifierLookup.run() returns data_identification
+        mock_instance = Mock()
+        mock_instance.run.return_value = (True, data_id)
+        mock_lookup_class.return_value = mock_instance
+
+        with (
+            patch.object(
+                type(dry_run_visitor),
+                "proxy",
+                new_callable=PropertyMock,
+                return_value=mock_proxy,
+            ),
+            patch(
+                "image_identifier_lookup_app.run.ProjectAdaptor",
+                return_value=mock_project,
+            ),
+        ):
+            dry_run_visitor.run(mock_gear_context)
+
+        # Assert - no metadata writes occurred
+        mock_gear_context.metadata.add_qc_result.assert_not_called()
+        mock_gear_context.metadata.update_file_metadata.assert_not_called()
+
+    @patch("image_identifier_lookup_app.main.QCStatusLogManager")
+    @patch("image_identifier_lookup_app.main.ImageIdentifierLookupProcessor")
+    def test_dry_run_still_returns_data_identification(
+        self,
+        mock_processor_class: Mock,
+        mock_qc_manager_class: Mock,
+        tmp_path: Path,
+        mock_project: Mock,
+        mock_subject: Mock,
+        mock_repository: Mock,
+        mock_event_capture: Mock,
+        error_writer: ListErrorWriter,
+    ) -> None:
+        """Test that ImageIdentifierLookup.run() still returns a non-None
+        DataIdentification when dry_run=True and visit metadata is
+        available."""
+        # Arrange - create real DICOM file
+        dicom_file = create_test_dicom_file(
+            tmp_path, patient_id="110001", study_date="20240115", modality="MR"
+        )
+
+        # Mock processor
+        mock_processor = Mock()
+        mock_processor.lookup_and_update.return_value = "NACC123456"
+        mock_processor_class.return_value = mock_processor
+
+        # Act - run with dry_run=True
+        success, data_identification = ImageIdentifierLookup(
+            lookup_context=_build_lookup_context(
+                pipeline_adcid=42,
+                ptid="110001",
+                existing_naccid=None,
+                dicom_metadata=extract_dicom_metadata(dicom_file),
+            ),
+            project=mock_project,
+            subject=mock_subject,
+            identifiers_repository=mock_repository,
+            event_capture=mock_event_capture,
+            gear_name="image-identifier-lookup",
+            dry_run=True,
+            error_writer=error_writer,
+        ).run()
+
+        # Assert - DataIdentification is still returned
+        assert data_identification is not None
+        assert isinstance(data_identification, DataIdentification)
+        assert data_identification.ptid == "110001"
+        assert data_identification.adcid == 42
+        assert data_identification.modality == "MR"
+        assert data_identification.date == "2024-01-15"
+
+        # Assert - success
+        assert success is True

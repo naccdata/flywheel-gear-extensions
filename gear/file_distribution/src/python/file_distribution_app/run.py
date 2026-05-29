@@ -45,6 +45,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
         downstream_gears: Optional[List[str]] = None,
         include: Optional[str] = None,
         exclude: Optional[str] = None,
+        replace_duplicates: bool = False,
     ):
         super().__init__(client=client)
 
@@ -57,6 +58,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
         self.__exclude = exclude
         self.__batch_size = batch_size
         self.__downstream_gears = downstream_gears
+        self.__replace_duplicates = replace_duplicates
 
         self.__centers = filter_include_exclude(
             [str(x) for x in self.admin_group("nacc").get_adcids()], include, exclude
@@ -120,6 +122,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
             downstream_gears=downstream_gears,
             include=options.get("include", None),
             exclude=options.get("exclude", None),
+            replace_duplicates=options.get("replace_duplicates", False),
         )
 
     def __find_associated_adcids(self, file: FileEntry) -> List[str]:
@@ -196,6 +199,7 @@ class FileDistributionVisitor(GearExecutionEnvironment):
             target_project=self.__target_project,
             staging_project_id=self.__staging_project_id,
             downstream_gears=self.__downstream_gears,
+            replace_duplicates=self.__replace_duplicates,
         )
 
 

@@ -1,13 +1,13 @@
 {
   "enabled": true,
   "name": "Quality Check After Task Completion",
-  "description": "Runs full quality check (fix, lint, check, test) after a spec task is completed, but only if Python code was modified",
-  "version": "2",
+  "description": "Ensures quality checks run after spec tasks that modify Python code. Defers full checks to wave boundaries when subagents already ran targeted checks.",
+  "version": "3",
   "when": {
     "type": "postTaskExecution"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "A spec task was just completed. First, check if this task involved creating or modifying any Python code files (.py files). If NO code files were modified (e.g., only documentation, configuration, or planning tasks), respond with 'No code changes detected, skipping quality check.' and stop. If code WAS modified, you MUST call the kiro-pants-power full_quality_check tool with NO arguments (it defaults to scope='all' which runs fix, lint, check, and test on the entire codebase). Do NOT run individual pants tools (pants_fix, pants_lint, pants_check, pants_test) separately — use ONLY full_quality_check. Do NOT scope to a subdirectory — mypy errors in test files will be missed if you only check source directories. If full_quality_check fails, fix the issues and re-run full_quality_check until it passes."
+    "prompt": "A spec task was just completed. Determine the appropriate quality check response:\n\n1. **No code changes**: If this task did NOT modify any Python files (.py), respond with 'No code changes detected, skipping quality check.' and stop.\n\n2. **Subagent already ran targeted checks**: If the task was executed by a subagent that already ran targeted quality checks (e.g., pants_fix + pants_check on the modified file/directory, or pants_fix + pants_test on a test file), AND this is NOT the last subtask of a parent task (i.e., more sibling subtasks remain in the same wave), then you may defer the full quality check. Respond with 'Targeted checks passed in subagent. Deferring full quality check to wave boundary.' and stop.\n\n3. **Wave boundary / parent task completing**: If this task's completion causes a parent task to auto-complete (wave boundary), run the kiro-pants-power full_quality_check tool with NO arguments. This validates all accumulated changes from the wave together. If full_quality_check fails due to issues in YOUR code (not pre-existing failures in unrelated files), fix the issues and re-run until your code passes.\n\n4. **No targeted checks were run**: If the subagent did NOT run any quality checks, run full_quality_check immediately regardless of wave position.\n\nNote: Pre-existing mypy errors in unrelated files should be noted but do not block progress. Only failures in code modified by the current spec require fixing."
   }
 }
