@@ -367,6 +367,56 @@ class TestProcessRequest:
         assert error_log_name in processor.deleted_items.logs
         assert not error_writer.errors().list()
 
+    def test_acquisition_file_match_triggers_remover(
+        self,
+        mock_project,
+        delete_request,
+        form_configs,
+        request_time,
+        error_writer,
+        active_identifier,
+        error_log_name,
+    ):
+        """Regression: AcquisitionRemover must be called when the date filter
+        returns a match. Previously broken by == instead of = in the filter."""
+        mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
+        mock_project.set_subject(active_identifier.naccid, mock_subject)
+        mock_project.proxy.find_projects.return_value = []
+        call_count = {"n": 0}
+
+        def side_effect(**_):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return [
+                    {
+                        "file.name": "uds.json",
+                        "file.file_id": "f1",
+                        "file.parents.acquisition": "acq-001",
+                    }
+                ]
+            return []
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
+
+        processor = create_processor(
+            mock_project,
+            delete_request,
+            form_configs,
+            request_time,
+            error_writer,
+            identifier=active_identifier,
+            qcm_log_name=error_log_name,
+        )
+        with patch("form_deletion_app.delete.AcquisitionRemover") as mock_acq_cls:
+            mock_acq_cls.return_value.cleanup_acquisitions.return_value = True
+            result = processor.process_request()
+
+        assert result
+        mock_acq_cls.return_value.cleanup_acquisitions.assert_called_once()
+        assert error_log_name in processor.deleted_items.logs
+        assert not error_writer.errors().list()
+
 
 class TestOrphanedNpMlstRemoval:
     """Tests for orphaned NP/MLST removal triggered after clinical form
