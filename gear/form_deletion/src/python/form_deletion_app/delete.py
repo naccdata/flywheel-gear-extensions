@@ -203,7 +203,7 @@ class FormDeletionProcessor:
 
         return success
 
-    def __has_matching_acquisitions(
+    def __has_matching_acquisition_files(
         self, subject: SubjectAdaptor, module_configs: ModuleConfigs
     ) -> int:
         """Check whether there's a matching acquisition file for the delete
@@ -214,10 +214,10 @@ class FormDeletionProcessor:
             module_configs: Module configs for the primary module
 
         Returns:
-            int: Number of matching acquisitions
+            int: Number of matching acquisition files
         """
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
-        visitnum_key = f"{MetadataKeys.FORM_METADATA_PATH}.{FieldNames.VISITNUM}"
+        visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
         columns = [
             "file.name",
             "file.file_id",
@@ -225,11 +225,13 @@ class FormDeletionProcessor:
             date_col_key,
         ]
         filters = f"acquisition.label={self.__module}"
-        filters += f",{date_col_key}=={self.__delete_request.visitdate}"
+        filters += f",{date_col_key}={self.__delete_request.visitdate}"
 
         if FieldNames.VISITNUM in module_configs.required_fields:
             columns.append(visitnum_key)
-            filters += f",{visitnum_key}=={self.__delete_request.visitnum}"
+            filters += f",{visitnum_key}={self.__delete_request.visitnum}"
+
+        log.info(f"Searching for an acquisition file matching with {filters}")
 
         results = self.__project.proxy.get_matching_acquisition_files_info(
             container_id=subject.id,
@@ -390,10 +392,14 @@ class FormDeletionProcessor:
             any error
         """
         if not self.__naccid:
+            log.info("NACCID does not exist, skip looking up acquisitions")
             return True
 
         subject = self.__project.find_subject(self.__naccid)
         if not subject:
+            log.info(
+                "Subject does not exist in ingest project, skip looking up acquisitions"
+            )
             return True
 
         module_configs = self.__form_configs.module_configs.get(self.__module)
@@ -414,16 +420,20 @@ class FormDeletionProcessor:
             return False
 
         # check for matching acquisition files, do this before subsequent visit check
-        num_matches = self.__has_matching_acquisitions(
+        num_matches = self.__has_matching_acquisition_files(
             subject=subject, module_configs=module_configs
         )
 
         if num_matches == 0:  # no acquisition to clean
+            log.info(
+                "No matching acquisitions found in ingest project, "
+                "skipping acquisition cleanup"
+            )
             return True
 
         if num_matches > 1:
             self.__add_delete_failed_error(
-                f"Multiple matching acquisitions ({num_matches}) "
+                f"Multiple matching acquisition files ({num_matches}) "
                 "found for the delete request"
             )
             return False
