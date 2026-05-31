@@ -29,8 +29,8 @@ def check_duplicate_project_file(
 
     try:
         existing_data = project.read_file(filename)
-    except ApiException as e:
-        log.info(f"Could not read {filename} on {project_name}: {e}")
+    except ApiException:
+        log.info(f"Could not read or find {filename} on {project_name}")
         return False
 
     is_duplicate = contents.encode("utf-8") == existing_data
