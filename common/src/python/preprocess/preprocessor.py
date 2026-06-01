@@ -741,6 +741,7 @@ class FormPreprocessor:
         )
 
         if not supplement_visits and not supplement_module.exact_match:
+            # include both QC gears for legacy lookup as BDS is processed using new gear
             supplement_visits = self.__forms_store.query_form_data(
                 subject_lbl=pp_context.subject_lbl,
                 module=supplement_module.label,
@@ -748,7 +749,7 @@ class FormPreprocessor:
                 search_col=supplement_module.date_field,
                 search_val=input_record[module_configs.date_field],
                 search_op="<=",
-                qc_gear=self.__legacy_qc_gear if qc_passed else None,
+                qc_gear=[self.__legacy_qc_gear, self.__qc_gear] if qc_passed else None,  # type: ignore
             )
 
         return supplement_visits
