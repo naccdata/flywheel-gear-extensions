@@ -329,8 +329,8 @@
                 "duplicate-record",
                 "version",
                 "packet",
-                "clinical-forms",
                 "singleton",
+                "clinical-forms",
                 "np-mlst-restrictions",
                 "np-uds-restrictions"
             ],
