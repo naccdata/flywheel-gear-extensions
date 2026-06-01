@@ -131,10 +131,10 @@ preprocess_errors = {
         "Participant must have an approved UDS, BDS, or MDS packet before "
         "this module/form can be submitted"
     ),
-    SysErrorCodes.MULTIPLE_SUBMISSIONS: {
+    SysErrorCodes.MULTIPLE_SUBMISSIONS: (
         "Multiple submissions not allowed for {0} module, "
         "delete the existing submissions for this participant with dates {1} and retry"
-    },
+    ),
 }
 
 
