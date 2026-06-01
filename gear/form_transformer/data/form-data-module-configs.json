@@ -317,11 +317,20 @@
                 "11.0"
             ],
             "date_field": "npformdate",
+            "legacy_module": {
+                "label": "NP",
+                "date_field": "visitdate",
+                "initial_packets": [
+                    "NP"
+                ],
+                "followup_packets": []
+            },
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
                 "packet",
                 "clinical-forms",
+                "singleton",
                 "np-mlst-restrictions",
                 "np-uds-restrictions"
             ],
@@ -356,7 +365,8 @@
             "date_field": "visitdate",
             "preprocess_checks": [
                 "duplicate-record",
-                "version"
+                "version",
+                "singleton"
             ],
             "longitudinal": false
         },
