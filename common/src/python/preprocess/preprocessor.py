@@ -56,6 +56,8 @@ class FormPreprocessor:
         self.__qc_gear = form_configs.qc_gear
         self.__legacy_qc_gear = form_configs.legacy_qc_gear
 
+        self.__module_configs.validate_preprocess_checks()
+
         # Dispatcher mapping pre-processing checks to their corresponding handlers
         # Checks should be added in the order they need to be evaluated
         # DON'T add `duplicate-record` check here
@@ -68,8 +70,8 @@ class FormPreprocessor:
             PreprocessingChecks.UDSV4_IVP: self._check_udsv4_initial_visit,
             PreprocessingChecks.VISIT_CONFLICT: self._check_visit_conflict,
             PreprocessingChecks.SUPPLEMENT_MODULE: self._check_supplement_module,
-            PreprocessingChecks.CLINICAL_FORMS: self._check_clinical_forms,
             PreprocessingChecks.SINGLETON: self._is_singleton,
+            PreprocessingChecks.CLINICAL_FORMS: self._check_clinical_forms,
             PreprocessingChecks.NP_UDS_RESTRICTIONS: self._check_np_uds_restrictions,
             PreprocessingChecks.NP_MLST_RESTRICTIONS: self._check_np_mlst_restrictions,
         }
