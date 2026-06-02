@@ -314,9 +314,9 @@ class DatastoreHelper(Datastore):
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
                 qc_gear=[
-                    self.__form_configs.legacy_qc_gear,
-                    self.__form_configs.qc_gear,
-                ],  # type: ignore
+                    self.__form_configs.legacy_qc_gear,  # type: ignore
+                    self.__form_configs.qc_gear,  # type: ignore
+                ],
                 extra_columns=[date_field],
             )
 
