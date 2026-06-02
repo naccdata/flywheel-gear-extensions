@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.10.0
 * Prevents multiple submissions for the modules that allow only a single submission for a participant
+* Updates the visit searches to include both QC gear tags in legacy lookup
   
 ## 1.9.0
 * Rebuilt for log file naming format update

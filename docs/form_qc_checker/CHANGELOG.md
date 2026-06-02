@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.9.1
 * Rebuilt for module configs update
+* Updates the previous visit searches to include both QC gear tags in legacy lookup
 
 ## 1.9.0
 * Rebuilt for log file naming format update
