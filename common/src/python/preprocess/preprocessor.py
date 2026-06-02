@@ -185,7 +185,7 @@ class FormPreprocessor:
                 value="",
                 pp_context=pp_context,
                 error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
-                extra_args=missing_vars,
+                extra_args=[missing_vars],
             )
             return False
 

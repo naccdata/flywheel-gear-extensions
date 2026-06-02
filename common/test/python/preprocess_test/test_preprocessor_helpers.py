@@ -214,7 +214,7 @@ class TestFormPreprocessorErrorHandler:
             value=input_record[field],
             pp_context=uds_pp_context,
             error_code=error_code,
-            extra_args=["mode1", "mode2", "mode3"],
+            extra_args=[["mode1", "mode2", "mode3"]],
         )
 
         self.__check_error(
@@ -226,5 +226,70 @@ class TestFormPreprocessorErrorHandler:
             message=(
                 "Missing submission status (MODE<form name>) variables "
                 "['mode1', 'mode2', 'mode3'] for one or more optional forms"
+            ),
+        )
+
+    def test_write_preprocessing_error_excluded_fields(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Test EXCLUDED_FIELDS error formats the list of field names into the
+        message."""
+        handler, error_writer = self.__create_error_handler(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        excluded = ["field1", "field2"]
+        error_code = SysErrorCodes.EXCLUDED_FIELDS
+        handler.write_preprocessing_error(
+            field=FieldNames.FORMVER,
+            value=uds_pp_context.input_record[FieldNames.FORMVER],
+            pp_context=uds_pp_context,
+            error_code=error_code,
+            extra_args=[excluded],
+        )
+
+        self.__check_error(
+            error_writer,
+            uds_pp_context,
+            uds_pp_context.input_record[FieldNames.FORMVER],
+            FieldNames.FORMVER,
+            error_code,
+            message=(
+                "Following fields in the input record do not match "
+                "with the submitted version/packet of the form/module: "
+                "['field1', 'field2']"
+            ),
+        )
+
+    def test_write_preprocessing_error_multiple_submissions(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Test MULTIPLE_SUBMISSIONS error formats module and dates into the
+        message."""
+        handler, error_writer = self.__create_error_handler(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        module = "BDS"
+        dates = ["2024-07-21", "2025-0-25"]
+        error_code = SysErrorCodes.MULTIPLE_SUBMISSIONS
+        handler.write_preprocessing_error(
+            field=FieldNames.MODULE,
+            value=module,
+            pp_context=uds_pp_context,
+            error_code=error_code,
+            extra_args=[module, dates],
+        )
+
+        self.__check_error(
+            error_writer,
+            uds_pp_context,
+            module,
+            FieldNames.MODULE,
+            error_code,
+            message=(
+                "Multiple submissions not allowed for BDS module, "
+                "delete the existing submissions for this participant "
+                "with dates ['2024-07-21', '2025-0-25'] and retry"
             ),
         )
