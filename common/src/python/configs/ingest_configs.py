@@ -15,7 +15,6 @@ from pydantic import (
     Field,
     RootModel,
     ValidationError,
-    model_validator,
 )
 
 PipelineType = Literal["submission", "finalization", "deletion"]
@@ -140,8 +139,12 @@ class ModuleConfigs(BaseModel):
     errorlog_template: Optional[ErrorLogTemplate] = None
     longitudinal: Optional[bool] = True
 
-    @model_validator(mode="after")
-    def validate_preprocess_checks(self) -> "ModuleConfigs":
+    def validate_preprocess_checks(self) -> None:
+        """Validate the list of preprocessing checks specified for the module.
+
+        Raises:
+            ValueError: If undefined pre-processing checks found
+        """
         not_defined = []
         if self.preprocess_checks:
             for check in self.preprocess_checks:
@@ -152,8 +155,6 @@ class ModuleConfigs(BaseModel):
                 raise ValueError(
                     f"Following pre-processing checks are not defined: {not_defined}"
                 )
-
-        return self
 
 
 class FormProjectConfigs(BaseModel):

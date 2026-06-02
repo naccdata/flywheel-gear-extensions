@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.6.1
+* Rebuilt for module configs update
+
 ## 1.6.0
 * Rebuilt for log file naming format update
   
