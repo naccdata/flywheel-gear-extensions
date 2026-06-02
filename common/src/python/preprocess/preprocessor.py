@@ -1281,13 +1281,14 @@ class FormPreprocessor:
                 module = self.__module_configs.legacy_module.label
                 date_field = self.__module_configs.legacy_module.date_field
 
+            # Look up submissions for the same module even with the same date
+            # in the legacy project
             other_matches = self.__forms_store.query_form_data(
                 subject_lbl=subject_lbl,
                 module=module,
                 legacy=True,
                 search_col=date_field,
-                search_op="!=",
-                search_val=date,
+                find_all=True,
             )
 
         if other_matches:
