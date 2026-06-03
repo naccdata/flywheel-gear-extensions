@@ -40,3 +40,19 @@ def user_has_role_assignment(redcap_project: REDCapProject, username: str) -> bo
     """
     assignments = redcap_project.export_user_role_assignments()
     return any(assignment["username"] == username for assignment in assignments)
+
+
+def delete_user(redcap_project: REDCapProject, username: str) -> int:
+    """Remove a user from a REDCap project.
+
+    Args:
+        redcap_project: The REDCap project instance
+        username: The REDCap username (typically the auth_email)
+
+    Returns:
+        Number of users removed
+
+    Raises:
+        REDCapConnectionError: If the underlying API call fails
+    """
+    return redcap_project.delete_user(username=username)

@@ -29,7 +29,7 @@ from users.event_models import (
 )
 from users.failure_analyzer import FailureAnalyzer
 from users.redcap_disable_visitor import REDCapDisableVisitor
-from users.redcap_user_operations import unassign_user_role, user_has_role_assignment
+from users.redcap_user_operations import delete_user, user_has_role_assignment
 from users.user_entry import ActiveUserEntry, CenterUserEntry, UserEntry
 from users.user_process_environment import NotificationClient, UserProcessEnvironment
 from users.user_registry import DomainCandidate, RegistryError, RegistryPerson
@@ -207,7 +207,8 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         username: str,
         user_context: UserContext,
     ) -> None:
-        """Attempt to unassign a user's role from a single REDCap project.
+        """Attempt to delete the user from the REDCap project with the
+        specified PID.
 
         Args:
             center_group: The center group providing REDCap project access
@@ -271,7 +272,7 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
 
         if self.__env.proxy.dry_run:
             log.info(
-                "DRY RUN: Would unassign role for %s in REDCap project %s (PID %s)",
+                "DRY RUN: Would remove user %s from REDCap project %s (PID %s)",
                 username,
                 title,
                 pid,
@@ -281,17 +282,17 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
                 category=EventCategory.REDCAP_USER_DISABLED,
                 user_context=user_context,
                 message=(
-                    f"DRY RUN: Would unassign role for {username} "
-                    f"in REDCap project {title} (PID {pid})"
+                    f"DRY RUN: Would remove user {username} "
+                    f"from REDCap project {title} (PID {pid})"
                 ),
             )
             self.collector.collect(success_event)
             return
 
         try:
-            unassign_user_role(redcap_project, username)
+            delete_user(redcap_project, username)
             log.info(
-                "unassigned role for %s in REDCap project %s (PID %s)",
+                "removed user %s from REDCap project %s (PID %s)",
                 username,
                 title,
                 pid,
@@ -301,14 +302,13 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
                 category=EventCategory.REDCAP_USER_DISABLED,
                 user_context=user_context,
                 message=(
-                    f"Unassigned role for {username} "
-                    f"in REDCap project {title} (PID {pid})"
+                    f"Removed user {username} from REDCap project {title} (PID {pid})"
                 ),
             )
             self.collector.collect(success_event)
         except REDCapConnectionError as error:
             log.error(
-                "failed to unassign role for %s in REDCap project %s (PID %s): %s",
+                "failed to remove user %s from REDCap project %s (PID %s): %s",
                 username,
                 title,
                 pid,
@@ -319,8 +319,8 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
                 category=EventCategory.REDCAP_USER_DISABLED,
                 user_context=user_context,
                 message=(
-                    f"Failed to unassign role for {username} "
-                    f"in REDCap project {title} (PID {pid}): {error}"
+                    f"Failed to remove user {username} "
+                    f"from REDCap project {title} (PID {pid}): {error}"
                 ),
             )
             self.collector.collect(error_event)
@@ -331,10 +331,10 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         user_context: UserContext,
         auth_email: Optional[str],
     ) -> None:
-        """Step 3: Remove user roles from all REDCap projects.
+        """Step 3: Remove user from all REDCap projects.
 
         Iterates over all centers, finds REDCap projects via the visitor
-        pattern, and unassigns the user's role from each project.
+        pattern, and removes the user from each project (if present).
 
         Args:
             entry: The inactive user entry
