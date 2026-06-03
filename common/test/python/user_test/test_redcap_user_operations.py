@@ -5,7 +5,11 @@ from unittest.mock import Mock
 import pytest
 from redcap_api.redcap_connection import REDCapConnectionError
 from redcap_api.redcap_project import REDCapProject
-from users.redcap_user_operations import unassign_user_role, user_has_role_assignment
+from users.redcap_user_operations import (
+    delete_user,
+    unassign_user_role,
+    user_has_role_assignment,
+)
 
 
 class TestUnassignUserRole:
@@ -41,6 +45,15 @@ class TestUnassignUserRole:
 
         with pytest.raises(REDCapConnectionError):
             unassign_user_role(mock_project, "user@example.com")
+
+    def test_delete_user(self):
+        """Test delete_user calls delete_user with the username."""
+        mock_project = Mock(spec=REDCapProject)
+        mock_project.delete_user.return_value = 1
+
+        delete_user(mock_project, "user@example.com")
+
+        mock_project.delete_user.assert_called_once_with("user@example.com")
 
 
 class TestUserHasRoleAssignment:
@@ -78,6 +91,51 @@ class TestUserHasRoleAssignment:
         mock_project.export_user_role_assignments.return_value = []
 
         result = user_has_role_assignment(mock_project, "user@example.com")
+
+        assert result is False
+
+    def test_returns_false_when_user_does_not_exist(self):
+        """When the username does not appear in the role assignment list,
+        returns False."""
+        mock_project = Mock(spec=REDCapProject)
+        mock_project.export_user_role_assignments.return_value = [
+            {"username": "alice@uni.edu", "unique_role_name": "U-role1"},
+            {"username": "bob@uni.edu", "unique_role_name": "U-role2"},
+        ]
+
+        result = user_has_role_assignment(mock_project, "carol@uni.edu")
+
+        assert result is False
+
+    def test_include_empty_true(self):
+        """Returns True if username appears in the role assignment list with an
+        empty role."""
+        mock_project = Mock(spec=REDCapProject)
+        mock_project.export_user_role_assignments.return_value = [
+            {"username": "alice@uni.edu", "unique_role_name": "U-role1"},
+            {"username": "bob@uni.edu", "unique_role_name": "U-role2"},
+            {"username": "carol@uni.edu", "unique_role_name": ""},
+        ]
+
+        result = user_has_role_assignment(
+            mock_project, "carol@uni.edu", include_empty=False
+        )
+
+        assert result is True
+
+    def test_include_empty_false(self):
+        """Returns False if username appears in the role assignment list with
+        an empty role."""
+        mock_project = Mock(spec=REDCapProject)
+        mock_project.export_user_role_assignments.return_value = [
+            {"username": "alice@uni.edu", "unique_role_name": "U-role1"},
+            {"username": "bob@uni.edu", "unique_role_name": "U-role2"},
+            {"username": "carol@uni.edu", "unique_role_name": ""},
+        ]
+
+        result = user_has_role_assignment(
+            mock_project, "carol@uni.edu", include_empty=False
+        )
 
         assert result is False
 
