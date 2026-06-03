@@ -223,8 +223,8 @@ class TestAuthEmailResolution:
 
         process.visit(entry)
 
-        # unassign_user_role should be called with the entry's auth_email
-        mock_redcap.assign_user_role.assert_called_once_with("entry-auth@uni.edu", "")
+        # delete_user should be called with the entry's auth_email
+        mock_redcap.delete_user.assert_called_once_with(username="entry-auth@uni.edu")
 
     def test_comanage_auth_email_used_when_entry_has_none(self) -> None:
         """When entry has no auth_email but COmanage lookup returns one, the
@@ -249,8 +249,8 @@ class TestAuthEmailResolution:
 
         process.visit(entry)
 
-        mock_redcap.assign_user_role.assert_called_once_with(
-            "comanage-auth@uni.edu", ""
+        mock_redcap.delete_user.assert_called_once_with(
+            username="comanage-auth@uni.edu"
         )
 
     def test_directory_email_fallback_when_no_registry_match(self) -> None:
@@ -275,7 +275,7 @@ class TestAuthEmailResolution:
 
         process.visit(entry)
 
-        mock_redcap.assign_user_role.assert_called_once_with("dir@example.com", "")
+        mock_redcap.delete_user.assert_called_once_with(username="dir@example.com")
 
 
 # ===========================================================================
@@ -349,11 +349,11 @@ class TestCenterIteration:
         metadata = _build_center_metadata_with_redcap([100, 200])
 
         mock_redcap_100 = _build_mock_redcap(title="Project 100")
-        mock_redcap_100.assign_user_role.side_effect = REDCapConnectionError(
+        mock_redcap_100.delete_user.side_effect = REDCapConnectionError(
             "connection failed"
         )
         mock_redcap_200 = _build_mock_redcap(title="Project 200")
-        mock_redcap_200.assign_user_role.return_value = 1
+        mock_redcap_200.delete_user.return_value = 1
 
         center_groups = _setup_center_map_with_centers(
             mock_env,
@@ -371,8 +371,8 @@ class TestCenterIteration:
         process.visit(entry)
 
         # Both projects should have been attempted
-        mock_redcap_100.assign_user_role.assert_called_once()
-        mock_redcap_200.assign_user_role.assert_called_once()
+        mock_redcap_100.delete_user.assert_called_once()
+        mock_redcap_200.delete_user.assert_called_once()
 
         # One error, one success
         redcap_events = [
@@ -418,7 +418,7 @@ class TestCenterIteration:
         process.visit(entry)
 
         # Center 2's project should still be processed
-        mock_redcap.assign_user_role.assert_called_once()
+        mock_redcap.delete_user.assert_called_once()
 
 
 # ===========================================================================
@@ -431,7 +431,7 @@ class TestDryRunMode:
     """Test dry-run mode behavior."""
 
     def test_dry_run_does_not_call_unassign(self) -> None:
-        """In dry-run mode, unassign_user_role is not called.
+        """In dry-run mode, delete_user is not called.
 
         Validates: Requirement 3.7
         """
@@ -449,8 +449,8 @@ class TestDryRunMode:
 
         process.visit(entry)
 
-        # assign_user_role should NOT be called
-        mock_redcap.assign_user_role.assert_not_called()
+        # delete_user should NOT be called
+        mock_redcap.delete_user.assert_not_called()
 
     def test_dry_run_collects_success_event(self) -> None:
         """In dry-run mode, a success event is still collected.
@@ -528,7 +528,7 @@ class TestEventCollection:
         """
         mock_env = _build_mock_env()
         mock_redcap = _build_mock_redcap(title="UDS Forms")
-        mock_redcap.assign_user_role.side_effect = REDCapConnectionError("timeout")
+        mock_redcap.delete_user.side_effect = REDCapConnectionError("timeout")
         metadata = _build_center_metadata_with_redcap([100])
         _setup_center_map_with_centers(
             mock_env,
@@ -615,7 +615,7 @@ class TestStepIndependence:
         process.visit(entry)
 
         # REDCap unassignment was still attempted
-        mock_redcap.assign_user_role.assert_called_once()
+        mock_redcap.delete_user.assert_called_once()
 
     def test_comanage_suspend_runs_even_if_redcap_step_fails(self) -> None:
         """COmanage suspend runs even when the REDCap step raises.
@@ -678,7 +678,7 @@ class TestFourStepOrdering:
         process.visit(entry)
 
         # The REDCap step should use the auth_email from COmanage lookup
-        mock_redcap.assign_user_role.assert_called_once_with("looked-up@uni.edu", "")
+        mock_redcap.delete_user.assert_called_once_with(username="looked-up@uni.edu")
 
     def test_comanage_suspend_happens_after_redcap_step(self) -> None:
         """COmanage suspend (Step 4) happens after REDCap step (Step 3).
@@ -698,13 +698,13 @@ class TestFourStepOrdering:
         mock_env.user_registry.get.return_value = [person]
 
         call_order: list[str] = []
-        original_assign = mock_redcap.assign_user_role
+        original_delete = mock_redcap.delete_user
 
         def track_assign(*args, **kwargs):
             call_order.append("redcap_unassign")
-            return original_assign.return_value
+            return original_delete.return_value
 
-        mock_redcap.assign_user_role.side_effect = track_assign
+        mock_redcap.delete_user.side_effect = track_assign
 
         original_suspend = mock_env.user_registry.suspend
 
@@ -734,23 +734,16 @@ class TestFourStepOrdering:
 
 
 class TestBugConditionExploration:
-    """Explore the bug condition where unassign_user_role is called for
-    projects where the user has no role assignment.
+    """Tests for the membership-guard behavior: delete_user should only be
+    called for projects where the user actually has a role assignment.
 
-    These tests encode the EXPECTED (correct) behavior. On unfixed code
-    they are expected to FAIL, which confirms the bug exists.
-
-    Bug condition: assign_user_role is called unconditionally for every
-    REDCap project, even when the user has no role assignment in that
-    project.
+    These tests encode the EXPECTED (correct) behavior and should PASS
+    against the fixed implementation.
     """
 
     def test_non_member_user_should_not_be_unassigned(self) -> None:
-        """When a user has no role assignment in a REDCap project,
-        assign_user_role should NOT be called for that project.
-
-        Bug condition: on unfixed code assign_user_role IS called
-        unconditionally, so this assertion will fail.
+        """When a user has no role assignment in a REDCap project, delete_user
+        should NOT be called for that project.
 
         Validates: Requirements 1.1, 2.1
         """
@@ -772,17 +765,13 @@ class TestBugConditionExploration:
 
         process.visit(entry)
 
-        # Expected: assign_user_role should NOT be called because user
+        # Expected: delete_user should NOT be called because user
         # has no role assignment in this project.
-        # Bug: on unfixed code it IS called with ("user@example.com", "")
-        mock_redcap.assign_user_role.assert_not_called()
+        mock_redcap.delete_user.assert_not_called()
 
     def test_non_member_user_should_not_emit_success_event(self) -> None:
         """When a user has no role assignment in a REDCap project, no success
         event with REDCAP_USER_DISABLED should be emitted.
-
-        Bug condition: on unfixed code a success event IS emitted,
-        so this assertion will fail.
 
         Validates: Requirements 1.2, 2.2
         """
@@ -818,10 +807,7 @@ class TestBugConditionExploration:
 
     def test_mixed_membership_only_unassigns_member_projects(self) -> None:
         """When a user is a member of PID 100 but NOT PID 200 or PID 300,
-        assign_user_role should be called exactly once (for PID 100 only).
-
-        Bug condition: on unfixed code assign_user_role is called for
-        all 3 projects, so the call count assertion will fail.
+        delete_user should be called exactly once (for PID 100 only).
 
         Validates: Requirements 1.3, 2.1, 2.2
         """
@@ -863,11 +849,10 @@ class TestBugConditionExploration:
 
         process.visit(entry)
 
-        # Expected: assign_user_role called exactly once (PID 100 only)
-        # Bug: on unfixed code it is called 3 times (all projects)
-        mock_redcap_100.assign_user_role.assert_called_once()
-        mock_redcap_200.assign_user_role.assert_not_called()
-        mock_redcap_300.assign_user_role.assert_not_called()
+        # Expected: delete_user called exactly once (PID 100 only)
+        mock_redcap_100.delete_user.assert_called_once_with(username="user@example.com")
+        mock_redcap_200.delete_user.assert_not_called()
+        mock_redcap_300.delete_user.assert_not_called()
 
         # Expected: exactly 1 success event (for PID 100 only)
         redcap_successes = [
@@ -936,7 +921,7 @@ class TestPreservationProperties:
     """
 
     # -----------------------------------------------------------------------
-    # Property 2a: Member user unassignment — assign_user_role is called
+    # Property 2a: Member user unassignment — delete_user is called
     # and a success event with REDCAP_USER_DISABLED is emitted
     # Validates: Requirements 3.1
     # -----------------------------------------------------------------------
@@ -947,9 +932,9 @@ class TestPreservationProperties:
         username: str,
         role_mappings: list,
     ) -> None:
-        """When a user IS a member of a REDCap project, assign_user_role is
-        called with (username, "") and a success event with
-        REDCAP_USER_DISABLED category is emitted.
+        """When a user IS a member of a REDCap project, delete_user is called
+        with the username and a success event with REDCAP_USER_DISABLED
+        category is emitted.
 
         **Validates: Requirements 3.1**
         """
@@ -968,8 +953,8 @@ class TestPreservationProperties:
 
         process.visit(entry)
 
-        # assign_user_role must be called with (username, "")
-        mock_redcap.assign_user_role.assert_called_once_with(username, "")
+        # delete_user must be called with the username
+        mock_redcap.delete_user.assert_called_once_with(username=username)
 
         # A success event with REDCAP_USER_DISABLED must be emitted
         redcap_successes = [
@@ -982,7 +967,7 @@ class TestPreservationProperties:
         assert "Preservation Project" in redcap_successes[0].message
 
     # -----------------------------------------------------------------------
-    # Property 2b: Dry-run mode — assign_user_role is NOT called but a
+    # Property 2b: Dry-run mode — delete_user is NOT called but a
     # dry-run success event IS emitted
     # Validates: Requirements 3.3
     # -----------------------------------------------------------------------
@@ -993,8 +978,8 @@ class TestPreservationProperties:
         username: str,
         role_mappings: list,
     ) -> None:
-        """In dry-run mode with a member user, assign_user_role is NOT called
-        but a dry-run success event with REDCAP_USER_DISABLED IS emitted.
+        """In dry-run mode with a member user, delete_user is NOT called but a
+        dry-run success event with REDCAP_USER_DISABLED IS emitted.
 
         **Validates: Requirements 3.3**
         """
@@ -1013,8 +998,8 @@ class TestPreservationProperties:
 
         process.visit(entry)
 
-        # assign_user_role must NOT be called in dry-run mode
-        mock_redcap.assign_user_role.assert_not_called()
+        # delete_user must NOT be called in dry-run mode
+        mock_redcap.delete_user.assert_not_called()
 
         # A dry-run success event must be emitted
         redcap_successes = [
@@ -1027,7 +1012,7 @@ class TestPreservationProperties:
 
     # -----------------------------------------------------------------------
     # Property 2c: Error handling — REDCapConnectionError from
-    # assign_user_role emits an error event and processing continues
+    # delete_user emits an error event and processing continues
     # Validates: Requirements 3.4
     # -----------------------------------------------------------------------
 
@@ -1037,18 +1022,18 @@ class TestPreservationProperties:
         username: str,
         role_mappings: list,
     ) -> None:
-        """When assign_user_role raises REDCapConnectionError for a member
-        user, an error event with REDCAP_USER_DISABLED category is emitted and
+        """When delete_user raises REDCapConnectionError for a member user, an
+        error event with REDCAP_USER_DISABLED category is emitted and
         processing continues to the next project.
 
         **Validates: Requirements 3.4**
         """
         mock_env = _build_mock_env()
 
-        # First project: assign_user_role raises REDCapConnectionError
+        # First project: delete_user raises REDCapConnectionError
         mock_redcap_100 = _build_mock_redcap(title="Error Project")
         mock_redcap_100.export_user_role_assignments.return_value = role_mappings
-        mock_redcap_100.assign_user_role.side_effect = REDCapConnectionError(
+        mock_redcap_100.delete_user.side_effect = REDCapConnectionError(
             "connection timeout"
         )
 
@@ -1057,7 +1042,7 @@ class TestPreservationProperties:
         mock_redcap_200.export_user_role_assignments.return_value = [
             {"username": username, "unique_role_name": "U-role1"},
         ]
-        mock_redcap_200.assign_user_role.return_value = 1
+        mock_redcap_200.delete_user.return_value = 1
 
         metadata = _build_center_metadata_with_redcap([100, 200])
         center_groups = _setup_center_map_with_centers(
@@ -1075,8 +1060,8 @@ class TestPreservationProperties:
         process.visit(entry)
 
         # Both projects should have been attempted
-        mock_redcap_100.assign_user_role.assert_called_once()
-        mock_redcap_200.assign_user_role.assert_called_once()
+        mock_redcap_100.delete_user.assert_called_once()
+        mock_redcap_200.delete_user.assert_called_once()
 
         # One error event for the failed project
         redcap_events = [
@@ -1188,4 +1173,4 @@ class TestPreservationProperties:
         process.visit(entry)
 
         # Center 2's project should still be processed
-        mock_redcap.assign_user_role.assert_called_once()
+        mock_redcap.delete_user.assert_called_once()

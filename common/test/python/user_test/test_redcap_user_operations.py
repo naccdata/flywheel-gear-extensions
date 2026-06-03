@@ -53,7 +53,7 @@ class TestUnassignUserRole:
 
         delete_user(mock_project, "user@example.com")
 
-        mock_project.delete_user.assert_called_once_with("user@example.com")
+        mock_project.delete_user.assert_called_once_with(username="user@example.com")
 
 
 class TestUserHasRoleAssignment:
@@ -117,9 +117,7 @@ class TestUserHasRoleAssignment:
             {"username": "carol@uni.edu", "unique_role_name": ""},
         ]
 
-        result = user_has_role_assignment(
-            mock_project, "carol@uni.edu", include_empty=False
-        )
+        result = user_has_role_assignment(mock_project, "carol@uni.edu")
 
         assert result is True
 
