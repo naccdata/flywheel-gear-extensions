@@ -2,13 +2,17 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.7
+
+* Updates `nacc-attribute-deriver` to `2.3.2` - NACCETPR bugfix
+
 ## 1.3.6
 
-* Updates `nacc-attribute-deriver` to `2.3.1`
+* Updates `nacc-attribute-deriver` to `2.3.1` - NIAGADS logic tweak
 
 ## 1.3.5
 
-* Updates `nacc-attribute-deriver` to `2.3.0`
+* Updates `nacc-attribute-deriver` to `2.3.0`, which requires major updates for full freeze
 * Adds NCRAD Biomarker scopes
 * Updates to check if metadata has changed, and only updates the file/subject info if so - significantly reduces number of API calls
 * Simplifies how back-propagation scopes are defined, and adds cross-module variables to MLST scope
