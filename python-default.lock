@@ -18,7 +18,7 @@
 //     "fw-utils>=3",
 //     "hypothesis>=6.0.0",
 //     "moto[s3,ses,ssm]==5.1.14",
-//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.2/nacc_attribute_deriver-2.3.2-py3-none-any.whl",
+//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.3/nacc_attribute_deriver-2.3.3-py3-none-any.whl",
 //     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.3/nacc_form_validator-0.6.3-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
@@ -1051,13 +1051,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "42903b4bfafd8f15a735ed940473f28e4ba21b2ea67a9b9aaa11dfa7fcb19fd5",
-              "url": "https://files.pythonhosted.org/packages/c9/b7/360b5afe74c4d7cff871ea6e8f335e2e11de2945c9deb1eea6438f49faa2/botocore-1.43.24-py3-none-any.whl"
+              "hash": "ef1d210ac9085ea0e5fc6ad2e63f0c7e97103c74f52156bf944289aaf6278d1b",
+              "url": "https://files.pythonhosted.org/packages/41/a5/6ceef332b18c348be9ec26aeff0da5b3f7ea046bf3fc654feecf6974c4d9/botocore-1.43.25-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "0c02f2b40e99419d496ece0ea2dcdedb5c45998c16fd1674276c7dbb30767a16",
-              "url": "https://files.pythonhosted.org/packages/78/67/55d0611b341482bc9649d16df765f849a1862184ac3709356decf632279f/botocore-1.43.24.tar.gz"
+              "hash": "faab543ca6ae6f8fdc5f6318240bebfb8c05cd25823715fe02aad7edf0c4b383",
+              "url": "https://files.pythonhosted.org/packages/ad/03/9dc102506c3ebc3758a9e8602e7dafb78789993bcac5daa82398b56ae884/botocore-1.43.25.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1068,7 +1068,7 @@
             "urllib3!=2.2.0,<3,>=1.25.4"
           ],
           "requires_python": ">=3.10",
-          "version": "1.43.24"
+          "version": "1.43.25"
         },
         {
           "artifacts": [
@@ -2025,8 +2025,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "713b452250b40a743500833bdff45c6bbf86822432e14ecf529e113a0a8204b0",
-              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.2/nacc_attribute_deriver-2.3.2-py3-none-any.whl"
+              "hash": "9c330dcb97239b2a1127609cecc4a63fb7aaf3d091acc74f94d37ab3062b91a1",
+              "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.3/nacc_attribute_deriver-2.3.3-py3-none-any.whl"
             }
           ],
           "project_name": "nacc-attribute-deriver",
@@ -2034,7 +2034,7 @@
             "pydantic>=2.10.6"
           ],
           "requires_python": "==3.12.*",
-          "version": "2.3.2"
+          "version": "2.3.3"
         },
         {
           "artifacts": [
@@ -3420,7 +3420,7 @@
     "fw-utils>=3",
     "hypothesis>=6.0.0",
     "moto[s3,ses,ssm]==5.1.14",
-    "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.2/nacc_attribute_deriver-2.3.2-py3-none-any.whl",
+    "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.3/nacc_attribute_deriver-2.3.3-py3-none-any.whl",
     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.3/nacc_form_validator-0.6.3-py3-none-any.whl",
     "natsort",
     "pandas-stubs>=2.0.3",
