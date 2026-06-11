@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Adds DS scope
+
 ## 1.3.6
 
 * Updates `nacc-attribute-deriver` to `2.3.1`
