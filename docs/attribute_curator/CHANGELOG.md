@@ -2,9 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.3.7 - 1.3.8
+## 1.3.7 - 1.3.9
 
-* Updates `nacc-attribute-deriver` to `2.3.2` and `2.3.3`, respectively - NACCETPR bugfix
+* Updates `nacc-attribute-deriver` to `2.3.3` - NACCETPR bugfix
+* Adds DS scope
 
 ## 1.3.6
 
