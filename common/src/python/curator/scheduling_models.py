@@ -67,8 +67,8 @@ SCOPE_PATTERN = re.compile(
     r"(?P<meds>.+_MEDS\.json)|"
     r"(?P<ftld>.+_FTLD\.json)|"
     r"(?P<lbd>.+_LBD\.json)|"
+    r"(?P<ds>.+_DS\.json)|"
     r"(?P<b1a>.+_B1A\.json)|"
-    r"(?P<b1a>.+_DS\.json)|"
     r"(?P<uds>.+_UDS\.json)"
     r"$"
 )
