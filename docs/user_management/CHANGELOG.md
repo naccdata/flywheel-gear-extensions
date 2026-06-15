@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.3.3
+
+* Fixes case-sensitive email matching in `UserRegistry` that caused duplicate skeleton records
+  * Email lookup index now uses case-insensitive keys (RFC 5321 compliance)
+  * `has_email` method now compares emails case-insensitively
+  * Original email casing is preserved on all stored records and COManage API calls
+  * Resolves issue where differing capitalization (e.g., `First.Last@...` vs `first.last@...`) led to missed matches and unnecessary skeleton creation
+
 ## 4.3.2
 
 * Skips REDCap role unassignment for users who have no role assignment in a project

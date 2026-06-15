@@ -94,7 +94,7 @@ class FormPreprocessorErrorHandler:
                 error_code=error_code,
                 message=message,
                 visit_keys=visit_keys,
-                extra_args=[extra_args],
+                extra_args=extra_args,
             )
         )
 

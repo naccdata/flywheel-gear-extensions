@@ -98,6 +98,11 @@ class MockUserProcessEnvironment:
         """Add a user to the mock environment."""
         self._users[user.id] = user  # type: ignore[index]
 
+    @property
+    def authorization_sync(self) -> None:
+        """Mock authorization_sync - returns None to skip sync step."""
+        return None
+
     def find_user(self, user_id: str) -> Optional[User]:
         """Mock find_user."""
         return self._users.get(user_id)

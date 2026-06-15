@@ -56,6 +56,8 @@ class FormPreprocessor:
         self.__qc_gear = form_configs.qc_gear
         self.__legacy_qc_gear = form_configs.legacy_qc_gear
 
+        self.__module_configs.validate_preprocess_checks()
+
         # Dispatcher mapping pre-processing checks to their corresponding handlers
         # Checks should be added in the order they need to be evaluated
         # DON'T add `duplicate-record` check here
@@ -68,6 +70,7 @@ class FormPreprocessor:
             PreprocessingChecks.UDSV4_IVP: self._check_udsv4_initial_visit,
             PreprocessingChecks.VISIT_CONFLICT: self._check_visit_conflict,
             PreprocessingChecks.SUPPLEMENT_MODULE: self._check_supplement_module,
+            PreprocessingChecks.SINGLETON: self._is_singleton,
             PreprocessingChecks.CLINICAL_FORMS: self._check_clinical_forms,
             PreprocessingChecks.NP_UDS_RESTRICTIONS: self._check_np_uds_restrictions,
             PreprocessingChecks.NP_MLST_RESTRICTIONS: self._check_np_mlst_restrictions,
@@ -182,7 +185,7 @@ class FormPreprocessor:
                 value="",
                 pp_context=pp_context,
                 error_code=SysErrorCodes.MISSING_SUBMISSION_STATUS,
-                extra_args=missing_vars,
+                extra_args=[missing_vars],
             )
             return False
 
@@ -738,6 +741,7 @@ class FormPreprocessor:
         )
 
         if not supplement_visits and not supplement_module.exact_match:
+            # include both QC gears for legacy lookup as BDS is processed using new gear
             supplement_visits = self.__forms_store.query_form_data(
                 subject_lbl=pp_context.subject_lbl,
                 module=supplement_module.label,
@@ -745,7 +749,7 @@ class FormPreprocessor:
                 search_col=supplement_module.date_field,
                 search_val=input_record[module_configs.date_field],
                 search_op="<=",
-                qc_gear=self.__legacy_qc_gear if qc_passed else None,
+                qc_gear=[self.__legacy_qc_gear, self.__qc_gear] if qc_passed else None,  # type: ignore
             )
 
         return supplement_visits
@@ -1244,6 +1248,66 @@ class FormPreprocessor:
             )
 
         return result_dod
+
+    def _is_singleton(self, pp_context: PreprocessingContext) -> bool:
+        """Check whether there's any other existing submission for the
+        participant for this module in the system.
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            bool: False, if other submissions found
+        """
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        subject_lbl = pp_context.subject_lbl
+        date_field = self.__module_configs.date_field
+        date = pp_context.input_record.get(date_field)
+
+        # Look up any other submissions with a different visit date/form date
+        other_matches = self.__forms_store.query_form_data(
+            subject_lbl=subject_lbl,
+            module=self.__module,
+            legacy=False,
+            search_col=date_field,
+            search_op="!=",
+            search_val=date,
+        )
+
+        if not other_matches:
+            module = self.__module
+            if self.__module_configs.legacy_module:
+                module = self.__module_configs.legacy_module.label
+                date_field = self.__module_configs.legacy_module.date_field
+
+            # Look up submissions for the same module even with the same date
+            # in the legacy project
+            other_matches = self.__forms_store.query_form_data(
+                subject_lbl=subject_lbl,
+                module=module,
+                legacy=True,
+                search_col=date_field,
+                find_all=True,
+            )
+
+        if other_matches:
+            matched_submissions = []
+            for match in other_matches:
+                matched_submissions.append(
+                    match.get(MetadataKeys.get_column_key(date_field))
+                )
+
+            self.__error_handler.write_preprocessing_error(
+                field=FieldNames.MODULE,
+                value=self.__module,
+                pp_context=pp_context,
+                error_code=SysErrorCodes.MULTIPLE_SUBMISSIONS,
+                extra_args=[self.__module, matched_submissions],
+            )
+            return False
+
+        return True
 
     def preprocess(
         self,

@@ -234,6 +234,8 @@ class DatastoreHelper(Datastore):
             else self.orderby
         )
 
+        # include both QC gears for legacy lookup
+        # as some modules are processed using new submission pipeline
         legacy_visits = self.__forms_store.query_form_data(
             subject_lbl=subject_lbl,
             module=legacy_module,
@@ -241,7 +243,7 @@ class DatastoreHelper(Datastore):
             search_col=legacy_date,
             search_val=orderby_value,
             search_op="<",
-            qc_gear=self.__form_configs.legacy_qc_gear,
+            qc_gear=[self.__form_configs.legacy_qc_gear, self.__form_configs.qc_gear],  # type: ignore
         )
 
         if not legacy_visits:
@@ -303,6 +305,8 @@ class DatastoreHelper(Datastore):
                 if self.__module_configs.legacy_module.initial_packets:
                     ivp_codes = self.__module_configs.legacy_module.initial_packets
 
+            # include both QC gears for legacy lookup
+            # as some modules are processed using new submission pipeline
             initial_visits = self.__forms_store.query_form_data(
                 subject_lbl=subject_lbl,
                 module=module,
@@ -310,7 +314,10 @@ class DatastoreHelper(Datastore):
                 search_col=FieldNames.PACKET,
                 search_val=ivp_codes,
                 search_op=DefaultValues.FW_SEARCH_OR,
-                qc_gear=self.__form_configs.legacy_qc_gear,
+                qc_gear=[
+                    self.__form_configs.legacy_qc_gear,  # type: ignore
+                    self.__form_configs.qc_gear,  # type: ignore
+                ],
                 extra_columns=[date_field],
             )
 

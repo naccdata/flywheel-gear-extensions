@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.0
+
+* Write `DataIdentification` to `file.info.data_identification` after successful processing
+* Skip file metadata updates (QC result, tags, data_identification) during dry run mode
+* Simplified `ImageIdentifierLookup.run()` return type; errors are now accessed via the injected error writer
+
 ## 0.1.1
 
 * Improved error messages when NACCID lookup fails due to missing project configuration

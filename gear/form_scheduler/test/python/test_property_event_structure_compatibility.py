@@ -220,8 +220,8 @@ def test_event_structure_compatibility(
     )
 
     # Requirement 6.5: Gear name is "form-scheduler"
-    assert event.gear_name == "form-scheduler", (
-        f"Event gear_name should be 'form-scheduler', got {event.gear_name}"
+    assert event.gear_name == "form-qc-checker", (
+        f"Event gear_name should be 'form-qc-checker', got {event.gear_name}"
     )
 
     # Additional structure validation
@@ -292,8 +292,8 @@ def test_event_structure_with_json_fallback(json_file: FileEntry):
 
     # Same structure validation as above
     assert event.action == ACTION_PASS_QC, "Event action should be pass-qc"
-    assert event.gear_name == "form-scheduler", (
-        "Event gear_name should be 'form-scheduler'"
+    assert event.gear_name == "form-qc-checker", (
+        "Event gear_name should be 'form-qc-checker'"
     )
     assert event.datatype == "form", "Event datatype should be 'form'"
 
@@ -393,7 +393,7 @@ def test_event_structure_required_fields():
 
     # Verify specific values for compatibility
     assert event.action == ACTION_PASS_QC, "Action must be 'pass-qc'"
-    assert event.gear_name == "form-scheduler", "Gear name must be 'form-scheduler'"
+    assert event.gear_name == "form-qc-checker", "Gear name must be 'form-qc-checker'"
     assert event.datatype == "form", "Datatype must be 'form'"
     assert isinstance(event.timestamp, datetime), "Timestamp must be datetime object"
     assert isinstance(event.pipeline_adcid, int), "Pipeline ADCID must be integer"
@@ -468,8 +468,8 @@ def test_event_structure_s3_storage_compatibility():
         assert event_dict["action"] == ACTION_PASS_QC, (
             "Serialized action should be 'pass-qc'"
         )
-        assert event_dict["gear_name"] == "form-scheduler", (
-            "Serialized gear_name should be 'form-scheduler'"
+        assert event_dict["gear_name"] == "form-qc-checker", (
+            "Serialized gear_name should be 'form-qc-checker'"
         )
 
     except Exception as e:

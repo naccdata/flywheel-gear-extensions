@@ -121,6 +121,7 @@ class SysErrorCodes:
     NP_UDS_SEX_MISMATCH = "preprocess-029"
     NP_UDS_DAGE_MISMATCH = "preprocess-030"
     UDS_NOT_EXIST = "preprocess-031"
+    MULTIPLE_SUBMISSIONS = "preprocess-032"
 
     # other errors for preprocessing issues that don't fall
     # in above categories
@@ -140,6 +141,7 @@ class PreprocessingChecks:
     CLINICAL_FORMS = "clinical-forms"
     NP_MLST_RESTRICTIONS = "np-mlst-restrictions"
     NP_UDS_RESTRICTIONS = "np-uds-restrictions"
+    SINGLETON = "singleton"
 
     @classmethod
     def is_check_defined(cls, check: str) -> bool:

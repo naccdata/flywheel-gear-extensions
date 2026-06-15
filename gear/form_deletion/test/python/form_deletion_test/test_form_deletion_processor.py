@@ -232,7 +232,11 @@ class TestProcessRequest:
         )
 
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
+        mock_project.proxy.get_matching_acquisition_files_info.return_value = [
+            {"file.name": "match.json", "file.file_id": "xyz"}
+        ]
 
         processor = create_processor(
             mock_project,
@@ -292,8 +296,17 @@ class TestProcessRequest:
     ):
         """AcquisitionRemover failure propagates as overall failure."""
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
-        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+        call_count = {"n": 0}
+
+        def side_effect(**_):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return [{"file.name": "match.json", "file.file_id": "xyz"}]
+            return []
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
 
         processor = create_processor(
             mock_project,
@@ -324,8 +337,18 @@ class TestProcessRequest:
         """Full happy path: acquisitions removed, log deleted, items
         tracked."""
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
-        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+        mock_project.proxy.find_projects.return_value = []
+        call_count = {"n": 0}
+
+        def side_effect(**_):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return [{"file.name": "match.json", "file.file_id": "xyz"}]
+            return []
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
 
         processor = create_processor(
             mock_project,
@@ -341,6 +364,56 @@ class TestProcessRequest:
             result = processor.process_request()
 
         assert result
+        assert error_log_name in processor.deleted_items.logs
+        assert not error_writer.errors().list()
+
+    def test_acquisition_file_match_triggers_remover(
+        self,
+        mock_project,
+        delete_request,
+        form_configs,
+        request_time,
+        error_writer,
+        active_identifier,
+        error_log_name,
+    ):
+        """Regression: AcquisitionRemover must be called when the date filter
+        returns a match. Previously broken by == instead of = in the filter."""
+        mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
+        mock_project.set_subject(active_identifier.naccid, mock_subject)
+        mock_project.proxy.find_projects.return_value = []
+        call_count = {"n": 0}
+
+        def side_effect(**_):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return [
+                    {
+                        "file.name": "uds.json",
+                        "file.file_id": "f1",
+                        "file.parents.acquisition": "acq-001",
+                    }
+                ]
+            return []
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
+
+        processor = create_processor(
+            mock_project,
+            delete_request,
+            form_configs,
+            request_time,
+            error_writer,
+            identifier=active_identifier,
+            qcm_log_name=error_log_name,
+        )
+        with patch("form_deletion_app.delete.AcquisitionRemover") as mock_acq_cls:
+            mock_acq_cls.return_value.cleanup_acquisitions.return_value = True
+            result = processor.process_request()
+
+        assert result
+        mock_acq_cls.return_value.cleanup_acquisitions.assert_called_once()
         assert error_log_name in processor.deleted_items.logs
         assert not error_writer.errors().list()
 
@@ -372,8 +445,11 @@ class TestOrphanedNpMlstRemoval:
         mock_project.add_file(np_log_file)
 
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
-        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+        mock_project.proxy.get_matching_acquisition_files_info.return_value = [
+            {"file.name": "match.json", "file.file_id": "xyz"}
+        ]
 
         processor = create_processor(
             mock_project,
@@ -404,15 +480,19 @@ class TestOrphanedNpMlstRemoval:
         """When clinical forms still remain after deletion, orphan removal is
         skipped."""
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
-        # First call: subsequent-visit check → no results (deletion proceeds).
-        # Second call: remaining-clinical-forms check → forms found (skip
+        # First call: has_matching_acquisitions → 1 match (deletion proceeds).
+        # Second call: subsequent-visit check → no results (deletion proceeds).
+        # Third call: remaining-clinical-forms check → forms found (skip
         # orphan removal).
         call_count = {"n": 0}
 
-        def side_effect(**kwargs):
+        def side_effect(**_):
             call_count["n"] += 1
             if call_count["n"] == 1:
+                return [{"file.name": "match.json", "file.file_id": "xyz"}]
+            if call_count["n"] == 2:
                 return []
             return [{"file.name": "remaining-uds.json", "file.file_id": "abc"}]
 
@@ -447,10 +527,21 @@ class TestOrphanedNpMlstRemoval:
         """When no clinical forms remain, cleanup_orphaned_acquisitions is
         called with NP and MLST."""
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
-        # Subsequent-visit check returns no results; remaining-clinical-forms
-        # check also returns no results — both use the same mock.
-        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+        mock_project.proxy.find_projects.return_value = []
+        # First call: has_matching_acquisitions → 1 match (deletion proceeds).
+        # Subsequent calls: subsequent-visit and remaining-clinical-forms checks
+        # → no results (no retro project configured).
+        call_count = {"n": 0}
+
+        def side_effect(**_):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return [{"file.name": "match.json", "file.file_id": "xyz"}]
+            return []
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
 
         processor = create_processor(
             mock_project,
@@ -486,8 +577,18 @@ class TestOrphanedNpMlstRemoval:
         """Failure in cleanup_orphaned_acquisitions propagates as overall
         failure with an error."""
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
-        mock_project.proxy.get_matching_acquisition_files_info.return_value = []
+        mock_project.proxy.find_projects.return_value = []
+        call_count = {"n": 0}
+
+        def side_effect(**_):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return [{"file.name": "match.json", "file.file_id": "xyz"}]
+            return []
+
+        mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
 
         processor = create_processor(
             mock_project,
@@ -519,25 +620,31 @@ class TestOrphanedNpMlstRemoval:
         """A UDS acquisition in retrospective-form counts as a remaining
         clinical form — orphan removal is skipped."""
         mock_subject = MagicMock()
+        mock_subject.id = "subj-001"
         mock_project.set_subject(active_identifier.naccid, mock_subject)
 
-        # Simulate: subsequent-visit check returns nothing (first call),
-        # but remaining-clinical-forms check finds a retro-form UDS (second
-        # call via get_subject_by_label → per-subject dataview query).
+        mock_retro_project = MagicMock()
+        mock_retro_subject = MagicMock()
+        mock_retro_subject.id = "retro-subj-001"
+        mock_retro_project.subjects.find_first.return_value = mock_retro_subject
+        mock_project.proxy.find_projects.return_value = [mock_retro_project]
+
+        # Call 1: has_matching_acquisitions → 1 match (deletion proceeds).
+        # Call 2: subsequent-visit check → no results (deletion proceeds).
+        # Call 3: has_remaining_clinical_forms (ingest) → no results.
+        # Call 4: has_remaining_clinical_forms (retro) → found retro UDS
+        #         → skip orphan removal.
         call_count = {"n": 0}
 
-        def side_effect(**kwargs):
+        def side_effect(**_):
             call_count["n"] += 1
             if call_count["n"] == 1:
-                # subsequent-visit check — no results
+                return [{"file.name": "match.json", "file.file_id": "xyz"}]
+            if call_count["n"] in (2, 3):
                 return []
-            # remaining-clinical-forms check — found retro UDS
             return [{"file.name": "retro-uds.json", "file.file_id": "xyz"}]
 
         mock_project.proxy.get_matching_acquisition_files_info.side_effect = side_effect
-        # get_subject_by_label used by __has_remaining_clinical_forms
-        mock_project.proxy.get_subject_by_label.return_value = [mock_subject]
-        mock_subject.id = "subj-001"
 
         processor = create_processor(
             mock_project,

@@ -164,7 +164,8 @@ class AggregateDataset(ABC):
             # remove target_path suffix to get prefix of version itself
             latest_dataset = latest_dataset.removesuffix(target_path)
             log.info(
-                f"Found latest dataset: {latest_dataset} with {len(tables)} tables"
+                f"Found latest dataset: {latest_dataset} with {len(tables)} "
+                + f"tables, created {latest_creation}"
             )
 
         return latest_dataset, tables
@@ -255,7 +256,12 @@ class ParquetAggregateDataset(AggregateDataset):
                 if not writer:
                     writer = pq.ParquetWriter(outfile, schema=data.schema)
 
-                writer.write_table(data)
+                try:
+                    writer.write_table(data)
+                except ValueError as e:
+                    raise FWDatasetError(
+                        f"Failed to write {table} data for {center}"
+                    ) from e
         finally:
             if writer:
                 writer.close()

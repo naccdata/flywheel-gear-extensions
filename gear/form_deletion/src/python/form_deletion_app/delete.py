@@ -14,6 +14,7 @@ from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, SubjectAdaptor
 from identifiers.model import IdentifierObject
 from keys.keys import CLINICAL_MODULES, DefaultValues, MetadataKeys
 from nacc_common.data_identification import DataIdentification
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
 
@@ -202,6 +203,48 @@ class FormDeletionProcessor:
 
         return success
 
+    def __has_matching_acquisition_files(
+        self, subject: SubjectAdaptor, module_configs: ModuleConfigs
+    ) -> int:
+        """Check whether there's a matching acquisition file for the delete
+        request.
+
+        Args:
+            subject: Flywheel subject adaptor
+            module_configs: Module configs for the primary module
+
+        Returns:
+            int: Number of matching acquisition files
+        """
+        date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
+        visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
+        columns = [
+            "file.name",
+            "file.file_id",
+            "file.parents.acquisition",
+            date_col_key,
+        ]
+        filters = f"acquisition.label={self.__module}"
+        filters += f",{date_col_key}={self.__delete_request.visitdate}"
+
+        if FieldNames.VISITNUM in module_configs.required_fields:
+            columns.append(visitnum_key)
+            filters += f",{visitnum_key}={self.__delete_request.visitnum}"
+
+        log.info(f"Searching for an acquisition file matching with {filters}")
+
+        results = self.__project.proxy.get_matching_acquisition_files_info(
+            container_id=subject.id,
+            dv_title=f"{self.__module} visits for {self.__delete_request.visitdate}",
+            columns=columns,
+            filters=filters,
+        )
+
+        if not results:
+            return 0
+
+        return len(results)
+
     def __has_qc_passed_subsequent_visits(
         self, subject: SubjectAdaptor, module_configs: ModuleConfigs
     ) -> bool:
@@ -349,16 +392,49 @@ class FormDeletionProcessor:
             any error
         """
         if not self.__naccid:
+            log.info("NACCID does not exist, skip looking up acquisitions")
             return True
 
         subject = self.__project.find_subject(self.__naccid)
         if not subject:
+            log.info(
+                "Subject does not exist in ingest project, skip looking up acquisitions"
+            )
             return True
 
         module_configs = self.__form_configs.module_configs.get(self.__module)
         if not module_configs:
             self.__add_delete_failed_error(
                 f"No module configs found for module {self.__module}"
+            )
+            return False
+
+        if (
+            FieldNames.VISITNUM in module_configs.required_fields
+            and not self.__delete_request.visitnum
+        ):
+            self.__add_delete_failed_error(
+                "Require visitnum to process delete requests "
+                f"for module {self.__module}"
+            )
+            return False
+
+        # check for matching acquisition files, do this before subsequent visit check
+        num_matches = self.__has_matching_acquisition_files(
+            subject=subject, module_configs=module_configs
+        )
+
+        if num_matches == 0:  # no acquisition to clean
+            log.info(
+                "No matching acquisitions found in ingest project, "
+                "skipping acquisition cleanup"
+            )
+            return True
+
+        if num_matches > 1:
+            self.__add_delete_failed_error(
+                f"Multiple matching acquisition files ({num_matches}) "
+                "found for the delete request"
             )
             return False
 
@@ -484,9 +560,11 @@ class FormDeletionProcessor:
             return False
 
         if not self.__cleanup_acquisitions():
+            log.error("Failed to clean up acquisition files")
             return False
 
         if not self.__cleanup_log_files(error_log_name=error_log_name):
+            log.error("Failed to clean up error log files")
             return False
 
         # When a clinical form is deleted, remove any modules/forms

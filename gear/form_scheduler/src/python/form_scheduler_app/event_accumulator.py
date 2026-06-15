@@ -1,16 +1,15 @@
 """Simplified event accumulator for QC-pass events only."""
 
 import logging
-from datetime import datetime
 from typing import Optional
 
 from deletions.models import DeleteInfoModel
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
+from event_capture.event_generator import create_visit_event
 from event_capture.visit_events import (
     ACTION_DELETE,
     ACTION_PASS_QC,
-    VisitEvent,
 )
 from event_capture.visit_extractor import DataIdentificationExtractor
 from flywheel.models.file_entry import FileEntry
@@ -20,7 +19,6 @@ from nacc_common.error_models import (
     DataIdentification,
     FileQCModel,
 )
-from pipeline.pipeline_label import PipelineLabel
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
@@ -146,56 +144,6 @@ class EventAccumulator:
         file_status = qc_model.get_file_status()
         return file_status == QC_STATUS_PASS
 
-    def _create_visit_event(
-        self,
-        *,
-        action: str,
-        visit_metadata: DataIdentification,
-        project: ProjectAdaptor,
-        completion_time: datetime,
-        gear_name: str = "form-scheduler",
-    ) -> Optional[VisitEvent]:
-        """Create a VisitEvent from DataIdentification.
-
-        Args:
-            action: The event action (e.g. ACTION_PASS_QC, ACTION_DELETE)
-            visit_metadata: The visit metadata
-            project: The project
-            completion_time: Event completion timestamp
-            gear_name: Name of the gear that produced the event
-
-        Returns:
-            VisitEvent or None if creation fails
-        """
-        try:
-            # Extract study and datatype from project label
-            pipeline_label = PipelineLabel.model_validate(project.label)
-        except ValidationError as error:
-            log.warning(
-                "Project doesn't have expected label. Failed to create visit event: %s",
-                error,
-            )
-            return None
-
-        if pipeline_label.datatype is None:
-            log.warning(
-                "Pipeline project label should include a datatype: %s", project.label
-            )
-            return None
-
-        visit_metadata = visit_metadata.with_updates(adcid=project.get_pipeline_adcid())
-
-        return VisitEvent(
-            action=action,  # type: ignore
-            study=pipeline_label.study_id,
-            project_label=project.label,
-            center_label=project.group,
-            gear_name=gear_name,
-            datatype=pipeline_label.datatype,
-            data_identification=visit_metadata,
-            timestamp=completion_time,
-        )
-
     def capture_qc_event(self, json_file: FileEntry, project: ProjectAdaptor) -> None:
         """Log QC-pass events for a JSON file if it passes QC validation.
 
@@ -235,11 +183,12 @@ class EventAccumulator:
             timestamp = (
                 json_file.info.get("validated-timestamp") if json_file.info else None
             )
-            visit_event = self._create_visit_event(
+            visit_event = create_visit_event(
                 action=ACTION_PASS_QC,
                 visit_metadata=visit_metadata,
                 project=project,
                 completion_time=timestamp if timestamp else qc_log_file.modified,
+                gear_name="form-qc-checker",
             )
             if visit_event:
                 self.__event_capture.capture_event(visit_event)
@@ -300,7 +249,7 @@ class EventAccumulator:
                 )
                 return
 
-            visit_event = self._create_visit_event(
+            visit_event = create_visit_event(
                 action=ACTION_DELETE,
                 visit_metadata=data_id,
                 project=project,
