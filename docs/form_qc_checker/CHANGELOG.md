@@ -2,13 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.10.0
+* Updates `nacc-form-validator` to `0.6.4` and updates to support `rxcui` validation to check against a target date
+
 ## 1.9.1
 * Rebuilt for module configs update
 * Updates the previous visit searches to include both QC gear tags in legacy lookup
 
 ## 1.9.0
 * Rebuilt for log file naming format update
-  
+
 ## 1.8.0
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
   
