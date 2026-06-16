@@ -6,7 +6,7 @@ import pytest
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from phi_coordinator_app.main import run
 from phi_coordinator_app.processor import Outcome
-from phi_coordinator_app.reader_tasks import ReaderTaskClient
+from reader_tasks.reader_task_client import ReaderTaskClient
 
 
 def _run(proxy: Mock, reader_tasks: Mock, dry_run: bool = False) -> bool:

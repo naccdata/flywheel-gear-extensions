@@ -6,6 +6,7 @@ defines the main function the container runs.
 
 import logging
 
+from fw_client.client import FWClient
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -14,10 +15,11 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
 )
+from inputs.context_parser import get_api_key
 from inputs.parameter_store import ParameterStore
+from reader_tasks.reader_task_client import ReaderTaskClient
 
 from phi_coordinator_app.main import run
-from phi_coordinator_app.reader_tasks import ReaderTaskClient
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         *,
+        fw_client: FWClient,
         phi_protocol_label: str,
         answer_key: str,
         found_tag: str,
@@ -41,6 +44,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
 
         Args:
             client: Flywheel SDK client wrapper
+            fw_client: FWClient for the reader-task endpoints the SDK lacks
             phi_protocol_label: label of PHI reader-task protocols to process
             answer_key: response_data key holding the yes/no answer
             found_tag: tag for PHI awaiting review; removed once resolved
@@ -50,6 +54,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
             reset_on_missing_data: reset tasks lacking a usable answer to Todo
         """
         super().__init__(client=client)
+        self.__fw_client = fw_client
         self.__phi_protocol_label = phi_protocol_label
         self.__answer_key = answer_key
         self.__found_tag = found_tag
@@ -75,10 +80,19 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
             GearExecutionError if any expected inputs are missing
         """
         client = ContextClient.create(context=context)
+
+        # FWClient: the SDK does not expose the reader-task or
+        # form-response endpoints
+        api_key = get_api_key(context)
+        if not api_key:
+            raise GearExecutionError("API key required for reader-task endpoints")
+        fw_client = FWClient(api_key=api_key, client_name="phi-coordinator")
+
         opts = context.config.opts
 
         return PHICoordinatorVisitor(
             client=client,
+            fw_client=fw_client,
             phi_protocol_label=opts.get(
                 "phi_protocol_label", "default_image_pii_detector_protocol"
             ),
@@ -92,9 +106,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
 
     def run(self, context: GearContext) -> None:
         """Runs the PHI Coordinator app."""
-        reader_tasks = ReaderTaskClient(
-            api_client=self.client.client.api_client  # type: ignore
-        )
+        reader_tasks = ReaderTaskClient(fw_client=self.__fw_client)
 
         success = run(
             proxy=self.proxy,
