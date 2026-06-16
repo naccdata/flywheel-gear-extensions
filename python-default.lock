@@ -42,6 +42,7 @@
 //     "types-python-dateutil>=2.9.0",
 //     "types-pytz",
 //     "types-requests",
+//     "tzlocal",
 //     "urllib3>=2.2.1"
 //   ],
 //   "manylinux": "manylinux2014",
@@ -147,42 +148,42 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "89e982463d94773136ccf69be77cccd54ff1ce351a6aadd1d3437fcb693681b5",
-              "url": "https://files.pythonhosted.org/packages/31/61/4031fd64c458ab7e01879e6ac8b42e256e37139df551315beafe04e74b57/boto3-1.43.30-py3-none-any.whl"
+              "hash": "69c5521ad864f33d4d53b0e18a3927697f4558210693b1cb4dd97da959d1f7b9",
+              "url": "https://files.pythonhosted.org/packages/13/66/67b54f12fc0c5b2dc6fd0c04ea4cf1e7fc4a9843de680a22070d1fd77901/boto3-1.43.31-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "6b1ee360f363a457f67a8f5702f522043d8a32d67a97c362ad12075d8b5b531e",
-              "url": "https://files.pythonhosted.org/packages/f7/47/2db3e7c1317019d800a1b4181059656842b8aec69ad578ac01a73eba3b89/boto3-1.43.30.tar.gz"
+              "hash": "8165b79c02955affbe4b4e9aa7c560684d0d4d86b4b9de66a37b45eb79fc4b69",
+              "url": "https://files.pythonhosted.org/packages/a5/8a/1d33e395da9319b162046ff7d7e75550756425c2a236d8682b4a1bbdec1c/boto3-1.43.31.tar.gz"
             }
           ],
           "project_name": "boto3",
           "requires_dists": [
-            "botocore<1.44.0,>=1.43.30",
+            "botocore<1.44.0,>=1.43.31",
             "botocore[crt]<2.0a0,>=1.21.0; extra == \"crt\"",
             "jmespath<2.0.0,>=0.7.1",
-            "s3transfer<0.19.0,>=0.18.0"
+            "s3transfer<0.20.0,>=0.19.0"
           ],
           "requires_python": ">=3.10",
-          "version": "1.43.30"
+          "version": "1.43.31"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "f9c35131d86698c1b3748dc3bc086f1f3c18c2cf6540c86a8eab7adb2a8e694d",
-              "url": "https://files.pythonhosted.org/packages/a0/90/43fede497226c914bc7d34d4721b21d06256131bbce3050681077af98fe6/boto3_stubs-1.43.30-py3-none-any.whl"
+              "hash": "f710d553c54ce5c2819f0396aec4159e3b629595d98032762935a00931ed962c",
+              "url": "https://files.pythonhosted.org/packages/f4/d9/ccc0e71543c086af006d5e0ec51ffd3472331200b18a0bd31e2fe5e3ab08/boto3_stubs-1.43.31-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "5c53e5243e611f157527454e1b9292062c1c3e1d74ab47754585b910a613d7e1",
-              "url": "https://files.pythonhosted.org/packages/63/20/07847fbbeb27edc2c04fe5bc950a448621b1d12db1b263b471406956d685/boto3_stubs-1.43.30.tar.gz"
+              "hash": "fdbdad627a94d303332764cad4ae26b35d8c4963af26ebaa38350e580d954f15",
+              "url": "https://files.pythonhosted.org/packages/69/24/e56728c8e06f18df066f22950ee3a3227691bd656fbc6cb4e35152ad94d5/boto3_stubs-1.43.31.tar.gz"
             }
           ],
           "project_name": "boto3-stubs",
           "requires_dists": [
             "boto3-stubs-full<1.44.0,>=1.43.0; extra == \"full\"",
-            "boto3==1.43.30; extra == \"boto3\"",
+            "boto3==1.43.31; extra == \"boto3\"",
             "botocore-stubs",
             "mypy-boto3-accessanalyzer<1.44.0,>=1.43.0; extra == \"accessanalyzer\"",
             "mypy-boto3-accessanalyzer<1.44.0,>=1.43.0; extra == \"all\"",
@@ -1045,7 +1046,7 @@
             "typing-extensions>=4.1.0; python_version < \"3.12\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.43.30"
+          "version": "1.43.31"
         },
         {
           "artifacts": [
@@ -2927,13 +2928,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "239c13b09e65ad0346e1be7348b8a202dcad44ac7ea7c6eb858fc881dce739b6",
-              "url": "https://files.pythonhosted.org/packages/2b/58/a58fc997655386daa2e25784e30c288aa3e3819e401f77029ee4899fb55a/s3transfer-0.18.0-py3-none-any.whl"
+              "hash": "777cc2415536f1debadb5c2ef7779275d0fc0fe0e042411cdd6caebeb2685262",
+              "url": "https://files.pythonhosted.org/packages/46/5f/4c174edad94f82de888ac00a5ddd8d07b35609b6c94f0bdf4d74af57703e/s3transfer-0.19.0-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "3760b8b7ec1315da54048b2d626276732bee4300d054d492d4e1d43e20d4ecbd",
-              "url": "https://files.pythonhosted.org/packages/e0/1f/12417f7f493fc45e1f9fd5d4a9b6c125cf8d2cf3f8ddbdfab3e76406e9d6/s3transfer-0.18.0.tar.gz"
+              "hash": "ce436931687addc4c1712d52d40b32f53e88315723f107ffa20ba82b05a0f685",
+              "url": "https://files.pythonhosted.org/packages/f6/94/dcdaeb1713cab9c84def276cfac7388b17c7d9855bbcfe88d77e4dbafd44/s3transfer-0.19.0.tar.gz"
             }
           ],
           "project_name": "s3transfer",
@@ -2942,7 +2943,7 @@
             "botocore[crt]<2.0a.0,>=1.37.4; extra == \"crt\""
           ],
           "requires_python": ">=3.10",
-          "version": "0.18.0"
+          "version": "0.19.0"
         },
         {
           "artifacts": [
@@ -3275,13 +3276,13 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "723246d54b2da754d17f45a08dc35b8754d592f1decf5fc70fe97ae59c6dcd8f",
-              "url": "https://files.pythonhosted.org/packages/14/5b/60b978372747b5d30ff2d8dd747af8ce4c084737e36680e9111f0157304d/tzlocal-5.4.2-py3-none-any.whl"
+              "hash": "024d11221ff83453eae1f608f09b145b9779e1345d08c15404ce8ff7917cf629",
+              "url": "https://files.pythonhosted.org/packages/1d/70/5771c9ecbdb7cc0c3f3bbded7e0fa7911ee8e872ce5b5dc48ce7dce21a11/tzlocal-5.4-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "d7e304509eedacfd10c961296d5d9cda9c302d6dee7119c58b38a83ed341814a",
-              "url": "https://files.pythonhosted.org/packages/cf/43/4ca0479315598ce8d8ff3a24a78db8e1b15c35d66d265136aeec32518c00/tzlocal-5.4.2.tar.gz"
+              "hash": "41e1293f80d4b5ff38dff222601a8fbd06b4fdcaf25e224704047ad26a39af54",
+              "url": "https://files.pythonhosted.org/packages/d8/52/ee2e6d7031687c5bad28363148cb72f2bbf38201d2e220671bd9fb830bc2/tzlocal-5.4.tar.gz"
             }
           ],
           "project_name": "tzlocal",
@@ -3296,7 +3297,7 @@
             "zest.releaser; extra == \"devenv\""
           ],
           "requires_python": ">=3.10",
-          "version": "5.4.2"
+          "version": "5.4"
         },
         {
           "artifacts": [
@@ -3409,6 +3410,7 @@
     "types-python-dateutil>=2.9.0",
     "types-pytz",
     "types-requests",
+    "tzlocal",
     "urllib3>=2.2.1"
   ],
   "requires_python": [
