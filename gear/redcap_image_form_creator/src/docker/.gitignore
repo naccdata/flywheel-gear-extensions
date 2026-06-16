@@ -1,0 +1,5 @@
+config.json
+config.json.back
+config.json~
+*~
+run.sh
