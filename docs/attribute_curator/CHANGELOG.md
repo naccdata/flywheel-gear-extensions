@@ -4,7 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.3.7 - 1.3.9
 
-* Updates `nacc-attribute-deriver` to `2.3.3` - NACCETPR bugfix
+* Updates `nacc-attribute-deriver` to `2.3.4` - includes D1b-relatex bugfixes
 * Adds DS scope
 
 ## 1.3.6
