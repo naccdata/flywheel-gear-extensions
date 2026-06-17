@@ -360,7 +360,8 @@ class DefinitionsLoader:
             return None
 
         submission_status = {}
-        for form in optional_forms:
+        for form_entry in optional_forms:
+            form = form_entry[0] if isinstance(form_entry, tuple) else form_entry
             mode_var = f"{FieldNames.MODE}{form.lower()}"
             mode = str(input_data.get(mode_var, ""))
             if not mode.strip():

@@ -192,6 +192,39 @@ class TestFormPreprocessor:
             ),
         )
 
+    def test_check_optional_forms_status_with_tuple_forms(
+        self, uds_module_configs_with_tuples, uds_pp_context
+    ):
+        """Tests _check_optional_forms_status when optional_forms contains
+        (form_name, release_date) tuple entries alongside plain string entries."""
+        processor, error_writer, _ = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs_with_tuples
+        )
+
+        uds_pp_context.input_record.update(
+            {
+                "modea1a": 0,
+                "moded1c": 1,
+                "modeb1": 2,
+                "modeb3": 3,
+                "modeb5": 2,
+                "modeb6": 1,
+                "modeb7": 0,
+            }
+        )
+        assert processor._check_optional_forms_status(uds_pp_context)
+
+        uds_pp_context.input_record.update({"moded1c": None})
+        assert not processor._check_optional_forms_status(uds_pp_context)
+        self.__assert_error_raised(
+            error_writer,
+            SysErrorCodes.MISSING_SUBMISSION_STATUS,
+            message=(
+                "Missing submission status (MODE<form name>) variables "
+                "['moded1c'] for one or more optional forms"
+            ),
+        )
+
     def test_check_initial_visit_new_subject(self, uds_module_configs, uds_pp_context):
         """Tests the _check_initial_visit check when it is an initial packet
         and new subject."""

@@ -4,7 +4,7 @@ import re
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
@@ -92,9 +92,11 @@ class UploadTemplateInfo(BaseModel):
 
 
 class OptionalFormsConfigs(RootModel):
-    root: Dict[str, Dict[str, List[str]]]
+    root: Dict[str, Dict[str, List[Union[str, Tuple[str, str]]]]]
 
-    def get_optional_forms(self, version: str, packet: str) -> Optional[List[str]]:
+    def get_optional_forms(
+        self, version: str, packet: str
+    ) -> Optional[List[Union[str, Tuple[str, str]]]]:
         """Get the list of optional forms for the specified version and packet.
 
         Args:
@@ -102,7 +104,8 @@ class OptionalFormsConfigs(RootModel):
             packet: packet code
 
         Returns:
-            Optional[List[str]]: List of optional form names if found
+            Optional[List[Union[str, Tuple[str, str]]]]:
+            List of optional forms if found
         """
         if not self.root:
             return None

@@ -82,6 +82,46 @@ def uds_pp_context():
 
 
 @pytest.fixture(scope="function")
+def uds_module_configs_with_tuples():
+    """Create UDS ModuleConfigs with a mixed optional_forms list containing
+    both plain form names and (form_name, release_date) tuples."""
+    configs = {
+        "hierarchy_labels": {
+            "session": {"template": "FORMS-VISIT-${visitnum}", "transform": "upper"},
+            "acquisition": {"template": "${module}", "transform": "upper"},
+            "filename": {"template": "${subject}_${session}_${acquisition}.json"},
+        },
+        "required_fields": [
+            "ptid",
+            "adcid",
+            "visitnum",
+            "visitdate",
+            "packet",
+            "formver",
+        ],
+        "initial_packets": ["I", "I4"],
+        "followup_packets": ["F"],
+        "versions": ["4.0"],
+        "date_field": "visitdate",
+        "optional_forms": {
+            "4.0": {
+                "I": ["a1a", ["d1c", "2026-05-01"], "b1", "b3", "b5", "b6", "b7"],
+            }
+        },
+        "preprocess_checks": [
+            "duplicate-record",
+            "version",
+            "packet",
+            "optional-forms",
+            "ivp",
+            "udsv4-ivp",
+            "visit-conflict",
+        ],
+    }
+    return ModuleConfigs(**configs)
+
+
+@pytest.fixture(scope="function")
 def np_module_configs():
     """Create NP ModuleConfigs."""
     configs = {
