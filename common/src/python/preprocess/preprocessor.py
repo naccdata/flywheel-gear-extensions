@@ -170,10 +170,17 @@ class FormPreprocessor:
             )
             return True
 
+        visit_date = input_record.get(module_configs.date_field, "")
         found_all = True
         missing_vars = []
         for form_entry in optional_forms:
-            form = form_entry[0] if isinstance(form_entry, tuple) else form_entry
+            if isinstance(form_entry, tuple):
+                form, release_date = form_entry
+                if visit_date and visit_date < release_date:
+                    continue  # form not yet released for this visit
+            else:
+                form = form_entry
+
             mode_var = f"{FieldNames.MODE}{form.lower()}"
             mode = input_record.get(mode_var, "")
             if mode is None or not str(mode).strip():

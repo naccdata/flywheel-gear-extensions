@@ -196,25 +196,30 @@ class TestFormPreprocessor:
         self, uds_module_configs_with_tuples, uds_pp_context
     ):
         """Tests _check_optional_forms_status when optional_forms contains
-        (form_name, release_date) tuple entries alongside plain string entries."""
+        (form_name, release_date) tuple entries alongside plain string entries.
+
+        The fixture has d1c with release_date "2026-05-01".
+        uds_pp_context starts with visitdate "2025-01-01" (before release).
+        """
         processor, error_writer, _ = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs_with_tuples
         )
 
-        uds_pp_context.input_record.update(
-            {
-                "modea1a": 0,
-                "moded1c": 1,
-                "modeb1": 2,
-                "modeb3": 3,
-                "modeb5": 2,
-                "modeb6": 1,
-                "modeb7": 0,
-            }
-        )
+        plain_mode_vars = {
+            "modea1a": 0,
+            "modeb1": 2,
+            "modeb3": 3,
+            "modeb5": 2,
+            "modeb6": 1,
+            "modeb7": 0,
+        }
+
+        # visitdate < release_date: moded1c should not be required
+        uds_pp_context.input_record.update(plain_mode_vars)
         assert processor._check_optional_forms_status(uds_pp_context)
 
-        uds_pp_context.input_record.update({"moded1c": None})
+        # visitdate >= release_date: moded1c is now required
+        uds_pp_context.input_record["visitdate"] = "2026-06-01"
         assert not processor._check_optional_forms_status(uds_pp_context)
         self.__assert_error_raised(
             error_writer,
@@ -224,6 +229,10 @@ class TestFormPreprocessor:
                 "['moded1c'] for one or more optional forms"
             ),
         )
+
+        # visitdate >= release_date, mode var present: check passes
+        uds_pp_context.input_record["moded1c"] = 1
+        assert processor._check_optional_forms_status(uds_pp_context)
 
     def test_check_initial_visit_new_subject(self, uds_module_configs, uds_pp_context):
         """Tests the _check_initial_visit check when it is an initial packet
