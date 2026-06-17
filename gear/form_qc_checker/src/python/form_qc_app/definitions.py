@@ -11,12 +11,8 @@ from configs.ingest_configs import ModuleConfigs
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues
-from nacc_common.data_identification import (
-    DataIdentification,
-)
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
-from outputs.errors import empty_field_error
 from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
@@ -148,7 +144,7 @@ class DefinitionsLoader:
         *,
         input_data: Dict[str, Any],
         module: str,
-        optional_forms: Optional[Dict[str, bool]] = None,
+        optional_forms: Optional[Dict[str, int]] = None,
         skip_forms: Optional[List[str]] = None,
         supplement_data: Optional[Dict[str, Any]] = None,
     ) -> tuple[Dict[str, Mapping], Optional[Dict[str, Dict]]]:
@@ -217,7 +213,7 @@ class DefinitionsLoader:
     def download_definitions_from_s3(  # noqa: C901
         self,
         prefix: str,
-        optional_forms: Optional[Dict[str, bool]] = None,
+        optional_forms: Optional[Dict[str, int]] = None,
         skip_forms: Optional[List[str]] = None,
     ) -> Dict[str, Mapping]:
         """Download rule definition files from a source S3 bucket and generate
@@ -266,6 +262,13 @@ class DefinitionsLoader:
 
             # Select which definition to load depending on form is submitted or not
             if optional_forms and formname in optional_forms:
+                if optional_forms[formname] == -1:
+                    log.info(
+                        f"Skipping definition file {key} due to ",
+                        f"unspecified submission mode for form {formname}",
+                    )
+                    continue
+
                 if optional_forms[formname] and optional_def:
                     continue  # form is submitted, skip optional schema
 
@@ -316,7 +319,7 @@ class DefinitionsLoader:
 
     def get_optional_forms_submission_status(
         self, *, input_data: Dict[str, Any], module: str
-    ) -> Optional[Dict[str, bool]]:
+    ) -> Optional[Dict[str, int]]:
         """Get the list of optional forms for the module/packet from
         optional_forms.json file in rule definitions S3 bucket. Check whether
         each optional form is submitted or not using the mode variable in input
@@ -327,7 +330,8 @@ class DefinitionsLoader:
             module: module name
 
         Returns:
-            Dict[str, bool]: submission status of each optional form
+            Dict[str, int]: submission status of each optional form
+            (0: not submitted, 1:submitted, -1: skipped due to missing mode variable)
 
         Raises:
             DefinitionException: If failed to get optional forms submission status
@@ -355,33 +359,20 @@ class DefinitionsLoader:
             )
             return None
 
-        missing = []
         submission_status = {}
         for form in optional_forms:
             mode_var = f"{FieldNames.MODE}{form.lower()}"
             mode = str(input_data.get(mode_var, ""))
             if not mode.strip():
-                if self.__strict:
-                    missing.append(mode_var)
-                else:
-                    submission_status[form] = False
-
+                # mark as skipped due to missing mode variable
+                # assumes that the presence of the mode variable is validated in
+                # the form-transformer
+                submission_status[form] = -1
                 continue
 
-            submission_status[form] = int(mode) != DefaultValues.NOTFILLED
-
-        if missing:
-            visit_keys = DataIdentification.from_form_record_safe(
-                record=input_data, date_field=self.__module_configs.date_field
-            )
-            self.__error_writer.write(
-                empty_field_error(
-                    field=set(missing),
-                    visit_keys=visit_keys,
-                )
-            )
-            raise DefinitionException(
-                f"Missing optional forms submission status fields {missing}"
-            )
+            if int(mode) == DefaultValues.NOTFILLED:
+                submission_status[form] = 0
+            else:
+                submission_status[form] = 1
 
         return submission_status
