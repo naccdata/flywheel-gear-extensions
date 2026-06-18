@@ -498,7 +498,7 @@ class FormCurator(Curator):
         # sometimes deletion events can cause an orphaned uds-participant
         # tag on subjec with no UDS data, so need to clean up tags as well
         elif FormScope.UDS not in curated_scopes and uds_tag in subject.tags:
-            log.debug(f"Removing UDS participant: {subject.label}")
+            log.debug(f"Untagging non-UDS participant: {subject.label}")
             subject.delete_tag(uds_tag)
 
     def back_propagate_scopes(  # noqa: C901
