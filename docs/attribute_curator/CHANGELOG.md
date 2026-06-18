@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Deletes `uds-participant` tag from subjects who had all their UDS visits deleted
+
 ## 1.3.7 - 1.3.9
 
 * Updates `nacc-attribute-deriver` to `2.3.4` - includes D1b-relatex bugfixes
