@@ -192,18 +192,18 @@ class TestFormPreprocessor:
             ),
         )
 
-    def test_check_optional_forms_status_with_tuple_forms(
-        self, uds_module_configs_with_tuples, uds_pp_context
+    def test_check_optional_forms_status_with_release_dates(
+        self, uds_module_configs_with_release_dates, uds_pp_context
     ):
-        """Tests _check_optional_forms_status when optional_forms contains
-        (form_name, release_date) tuple entries alongside plain string entries.
+        """Tests _check_optional_forms_status when an optional form (d1c) has a
+        release date configured in release_dates.
 
         The fixture has d1c with release_date "2026-05-01".
         uds_pp_context starts with visitdate "2025-01-01" (before
         release).
         """
         processor, error_writer, _ = self.__setup_processor(
-            DefaultValues.UDS_MODULE, uds_module_configs_with_tuples
+            DefaultValues.UDS_MODULE, uds_module_configs_with_release_dates
         )
 
         plain_mode_vars = {

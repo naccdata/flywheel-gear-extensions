@@ -15,9 +15,7 @@
             "nofill": true
         },
         {
-            "release_date": "2026-07-14",
-            "mode_field": "moded1c",
-            "nofill": true,
+            "form_name": "d1c",
             "retain_modes": ["1"],
             "header_fields": [
                 "frmdated1c",
@@ -25,7 +23,8 @@
                 "langd1c",
                 "d1cnot"
             ],
-            "fields": []
+            "fields": [],
+            "nofill": true
         }
     ],
     "LBD": [

@@ -1,5 +1,6 @@
 import json
 
+from configs.ingest_configs import FormReleaseDates
 from keys.keys import SysErrorCodes
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -133,11 +134,12 @@ class TestDateTransformer:
 
 
 class TestReleaseDateFilter:
+    RELEASE_DATES = FormReleaseDates({"I": {"d1c": "2026-05-01"}})
+
     @staticmethod
     def __filter() -> ReleaseDateFilter:
         return ReleaseDateFilter(
-            release_date="2026-05-01",
-            mode_field="moded1c",
+            form_name="d1c",
             fields=["d1c1", "d1c2"],
             header_fields=["frmdated1c"],
             retain_modes=["1", "2"],
@@ -147,11 +149,20 @@ class TestReleaseDateFilter:
     def __error_writer() -> ListErrorWriter:
         return ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
 
+    def __apply(self, release_filter, input_record, error_writer=None):
+        return release_filter.apply(
+            input_record,
+            error_writer or self.__error_writer(),
+            1,
+            "visitdate",
+            self.RELEASE_DATES,
+        )
+
     def test_before_release_not_submitted_empty(self):
         """Pre-release, not submitted, data fields empty: data, header, and
         mode fields are dropped; unrelated fields kept."""
-        release_filter = self.__filter()
         input_record = {
+            "packet": "I",
             "visitdate": "2025-01-01",
             "moded1c": "0",
             "d1c1": "",
@@ -159,19 +170,21 @@ class TestReleaseDateFilter:
             "frmdated1c": "2025-01-01",
             "ptid": "dummy-ptid",
         }
-        record = release_filter.apply(
-            input_record, self.__error_writer(), 1, "visitdate"
-        )
-        assert record == {"visitdate": "2025-01-01", "ptid": "dummy-ptid"}
+        record = self.__apply(self.__filter(), input_record)
+        assert record == {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "ptid": "dummy-ptid",
+        }
 
     def test_before_release_not_submitted_data_filled_nofill(self):
         """Pre-release, not submitted, a data field is filled with nofill:
 
         record rejected with an EXCLUDED_FIELDS error.
         """
-        release_filter = self.__filter()
         error_writer = self.__error_writer()
         input_record = {
+            "packet": "I",
             "naccid": "NACC000000",
             "ptid": "dummy-ptid",
             "adcid": "0",
@@ -180,7 +193,7 @@ class TestReleaseDateFilter:
             "d1c1": "some-value",
             "d1c2": "",
         }
-        record = release_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = self.__apply(self.__filter(), input_record, error_writer)
         assert record is None
         errors = error_writer.errors()
         assert len(errors) == 1
@@ -191,17 +204,17 @@ class TestReleaseDateFilter:
 
         no error; data, header, and mode fields dropped.
         """
-        release_filter = self.__filter()
         error_writer = self.__error_writer()
         input_record = {
+            "packet": "I",
             "visitdate": "2025-01-01",
             "moded1c": "0",
             "d1c1": "",
             "d1c2": "",
             "frmdated1c": "2025-01-01",
         }
-        record = release_filter.apply(input_record, error_writer, 1, "visitdate")
-        assert record == {"visitdate": "2025-01-01"}
+        record = self.__apply(self.__filter(), input_record, error_writer)
+        assert record == {"packet": "I", "visitdate": "2025-01-01"}
         assert not error_writer.errors()
 
     def test_before_release_not_submitted_data_filled_no_nofill(self):
@@ -210,32 +223,30 @@ class TestReleaseDateFilter:
         fields dropped, no error.
         """
         release_filter = ReleaseDateFilter(
-            release_date="2026-05-01",
-            mode_field="moded1c",
+            form_name="d1c",
             fields=["d1c1", "d1c2"],
             nofill=False,
         )
         error_writer = self.__error_writer()
         input_record = {
+            "packet": "I",
             "visitdate": "2025-01-01",
             "moded1c": "0",
             "d1c1": "some-value",
         }
-        record = release_filter.apply(input_record, error_writer, 1, "visitdate")
-        assert record == {"visitdate": "2025-01-01"}
+        record = self.__apply(release_filter, input_record, error_writer)
+        assert record == {"packet": "I", "visitdate": "2025-01-01"}
         assert not error_writer.errors()
 
     def test_before_release_submitted(self):
         """Pre-release but submitted (mode == 1): nothing dropped."""
-        release_filter = self.__filter()
         input_record = {
+            "packet": "I",
             "visitdate": "2025-01-01",
             "moded1c": "1",
             "d1c1": "some-value",
         }
-        record = release_filter.apply(
-            input_record, self.__error_writer(), 1, "visitdate"
-        )
+        record = self.__apply(self.__filter(), input_record)
         assert record == input_record
 
     def test_before_release_alternate_retain_mode(self):
@@ -243,15 +254,13 @@ class TestReleaseDateFilter:
 
         nothing dropped.
         """
-        release_filter = self.__filter()
         input_record = {
+            "packet": "I",
             "visitdate": "2025-01-01",
             "moded1c": "2",
             "d1c1": "some-value",
         }
-        record = release_filter.apply(
-            input_record, self.__error_writer(), 1, "visitdate"
-        )
+        record = self.__apply(self.__filter(), input_record)
         assert record == input_record
 
     def test_before_release_integer_mode_retained(self):
@@ -259,52 +268,77 @@ class TestReleaseDateFilter:
 
         nothing dropped (integer is coerced to string for comparison).
         """
-        release_filter = self.__filter()
         input_record = {
+            "packet": "I",
             "visitdate": "2025-01-01",
             "moded1c": 1,
             "d1c1": "some-value",
         }
-        record = release_filter.apply(
-            input_record, self.__error_writer(), 1, "visitdate"
-        )
+        record = self.__apply(self.__filter(), input_record)
         assert record == input_record
 
     def test_before_release_integer_mode_dropped(self):
         """Mode value supplied as an integer not in retain modes: data, header,
         and mode fields are dropped (integer is coerced to string)."""
-        release_filter = self.__filter()
         input_record = {
+            "packet": "I",
             "visitdate": "2025-01-01",
             "moded1c": 0,
             "d1c1": "",
             "d1c2": "",
             "frmdated1c": "2025-01-01",
         }
-        record = release_filter.apply(
-            input_record, self.__error_writer(), 1, "visitdate"
-        )
-        assert record == {"visitdate": "2025-01-01"}
+        record = self.__apply(self.__filter(), input_record)
+        assert record == {"packet": "I", "visitdate": "2025-01-01"}
 
     def test_on_or_after_release(self):
         """Visit on/after the release date: nothing dropped."""
-        release_filter = self.__filter()
         input_record = {
+            "packet": "I",
             "visitdate": "2026-06-01",
             "moded1c": "0",
             "d1c1": "some-value",
         }
-        record = release_filter.apply(
-            input_record, self.__error_writer(), 1, "visitdate"
-        )
+        record = self.__apply(self.__filter(), input_record)
         assert record == input_record
 
     def test_missing_visit_date(self):
         """No visit date: nothing dropped."""
+        input_record = {"packet": "I", "moded1c": "0", "d1c1": "some-value"}
+        record = self.__apply(self.__filter(), input_record)
+        assert record == input_record
+
+    def test_packet_not_in_release_dates(self):
+        """Visit packet has no configured release date for the form: treated as
+        already released, nothing dropped."""
         release_filter = self.__filter()
-        input_record = {"moded1c": "0", "d1c1": "some-value"}
+        input_record = {
+            "packet": "F",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "some-value",
+        }
+        record = self.__apply(release_filter, input_record)
+        assert record == input_record
+
+    def test_form_not_in_release_dates(self):
+        """Form has no configured release date: treated as already released,
+
+        nothing dropped.
+        """
+        release_filter = self.__filter()
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "some-value",
+        }
         record = release_filter.apply(
-            input_record, self.__error_writer(), 1, "visitdate"
+            input_record,
+            self.__error_writer(),
+            1,
+            "visitdate",
+            FormReleaseDates({"I": {"otherform": "2026-05-01"}}),
         )
         assert record == input_record
 
@@ -324,8 +358,7 @@ class TestFieldTransformations:
                     "fields": {"FVP": ["newinf"], "IVP": ["birthmo"]},
                 },
                 {
-                    "release_date": "2026-05-01",
-                    "mode_field": "moded1c",
+                    "form_name": "d1c",
                     "fields": ["d1c1"],
                     "header_fields": ["frmdated1c"],
                 },

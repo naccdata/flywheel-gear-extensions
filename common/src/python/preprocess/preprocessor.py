@@ -171,15 +171,17 @@ class FormPreprocessor:
             return True
 
         visit_date = input_record.get(module_configs.date_field, "")
+        release_configs = module_configs.release_dates
         found_all = True
         missing_vars = []
-        for form_entry in optional_forms:
-            if isinstance(form_entry, tuple):
-                form, release_date = form_entry
-                if visit_date and visit_date < release_date:
-                    continue  # form not yet released for this visit
-            else:
-                form = form_entry
+        for form in optional_forms:
+            release_date = (
+                release_configs.get_release_date(packet, form)
+                if release_configs
+                else None
+            )
+            if release_date and visit_date and visit_date < release_date:
+                continue  # form not yet released for this visit
 
             mode_var = f"{FieldNames.MODE}{form.lower()}"
             mode = input_record.get(mode_var, "")

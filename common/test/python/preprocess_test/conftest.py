@@ -82,9 +82,9 @@ def uds_pp_context():
 
 
 @pytest.fixture(scope="function")
-def uds_module_configs_with_tuples():
-    """Create UDS ModuleConfigs with a mixed optional_forms list containing
-    both plain form names and (form_name, release_date) tuples."""
+def uds_module_configs_with_release_dates():
+    """Create UDS ModuleConfigs with an optional form (d1c) that has a release
+    date configured in release_dates."""
     configs = {
         "hierarchy_labels": {
             "session": {"template": "FORMS-VISIT-${visitnum}", "transform": "upper"},
@@ -105,9 +105,10 @@ def uds_module_configs_with_tuples():
         "date_field": "visitdate",
         "optional_forms": {
             "4.0": {
-                "I": ["a1a", ["d1c", "2026-05-01"], "b1", "b3", "b5", "b6", "b7"],
+                "I": ["a1a", "b1", "b3", "b5", "b6", "b7", "d1c"],
             }
         },
+        "release_dates": {"I": {"d1c": "2026-05-01"}},
         "preprocess_checks": [
             "duplicate-record",
             "version",

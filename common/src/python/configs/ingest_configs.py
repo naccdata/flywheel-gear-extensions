@@ -4,7 +4,7 @@ import re
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional
 
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
@@ -92,11 +92,9 @@ class UploadTemplateInfo(BaseModel):
 
 
 class OptionalFormsConfigs(RootModel):
-    root: Dict[str, Dict[str, List[Union[str, Tuple[str, str]]]]]
+    root: Dict[str, Dict[str, List[str]]]
 
-    def get_optional_forms(
-        self, version: str, packet: str
-    ) -> Optional[List[Union[str, Tuple[str, str]]]]:
+    def get_optional_forms(self, version: str, packet: str) -> Optional[List[str]]:
         """Get the list of optional forms for the specified version and packet.
 
         Args:
@@ -104,14 +102,33 @@ class OptionalFormsConfigs(RootModel):
             packet: packet code
 
         Returns:
-            Optional[List[Union[str, Tuple[str, str]]]]:
-            List of optional forms if found
+            Optional[List[str]]: List of optional form names if found
         """
         if not self.root:
             return None
 
         version_configs = self.root.get(version, {})
         return version_configs.get(packet)
+
+
+class FormReleaseDates(RootModel):
+    root: Dict[str, Dict[str, str]]
+
+    def get_release_date(self, packet: str, form: str) -> Optional[str]:
+        """Get the release date for the specified packet and form.
+
+        Args:
+            packet: packet code
+            form: form name
+
+        Returns:
+            Optional[str]: release date (YYYY-MM-DD) for the form if found
+        """
+        if not self.root:
+            return None
+
+        packet_configs = self.root.get(packet, {})
+        return packet_configs.get(form)
 
 
 class SupplementModuleConfigs(BaseModel):
@@ -138,6 +155,7 @@ class ModuleConfigs(BaseModel):
     legacy_module: Optional[LegacyModuleConfigs] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
     optional_forms: Optional[OptionalFormsConfigs] = None
+    release_dates: Optional[FormReleaseDates] = None
     preprocess_checks: Optional[List[str]] = None
     errorlog_template: Optional[ErrorLogTemplate] = None
     longitudinal: Optional[bool] = True
