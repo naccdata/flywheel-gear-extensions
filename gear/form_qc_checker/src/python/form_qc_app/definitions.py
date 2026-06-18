@@ -264,8 +264,8 @@ class DefinitionsLoader:
             if optional_forms and formname in optional_forms:
                 if optional_forms[formname] == -1:
                     log.info(
-                        f"Skipping definition file {key} due to ",
-                        f"unspecified submission mode for form {formname}",
+                        f"Skipping definition file {key} due to "
+                        f"unspecified submission mode for form {formname}"
                     )
                     continue
 
