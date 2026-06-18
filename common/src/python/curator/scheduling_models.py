@@ -24,7 +24,7 @@ VISIT_PASS_LITERALS = Literal["pass0", "pass1", "pass2", "pass3"]
 VISIT_PATTERN = re.compile(
     r"^"
     r"(?P<pass2>.+("
-    r"_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|_B1A|"
+    r"_CSF|_NP|_MDS|_MLST|_MEDS|_FTLD|_LBD|_B1A|_DS|"
     r"apoe_genotype|NCRAD-SAMPLES.+|niagads_availability|"
     r"PTAU217.+|N2PB.+|ABETA40.+|ABETA42.+|"
     r"SCAN-MR-QC.+|SCAN-MR-SBM.+|"
@@ -67,6 +67,7 @@ SCOPE_PATTERN = re.compile(
     r"(?P<meds>.+_MEDS\.json)|"
     r"(?P<ftld>.+_FTLD\.json)|"
     r"(?P<lbd>.+_LBD\.json)|"
+    r"(?P<ds>.+_DS\.json)|"
     r"(?P<b1a>.+_B1A\.json)|"
     r"(?P<uds>.+_UDS\.json)"
     r"$"
