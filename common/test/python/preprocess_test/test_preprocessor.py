@@ -199,7 +199,8 @@ class TestFormPreprocessor:
         (form_name, release_date) tuple entries alongside plain string entries.
 
         The fixture has d1c with release_date "2026-05-01".
-        uds_pp_context starts with visitdate "2025-01-01" (before release).
+        uds_pp_context starts with visitdate "2025-01-01" (before
+        release).
         """
         processor, error_writer, _ = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs_with_tuples

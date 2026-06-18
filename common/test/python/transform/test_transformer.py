@@ -166,7 +166,9 @@ class TestReleaseDateFilter:
 
     def test_before_release_not_submitted_data_filled_nofill(self):
         """Pre-release, not submitted, a data field is filled with nofill:
-        record rejected with an EXCLUDED_FIELDS error."""
+
+        record rejected with an EXCLUDED_FIELDS error.
+        """
         release_filter = self.__filter()
         error_writer = self.__error_writer()
         input_record = {
@@ -186,7 +188,9 @@ class TestReleaseDateFilter:
 
     def test_before_release_not_submitted_header_filled_nofill(self):
         """Pre-release, not submitted, only a header field filled with nofill:
-        no error; data, header, and mode fields dropped."""
+
+        no error; data, header, and mode fields dropped.
+        """
         release_filter = self.__filter()
         error_writer = self.__error_writer()
         input_record = {
@@ -202,7 +206,9 @@ class TestReleaseDateFilter:
 
     def test_before_release_not_submitted_data_filled_no_nofill(self):
         """Pre-release, not submitted, data field filled but nofill=False:
-        fields dropped, no error."""
+
+        fields dropped, no error.
+        """
         release_filter = ReleaseDateFilter(
             release_date="2026-05-01",
             mode_field="moded1c",
@@ -234,7 +240,9 @@ class TestReleaseDateFilter:
 
     def test_before_release_alternate_retain_mode(self):
         """Pre-release with a second accepted retain mode (mode == 2):
-        nothing dropped."""
+
+        nothing dropped.
+        """
         release_filter = self.__filter()
         input_record = {
             "visitdate": "2025-01-01",
@@ -248,7 +256,9 @@ class TestReleaseDateFilter:
 
     def test_before_release_integer_mode_retained(self):
         """Mode value supplied as an integer that maps to a retain mode:
-        nothing dropped (integer is coerced to string for comparison)."""
+
+        nothing dropped (integer is coerced to string for comparison).
+        """
         release_filter = self.__filter()
         input_record = {
             "visitdate": "2025-01-01",
@@ -321,9 +331,7 @@ class TestFieldTransformations:
                 },
             ]
         }
-        transformations = FieldTransformations.model_validate_json(
-            json.dumps(schema)
-        )
+        transformations = FieldTransformations.model_validate_json(json.dumps(schema))
         filters = transformations.get("UDS")
         assert len(filters) == 2
         assert isinstance(filters[0], VersionMapFilter)
