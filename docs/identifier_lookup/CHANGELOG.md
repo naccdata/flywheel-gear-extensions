@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.4.3
+* Rebuilt for module configs update
+  
 ## 2.4.2
 
 * Rebuilt for module configs update
