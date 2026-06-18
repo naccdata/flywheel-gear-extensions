@@ -489,13 +489,17 @@ class FormCurator(Curator):
         elif affiliate != 1 and affiliate_tag in subject.tags:
             subject.delete_tag(affiliate_tag)
 
-        # add uds-participant tag
-        # once a UDS participant always a participant so don't
-        # really need to delete tags
+        # add or deletes uds-participant tag
         uds_tag = FormCurationTags.UDS_PARTICIPANT
         if FormScope.UDS in curated_scopes and uds_tag not in subject.tags:
             log.debug(f"Tagging UDS participant: {subject.label}")
             subject.add_tag(uds_tag)
+
+        # sometimes deletion events can cause an orphaned uds-participant
+        # tag with no UDS data, so need to clean up tags as well
+        elif FormScope.UDS not in curated_scopes and uds_tag in subject.tags:
+            log.debug(f"Removing UDS participant: {subject.label}")
+            subject.delete_tag(uds_tag)
 
     def back_propagate_scopes(  # noqa: C901
         self,
