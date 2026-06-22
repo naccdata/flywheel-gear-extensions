@@ -48,7 +48,7 @@ class QCMetadataFactory:
         for gear_name, state in gears.items():
             # Create ValidationModel with specified state
             validation_model = ValidationModel(
-                state=state,
+                state=state,  # type: ignore
                 data=[],  # No errors for PASS status
                 cleared=[],  # No cleared alerts needed
             )
@@ -212,7 +212,8 @@ class FileEntryFactory:
         qc_data = {
             "test-gear": GearQCModel(
                 validation=ValidationModel(
-                    state=qc_status,
+                    state=qc_status,  # type: ignore
+                    cleared=[],
                     data=[],
                 )
             )
@@ -226,6 +227,10 @@ class FileEntryFactory:
         # Put QC data in custom info, not file contents
         file_entry.info = custom_info or {}
         file_entry.info["qc"] = qc_data
+
+        # reload() must return the same object so callers that call reload()
+        # before reading info (e.g. _check_qc_status) see the populated info.
+        file_entry.reload.return_value = file_entry
 
         return file_entry
 

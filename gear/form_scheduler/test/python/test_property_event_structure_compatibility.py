@@ -85,6 +85,7 @@ class MockProjectAdaptor:
         file_entry.info = custom_info or {}
         file_entry.info["qc"] = qc_data
 
+        file_entry.reload.return_value = file_entry
         self.files[filename] = file_entry
         return file_entry
 

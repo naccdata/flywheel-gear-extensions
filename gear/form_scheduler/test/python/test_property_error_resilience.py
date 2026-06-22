@@ -116,6 +116,7 @@ class TestErrorResilience:
         mock_qc_file.info = None  # No custom info
         mock_qc_file.read.return_value = qc_content
         mock_qc_file.modified = datetime.now()
+        mock_qc_file.reload.return_value = mock_qc_file
 
         # Create mock project
         mock_project = Mock(spec=ProjectAdaptor)
@@ -176,6 +177,7 @@ class TestErrorResilience:
             },
         }
         mock_qc_file.modified = datetime.now()
+        mock_qc_file.reload.return_value = mock_qc_file
 
         # Create mock project with valid label
         mock_project = Mock(spec=ProjectAdaptor)
@@ -273,6 +275,7 @@ class TestErrorResilience:
         }
         mock_qc_file.read.return_value = '{"file_status": "PASS"}'
         mock_qc_file.modified = datetime.now()
+        mock_qc_file.reload.return_value = mock_qc_file
 
         # Create mock project
         mock_project = Mock(spec=ProjectAdaptor)
