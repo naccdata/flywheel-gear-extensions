@@ -42,7 +42,6 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         self,
         client: ClientWrapper,
         pipeline_configs_input: InputFileWrapper,
-        form_configs_input: InputFileWrapper,
         event_bucket: S3BucketInterface,
         event_environment: Literal["prod", "dev"],
         source_email: Optional[str] = None,
@@ -51,7 +50,6 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         super().__init__(client=client)
 
         self.__configs_input = pipeline_configs_input
-        self.__form_configs_input = form_configs_input
         self.__source_email = source_email
         self.__portal_url = portal_url
         self.__event_bucket = event_bucket
@@ -79,11 +77,6 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             input_name="pipeline_configs_file", context=context
         )
         assert pipeline_configs_input, "missing expected input, pipeline_configs_file"
-
-        form_configs_input = InputFileWrapper.create(
-            input_name="form_configs_file", context=context
-        )
-        assert form_configs_input, "missing expected input, form_configs_file"
 
         options = context.config.opts
         source_email = options.get("source_email", "nacchelp@uw.edu")
@@ -114,7 +107,6 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         return FormSchedulerVisitor(
             client=client,
             pipeline_configs_input=pipeline_configs_input,
-            form_configs_input=form_configs_input,
             event_bucket=event_bucket,
             event_environment=event_environment,
             source_email=source_email,

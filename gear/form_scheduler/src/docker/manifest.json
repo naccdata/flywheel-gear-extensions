@@ -2,7 +2,7 @@
     "name": "form-scheduler",
     "label": "Form Scheduler",
     "description": "Queues project files for the submission pipeline",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-scheduler:1.4.0"
+            "image": "naccdata/form-scheduler:1.5.0"
         },
         "flywheel": {
             "suite": "NACC Admin Gears",
@@ -28,15 +28,6 @@
         },
         "pipeline_configs_file": {
             "description": "A JSON file with pipeline configurations",
-            "base": "file",
-            "type": {
-                "enum": [
-                    "source code"
-                ]
-            }
-        },
-        "form_configs_file": {
-            "description": "A JSON file with form module configurations",
             "base": "file",
             "type": {
                 "enum": [

@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.0
+* Removes unused input file `form_configs_file`
+* Fixes logging `pass-qc` event
+  
 ## 1.4.0
 * Adds deletion workflow
 * Rebuilt for log file naming format update
