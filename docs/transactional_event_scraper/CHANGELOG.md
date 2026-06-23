@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.1.0
 
+* Adds new optional input file `form_configs_file` to the manifest
 * Push unmatched submit events in Phase 3 instead of only warning — mirrors live pipeline where submit events are independent of JSON file availability
 * Remove date filter from Phase 2 JSON file processing — date range now only controls which submissions are scraped, maximizing QC event matching
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
