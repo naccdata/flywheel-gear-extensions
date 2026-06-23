@@ -50,7 +50,12 @@ class DataIdentificationExtractor:
         Returns:
             DataIdentification instance or None if not found/invalid
         """
-        if not json_file or not json_file.info:
+
+        if not json_file:
+            return None
+
+        json_file = json_file.reload()
+        if not json_file.info:
             return None
 
         forms_json = json_file.info.get("forms", {}).get("json", {})

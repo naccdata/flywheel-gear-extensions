@@ -72,6 +72,7 @@ class EventAccumulator:
         # Extract DataIdentification from JSON file metadata
         data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
         if not data_id:
+            log.warning("Could not extract data identification for %s", json_file.name)
             return None
 
         # Try new format first (with visitnum and packet if present)
@@ -169,7 +170,7 @@ class EventAccumulator:
             # Find corresponding QC status log
             qc_log_file = self.find_qc_status_for_json_file(json_file, project)
             if not qc_log_file:
-                log.warning("No QC status log found for %s", json_file.name)
+                log.warning("Failed to find the error log file for %s", json_file.name)
                 return
 
             # Check QC status - only proceed if PASS
