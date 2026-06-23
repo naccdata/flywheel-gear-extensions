@@ -36,11 +36,10 @@ class ProjectModeConfig(BaseModel):
     @field_validator("modules")
     @classmethod
     def must_have_valid_modules(cls, v: set[str]) -> set[str]:
-        """Filter to valid module set and raise if none remain."""
-        valid = {"UDS", "FTLD", "LBD"}
-        filtered = v & valid
+        """Reject empty or whitespace-only module sets."""
+        filtered = {module.strip() for module in v if module.strip()}
         if not filtered:
-            raise ValueError(f"no valid modules specified; allowed values are {valid}")
+            raise ValueError("at least one module must be specified")
         return filtered
 
 

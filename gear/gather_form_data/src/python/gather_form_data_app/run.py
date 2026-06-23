@@ -285,20 +285,19 @@ class ProjectModeVisitor(GearExecutionEnvironment):
 
         Resolves group/project, iterates subjects, gathers data, and
         writes output files.
+
+        Raises:
+          GearExecutionError if the group or project cannot be found.
         """
         group = self.proxy.find_group(self.__group_id)
         if not group:
-            log.error("Group not found: %s", self.__group_id)
-            return
+            raise GearExecutionError(f"Group not found: {self.__group_id}")
 
         project = group.find_project(self.__project_name)
         if not project:
-            log.error(
-                "Project not found: %s in group %s",
-                self.__project_name,
-                self.__group_id,
+            raise GearExecutionError(
+                f"Project not found: {self.__project_name} in group {self.__group_id}"
             )
-            return
 
         subjects = list(project.project.subjects.iter())
         if not subjects:

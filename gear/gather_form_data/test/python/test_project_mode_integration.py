@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from gather_form_data_app.run import ProjectModeVisitor
-from gear_execution.gear_execution import ClientWrapper
+from gear_execution.gear_execution import ClientWrapper, GearExecutionError
 
 
 @pytest.fixture
@@ -89,17 +89,17 @@ class TestProjectModeErrorHandling:
         mock_client: MagicMock,
         mock_proxy: MagicMock,
         mock_context: MagicMock,
-        caplog: pytest.LogCaptureFixture,
     ):
-        """When proxy.find_group returns None, log error and return."""
+        """When proxy.find_group returns None, raise GearExecutionError."""
         mock_proxy.find_group.return_value = None
 
         visitor = create_visitor(mock_client, group_id="nonexistent-group")
 
-        with caplog.at_level(logging.ERROR):
+        with pytest.raises(
+            GearExecutionError, match="Group not found: nonexistent-group"
+        ):
             visitor.run(mock_context)
 
-        assert "Group not found: nonexistent-group" in caplog.text
         mock_context.open_output.assert_not_called()
 
     def test_project_not_found(
@@ -107,9 +107,8 @@ class TestProjectModeErrorHandling:
         mock_client: MagicMock,
         mock_proxy: MagicMock,
         mock_context: MagicMock,
-        caplog: pytest.LogCaptureFixture,
     ):
-        """When group is found but project is not, log error and return."""
+        """When group is found but project is not, raise GearExecutionError."""
         mock_group = MagicMock()
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = None
@@ -120,10 +119,11 @@ class TestProjectModeErrorHandling:
             project_name="nonexistent-project",
         )
 
-        with caplog.at_level(logging.ERROR):
+        with pytest.raises(
+            GearExecutionError, match="Project not found: nonexistent-project"
+        ):
             visitor.run(mock_context)
 
-        assert "Project not found: nonexistent-project" in caplog.text
         mock_context.open_output.assert_not_called()
 
     def test_empty_project(

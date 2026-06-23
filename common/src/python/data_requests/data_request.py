@@ -89,12 +89,9 @@ class ModuleDataGatherer:
         self.__module_name = module_name
         self.__info_paths = info_paths if info_paths is not None else ["forms.json"]
         self.__split_by_formver = split_by_formver
-        # One writer for the default flow; a dict of writers (keyed by
-        # formver label) when splitting by formver.
-        self.__writer: Optional[StringCSVWriter] = (
-            None if split_by_formver else StringCSVWriter()
-        )
-        self.__writers_by_formver: dict[str, StringCSVWriter] = {}
+        # Writers keyed by formver label when splitting; a single writer under
+        # the "default" label otherwise.
+        self.__writers: dict[str, StringCSVWriter] = {}
 
     @property
     def module_name(self):
@@ -117,8 +114,8 @@ class ModuleDataGatherer:
                 "content is unavailable when split_by_formver=True; "
                 "use content_by_formver instead"
             )
-        assert self.__writer is not None
-        return self.__writer.get_content()
+        writer = self.__writers.setdefault("default", StringCSVWriter())
+        return writer.get_content()
 
     @property
     def content_by_formver(self) -> dict[str, str]:
@@ -137,10 +134,7 @@ class ModuleDataGatherer:
                 "content_by_formver is unavailable when "
                 "split_by_formver=False; use content instead"
             )
-        return {
-            label: writer.get_content()
-            for label, writer in self.__writers_by_formver.items()
-        }
+        return {label: writer.get_content() for label, writer in self.__writers.items()}
 
     def gather_file_info(self, file: FileEntry) -> None:
         """Writes file info to the writer. Uses the info paths of this object
@@ -169,16 +163,13 @@ class ModuleDataGatherer:
 
             merged_data.update(form_data)
 
-        if self.__split_by_formver:
-            label = formver_label(merged_data.get("formver"))
-            writer = self.__writers_by_formver.get(label)
-            if writer is None:
-                writer = StringCSVWriter()
-                self.__writers_by_formver[label] = writer
-            writer.write(merged_data)
-        else:
-            assert self.__writer is not None
-            self.__writer.write(merged_data)
+        label = (
+            formver_label(merged_data.get("formver"))
+            if self.__split_by_formver
+            else "default"
+        )
+        writer = self.__writers.setdefault(label, StringCSVWriter())
+        writer.write(merged_data)
 
     def gather_request_data(self, request: DataRequestMatch) -> None:
         """Writes the file custom info to the writer of this object for each
