@@ -42,6 +42,7 @@ class TestErrorResilience:
 
         # Create mock JSON file with varying levels of metadata
         mock_json_file = Mock(spec=FileEntry)
+        mock_json_file.reload.return_value = mock_json_file
         mock_json_file.name = file_name
 
         if has_info:
@@ -99,6 +100,7 @@ class TestErrorResilience:
 
         # Create mock JSON file with valid metadata
         mock_json_file = Mock(spec=FileEntry)
+        mock_json_file.reload.return_value = mock_json_file
         mock_json_file.name = "test.json"
         mock_json_file.info = {
             "forms": {
@@ -112,11 +114,11 @@ class TestErrorResilience:
 
         # Create mock QC status file with invalid content
         mock_qc_file = Mock(spec=FileEntry)
+        mock_qc_file.reload.return_value = mock_qc_file
         mock_qc_file.name = "qc_status.json"
         mock_qc_file.info = None  # No custom info
         mock_qc_file.read.return_value = qc_content
         mock_qc_file.modified = datetime.now()
-        mock_qc_file.reload.return_value = mock_qc_file
 
         # Create mock project
         mock_project = Mock(spec=ProjectAdaptor)
@@ -151,6 +153,7 @@ class TestErrorResilience:
 
         # Create valid mock JSON file
         mock_json_file = Mock(spec=FileEntry)
+        mock_json_file.reload.return_value = mock_json_file
         mock_json_file.name = "test.json"
         mock_json_file.info = {
             "forms": {
@@ -165,6 +168,7 @@ class TestErrorResilience:
 
         # Create valid mock QC status file with PASS status
         mock_qc_file = Mock(spec=FileEntry)
+        mock_qc_file.reload.return_value = mock_qc_file
         mock_qc_file.name = "qc_status.json"
         mock_qc_file.info = {
             "qc": {"form-qc-checker": {"validation": {"state": "PASS", "data": []}}},
@@ -177,7 +181,6 @@ class TestErrorResilience:
             },
         }
         mock_qc_file.modified = datetime.now()
-        mock_qc_file.reload.return_value = mock_qc_file
 
         # Create mock project with valid label
         mock_project = Mock(spec=ProjectAdaptor)
@@ -252,6 +255,7 @@ class TestErrorResilience:
 
         # Create mock JSON file with invalid metadata that will cause validation errors
         mock_json_file = Mock(spec=FileEntry)
+        mock_json_file.reload.return_value = mock_json_file
         mock_json_file.name = "test.json"
         mock_json_file.info = {
             "forms": {
@@ -265,6 +269,7 @@ class TestErrorResilience:
 
         # Create mock QC status file
         mock_qc_file = Mock(spec=FileEntry)
+        mock_qc_file.reload.return_value = mock_qc_file
         mock_qc_file.name = "qc_status.json"
         mock_qc_file.info = {
             "visit": {
@@ -275,7 +280,6 @@ class TestErrorResilience:
         }
         mock_qc_file.read.return_value = '{"file_status": "PASS"}'
         mock_qc_file.modified = datetime.now()
-        mock_qc_file.reload.return_value = mock_qc_file
 
         # Create mock project
         mock_project = Mock(spec=ProjectAdaptor)

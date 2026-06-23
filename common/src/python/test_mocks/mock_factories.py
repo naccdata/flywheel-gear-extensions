@@ -25,6 +25,9 @@ def create_mock_file_entry(
     file_entry.info = info or {}
     file_entry.modified = datetime.now()
     file_entry.created = datetime.now()
+    # reload() must return the same mock so reload-aware extractors
+    # (e.g. DataIdentificationExtractor.from_json_file_metadata) see the info.
+    file_entry.reload.return_value = file_entry
     return file_entry
 
 

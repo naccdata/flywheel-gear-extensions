@@ -130,6 +130,9 @@ class EventAccumulator:
     def _check_qc_status(self, qc_log_file: FileEntry) -> bool:
         """Check if QC status is PASS and return completion timestamp.
 
+        Assumes qc_log_file has already been reloaded by the caller so that
+        its custom info is populated.
+
         Args:
             qc_log_file: The QC status log file
 
@@ -137,8 +140,6 @@ class EventAccumulator:
             QC completion timestamp if status is PASS, None otherwise
         """
         try:
-            # Reload to ensure we have the latest QC info from Flywheel.
-            qc_log_file = qc_log_file.reload()
             if not qc_log_file.info or "qc" not in qc_log_file.info:
                 log.info("No QC metadata found in %s", qc_log_file.name)
                 return False
@@ -172,6 +173,9 @@ class EventAccumulator:
             if not qc_log_file:
                 log.warning("Failed to find the error log file for %s", json_file.name)
                 return
+
+            # Reload to get the latest file.info from Flywheel.
+            qc_log_file = qc_log_file.reload()
 
             # Check QC status - only proceed if PASS
             if not self._check_qc_status(qc_log_file):

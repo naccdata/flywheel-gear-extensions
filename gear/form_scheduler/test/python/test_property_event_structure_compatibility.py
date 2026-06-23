@@ -70,14 +70,16 @@ class MockProjectAdaptor:
         qc_data = {
             "test-gear": GearQCModel(
                 validation=ValidationModel(
-                    state=qc_status,
+                    state=qc_status, # type: ignore
                     data=[],
+                    cleared=[],
                 )
             )
         }
 
         # Create file entry
         file_entry = Mock(spec=FileEntry)
+        file_entry.reload.return_value = file_entry
         file_entry.name = filename
         file_entry.modified = qc_completion_time or datetime.now()
 
@@ -85,7 +87,6 @@ class MockProjectAdaptor:
         file_entry.info = custom_info or {}
         file_entry.info["qc"] = qc_data
 
-        file_entry.reload.return_value = file_entry
         self.files[filename] = file_entry
         return file_entry
 
@@ -96,6 +97,7 @@ def json_file_strategy(draw) -> FileEntry:
     forms_json = draw(shared_json_strategy())
 
     file_entry = Mock(spec=FileEntry)
+    file_entry.reload.return_value = file_entry
     file_entry.name = (
         f"{forms_json['ptid']}"
         f"_{forms_json['visitdate']}_{forms_json['module'].lower()}.json"
@@ -135,6 +137,7 @@ def test_event_structure_compatibility(
 
     # Create JSON file from visit metadata
     json_file = Mock(spec=FileEntry)
+    json_file.reload.return_value = json_file
     assert visit_metadata.module, "module is required for visit metadata"
     json_file.name = (
         f"{visit_metadata.ptid}_{visit_metadata.date}_"
@@ -333,6 +336,7 @@ def test_event_structure_required_fields():
 
     # Create test JSON file with all fields
     json_file = Mock(spec=FileEntry)
+    json_file.reload.return_value = json_file
     json_file.name = "test001_2024-01-15_uds.json"
     json_file.info = {
         "forms": {
@@ -416,6 +420,7 @@ def test_event_structure_s3_storage_compatibility():
 
     # Create test JSON file
     json_file = Mock(spec=FileEntry)
+    json_file.reload.return_value = json_file
     json_file.name = "test001_2024-01-15_uds.json"
     json_file.info = {
         "forms": {
