@@ -143,9 +143,7 @@ class EventAccumulator:
                 return False
             qc_model = FileQCModel.model_validate(qc_log_file.info)
         except ValidationError as err:
-            log.warning(
-                "Failed to parse QC metadata for %s: %s", qc_log_file.name, err
-            )
+            log.warning("Failed to parse QC metadata for %s: %s", qc_log_file.name, err)
             return False
 
         # Check if QC status is PASS

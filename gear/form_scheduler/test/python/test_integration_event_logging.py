@@ -700,9 +700,9 @@ class TestCaptureDeleteEvent:
 class TestQCStatusReloadBehavior:
     """Regression tests for stale file info requiring reload.
 
-    Flywheel's SDK does not always populate the
-    full info dict when listing project files — info may be None or {}. The
-    _check_qc_status method must call file.reload() to fetch current metadata.
+    Flywheel's SDK does not always populate the full info dict when
+    listing project files — info may be None or {}. The _check_qc_status
+    method must call file.reload() to fetch current metadata.
     """
 
     @pytest.fixture
@@ -722,18 +722,17 @@ class TestQCStatusReloadBehavior:
     ) -> None:
         """Events are logged even when the QC file initially has info=None.
 
-        Simulates the Flywheel SDK returning a FileEntry from the project's
-        cached file list with info=None, which then populates correctly on
-        reload(). Ensures _check_qc_status calls reload() before reading info.
+        Simulates the Flywheel SDK returning a FileEntry from the
+        project's cached file list with info=None, which then populates
+        correctly on reload(). Ensures _check_qc_status calls reload()
+        before reading info.
         """
 
         class StaleQCFile(MockFile):
             """Mimics a FileEntry returned from project.files with no info,
             where reload() fetches the real metadata."""
 
-            def __init__(
-                self, name: str, real_info: dict, modified: datetime
-            ):
+            def __init__(self, name: str, real_info: dict, modified: datetime):
                 # Start with empty info (as Flywheel SDK may return)
                 super().__init__(name=name, info={}, modified=modified)
                 self._real_info = real_info
@@ -791,9 +790,9 @@ class TestQCStatusReloadBehavior:
     ) -> None:
         """No event is logged when the reloaded QC file has no 'qc' key.
 
-        Prevents false-positive pass-qc events for files that exist at project
-        level but have not yet had QC metadata written (e.g., a new log file
-        with only text content and no custom info).
+        Prevents false-positive pass-qc events for files that exist at
+        project level but have not yet had QC metadata written (e.g., a
+        new log file with only text content and no custom info).
         """
         json_file = FileEntryFactory.create_mock_json_file_with_forms_metadata(
             name="NACC200001_FORMS-VISIT-2F_UDS.json",
