@@ -3,6 +3,7 @@
 import logging
 from typing import Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from deletions.models import DeleteInfoModel
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
@@ -19,6 +20,7 @@ from nacc_common.error_models import (
     DataIdentification,
     FileQCModel,
 )
+from nacc_common.field_names import FieldNames
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
@@ -27,15 +29,57 @@ log = logging.getLogger(__name__)
 class EventAccumulator:
     """Simplified event accumulator for QC-pass events only."""
 
-    def __init__(self, event_capture: VisitEventCapture) -> None:
+    def __init__(
+        self,
+        event_capture: VisitEventCapture,
+        form_configs: Optional[FormProjectConfigs] = None,
+    ) -> None:
         """Initialize the simplified EventAccumulator.
 
         Args:
             event_capture: Logger for visit events
-            datatype: Type of data being processed (default: "form")
+            form_configs: optional form module configs used to resolve the
+                module-specific date field when extracting visit metadata from
+                forms.json. Falls back to auto-detection when configs are not
+                provided or the module is unknown.
         """
         self.__event_capture = event_capture
         self.__error_log_template = ErrorLogTemplate()
+        self.__form_configs = form_configs
+
+    def _date_field_for(self, json_file: FileEntry) -> Optional[str]:
+        """Return the configured module-specific date field for the file.
+
+        Reads the module from the file's forms.json metadata and looks up its
+        date field in the form module configs. Returns None when configs are
+        unavailable or the module is unknown, letting the extractor auto-detect
+        the date column.
+
+        Args:
+            json_file: the JSON file with forms metadata
+
+        Returns:
+            the module-specific date field, or None if it cannot be resolved
+        """
+        if not self.__form_configs:
+            return None
+
+        try:
+            json_file = json_file.reload()
+            forms_json = (
+                json_file.info.get("forms", {}).get("json", {})
+                if json_file.info
+                else {}
+            )
+        except Exception:  # best-effort; fall back to auto-detection
+            return None
+
+        module = forms_json.get(FieldNames.MODULE)
+        if not module:
+            return None
+
+        module_configs = self.__form_configs.module_configs.get(module.upper())
+        return module_configs.date_field if module_configs else None
 
     def create_qc_status_file_name(self, json_file: FileEntry) -> Optional[str]:
         """Creates the qc status log file from the form metadata for the file.
@@ -46,7 +90,9 @@ class EventAccumulator:
           the QC status file for the visit in the file.
         """
         # Extract DataIdentification from JSON file metadata
-        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        data_id = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, date_field=self._date_field_for(json_file)
+        )
         if not data_id:
             return None
 
@@ -70,7 +116,9 @@ class EventAccumulator:
             The corresponding QC status log file, or None if not found
         """
         # Extract DataIdentification from JSON file metadata
-        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        data_id = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, date_field=self._date_field_for(json_file)
+        )
         if not data_id:
             log.warning("Could not extract data identification for %s", json_file.name)
             return None
@@ -121,7 +169,9 @@ class EventAccumulator:
                 return visit_metadata
 
         # Fall back to JSON file metadata
-        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, date_field=self._date_field_for(json_file)
+        )
         if visit_metadata:
             return visit_metadata
 

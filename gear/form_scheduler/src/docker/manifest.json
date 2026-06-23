@@ -34,6 +34,16 @@
                     "source code"
                 ]
             }
+        },
+        "form_configs_file": {
+            "description": "A JSON file with form module configurations",
+            "base": "file",
+            "optional": true,
+            "type": {
+                "enum": [
+                    "source code"
+                ]
+            }
         }
     },
     "config": {

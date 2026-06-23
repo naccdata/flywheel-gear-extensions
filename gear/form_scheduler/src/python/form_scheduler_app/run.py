@@ -4,7 +4,12 @@ import logging
 from typing import Any, Literal, Optional
 
 from botocore.exceptions import ClientError
-from configs.ingest_configs import ConfigsError, PipelineConfigs
+from configs.ingest_configs import (
+    ConfigsError,
+    FormProjectConfigs,
+    PipelineConfigs,
+    load_form_ingest_configurations,
+)
 from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -24,6 +29,7 @@ from inputs.parameter_store import (
 )
 from jobs.job_poll import JobPoll
 from notifications.email import EmailClient, create_ses_client
+from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
 
 from form_scheduler_app.form_scheduler_queue import (
@@ -44,12 +50,14 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         pipeline_configs_input: InputFileWrapper,
         event_bucket: S3BucketInterface,
         event_environment: Literal["prod", "dev"],
+        form_configs_input: Optional[InputFileWrapper] = None,
         source_email: Optional[str] = None,
         portal_url: Optional[URLParameter] = None,
     ):
         super().__init__(client=client)
 
         self.__configs_input = pipeline_configs_input
+        self.__form_configs_input = form_configs_input
         self.__source_email = source_email
         self.__portal_url = portal_url
         self.__event_bucket = event_bucket
@@ -77,6 +85,12 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             input_name="pipeline_configs_file", context=context
         )
         assert pipeline_configs_input, "missing expected input, pipeline_configs_file"
+
+        # Optional: form module configs, used to resolve the module-specific
+        # date field when capturing visit events.
+        form_configs_input = InputFileWrapper.create(
+            input_name="form_configs_file", context=context
+        )
 
         options = context.config.opts
         source_email = options.get("source_email", "nacchelp@uw.edu")
@@ -109,6 +123,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             pipeline_configs_input=pipeline_configs_input,
             event_bucket=event_bucket,
             event_environment=event_environment,
+            form_configs_input=form_configs_input,
             source_email=source_email,
             portal_url=portal_url,
         )
@@ -159,6 +174,20 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             s3_bucket=self.__event_bucket, environment=self.__event_environment
         )
 
+        # Load form module configs (if provided) so visit-event extraction can
+        # resolve the module-specific date column.
+        form_configs: Optional[FormProjectConfigs] = None
+        if self.__form_configs_input:
+            try:
+                form_configs = load_form_ingest_configurations(
+                    self.__form_configs_input.filepath
+                )
+            except ValidationError as error:
+                raise GearExecutionError(
+                    "Error reading form configurations file "
+                    f"{self.__form_configs_input.filename}: {error}"
+                ) from error
+
         # if source email specified, set up client to send emails
         email_client = (
             EmailClient(client=create_ses_client(), source=self.__source_email)
@@ -178,6 +207,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
             project=project,
             pipeline_configs=pipeline_configs,
             event_capture=event_logger,
+            form_configs=form_configs,
             email_client=email_client,
             portal_url=self.__portal_url,
         )
