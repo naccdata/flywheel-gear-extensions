@@ -4,9 +4,15 @@ from typing import Any, Dict, Optional
 from deletions.models import DeleteRequest
 from flywheel.models.file_entry import FileEntry
 from nacc_common.data_identification import DataIdentification
+from nacc_common.field_names import FieldNames
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
+
+# forms.json stores the raw form record, so the visit date lives under the
+# module-specific date column. Most modules use FieldNames.DATE_COLUMN
+# ("visitdate"); some (e.g. NP) use a module-specific field (FieldNames.NPDATE).
+KNOWN_DATE_FIELDS = (FieldNames.DATE_COLUMN, FieldNames.NPDATE)
 
 
 class DataIdentificationExtractor:
@@ -38,14 +44,17 @@ class DataIdentificationExtractor:
             return None
 
     @staticmethod
-    def from_json_file_metadata(json_file: FileEntry) -> Optional[DataIdentification]:
-        """Extract DataIdentification from JSON file forms metadata.
+    def from_json_file_metadata(
+        json_file: FileEntry, date_field: Optional[str] = None
+    ) -> Optional[DataIdentification]:
+        """Extract DataIdentification from a JSON file's forms.json metadata.
 
-        The forms.json metadata uses normalized field names (visitdate, not
-        module-specific date fields) since it's been processed during upload.
+        If date_field is not provided, the date is auto-detected from the known date fields.
 
         Args:
             json_file: JSON file with forms metadata
+            date_field: the module-specific date column name. If None, the date is
+                auto-detected from the known date fields in the record.
 
         Returns:
             DataIdentification instance or None if not found/invalid
@@ -62,7 +71,9 @@ class DataIdentificationExtractor:
         if not forms_json:
             return None
 
-        return DataIdentificationExtractor.from_forms_json(forms_json)
+        return DataIdentificationExtractor.from_forms_json(
+            forms_json, date_field=date_field
+        )
 
     @staticmethod
     def from_deletion_request_file(
@@ -99,12 +110,15 @@ class DataIdentificationExtractor:
             return None
 
     @staticmethod
-    def from_forms_json(forms_json: dict[str, Any]) -> Optional[DataIdentification]:
-        """Extract DataIdentification from forms.json dict.
+    def from_forms_json(
+        forms_json: dict[str, Any], date_field: Optional[str] = None
+    ) -> Optional[DataIdentification]:
+        """Extract DataIdentification from a forms.json record.
 
         Args:
-            forms_json: Dictionary with forms metadata (ptid, visitdate, module, etc.)
-                May contain the full form data payload or just metadata fields.
+            forms_json: the forms.json record (raw visit record)
+            date_field: the module-specific date column name. If None, the date is
+                auto-detected from the known date fields present in the record.
 
         Returns:
             DataIdentification instance or None if required fields are missing/invalid
@@ -112,34 +126,39 @@ class DataIdentificationExtractor:
         if not forms_json:
             return None
 
-        # Check for required fields before attempting to create DataIdentification
-        module = forms_json.get("module")
-        if not module:
+        # module is required to build a DataIdentification
+        if not forms_json.get(FieldNames.MODULE):
+            log.warning(
+                "Failed to extract DataIdentification: "
+                "Missing 'module' field in forms.json metadata"
+            )
             return None
 
+        # Resolve the visit date from the module-specific date column.
+        if date_field:
+            date_value = forms_json.get(date_field)
+        else:
+            date_value = next(
+                (
+                    forms_json[field]
+                    for field in KNOWN_DATE_FIELDS
+                    if forms_json.get(field)
+                ),
+                None,
+            )
+
+        # Map only the identification fields (forms.json also carries many other
+        # form columns that are not from_visit_metadata parameters).
         try:
-            # Extract only the fields relevant to DataIdentification.
-            # forms.json may contain the full form data (hundreds of fields),
-            # so we must select only the keys that from_visit_metadata accepts.
-            relevant_keys = {
-                "adcid",
-                "ptid",
-                "naccid",
-                "visitnum",
-                "module",
-                "packet",
-                "modality",
-            }
-            mapped_data = {k: forms_json[k] for k in relevant_keys if k in forms_json}
-
-            # Resolve the date field based on module.
-            # NP module uses npformdate; all others use visitdate.
-            # Fall back to visitdate if module-specific field is not present.
-            date_field = "npformdate" if module.upper() == "NP" else "visitdate"
-            date_value = forms_json.get(date_field) or forms_json.get("visitdate")
-            if date_value:
-                mapped_data["date"] = date_value
-
-            return DataIdentification.from_visit_metadata(**mapped_data)
-        except (ValidationError, ValueError, TypeError):
+            return DataIdentification.from_visit_metadata(
+                ptid=forms_json.get(FieldNames.PTID),
+                date=date_value,
+                module=forms_json.get(FieldNames.MODULE),
+                visitnum=forms_json.get(FieldNames.VISITNUM),
+                packet=forms_json.get(FieldNames.PACKET),
+                naccid=forms_json.get(FieldNames.NACCID),
+                adcid=forms_json.get(FieldNames.ADCID),
+            )
+        except (ValidationError, ValueError, TypeError) as err:
+            log.warning("Invalid forms.json metadata: %s", err)
             return None
