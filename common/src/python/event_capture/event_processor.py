@@ -27,6 +27,7 @@ and packet information, which are stored in different source files.
 import logging
 from typing import List, Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -35,6 +36,7 @@ from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     FileQCModel,
 )
+from nacc_common.field_names import FieldNames
 
 from event_capture.event_capture import VisitEventCapture
 from event_capture.event_generator import EventGenerator
@@ -189,6 +191,7 @@ class QCEventProcessor:
         event_capture: Optional[VisitEventCapture],
         dry_run: bool = False,
         date_filter: Optional[DateRange] = None,
+        form_configs: Optional[FormProjectConfigs] = None,
     ):
         """Initialize the QCEventProcessor.
 
@@ -199,6 +202,10 @@ class QCEventProcessor:
             event_capture: Event capture for storing events to S3 (None for dry-run)
             dry_run: Whether to perform a dry run without capturing events
             date_filter: Optional date range for filtering files by creation time
+            form_configs: optional form module configs used to resolve the
+                module-specific date field when extracting visit metadata from
+                forms.json. Falls back to auto-detection when configs are not
+                provided or the module is unknown.
         """
         self._project = project
         self._event_generator = event_generator
@@ -207,6 +214,41 @@ class QCEventProcessor:
         self._dry_run = dry_run
         self._date_filter = date_filter
         self._error_log_template = ErrorLogTemplate()
+        self._form_configs = form_configs
+
+    def _date_field_for(self, json_file: FileEntry) -> Optional[str]:
+        """Return the configured module-specific date field for the file.
+
+        Reads the module from the file's forms.json metadata and looks up its
+        date field in the form module configs. Returns None when configs are
+        unavailable or the module is unknown, letting the extractor auto-detect
+        the date column.
+
+        Args:
+            json_file: the JSON file with forms metadata
+
+        Returns:
+            the module-specific date field, or None if it cannot be resolved
+        """
+        if not self._form_configs:
+            return None
+
+        try:
+            json_file = json_file.reload()
+            forms_json = (
+                json_file.info.get("forms", {}).get("json", {})
+                if json_file.info
+                else {}
+            )
+        except Exception:  # best-effort; fall back to auto-detection
+            return None
+
+        module = forms_json.get(FieldNames.MODULE)
+        if not module:
+            return None
+
+        module_configs = self._form_configs.module_configs.get(module.upper())
+        return module_configs.date_field if module_configs else None
 
     def process_json_files(self) -> None:
         """Discover and process all JSON files.
@@ -300,14 +342,12 @@ class QCEventProcessor:
         Returns:
             QCEventData if extraction successful, None otherwise
         """
-        # Reload file to ensure .info metadata is populated
-        # (files.find() returns FileOutput objects without full metadata)
-        json_file = json_file.reload()
-
         # Extract visit metadata from JSON file (includes packet)
         # Note: DataIdentificationExtractor is imported from
         # event_capture.visit_extractor
-        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, date_field=self._date_field_for(json_file)
+        )
         if not visit_metadata:
             info_keys = list(json_file.info.keys()) if json_file.info else None
             log.warning(
