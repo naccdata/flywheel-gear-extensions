@@ -70,7 +70,7 @@ class MockProjectAdaptor:
         qc_data = {
             "test-gear": GearQCModel(
                 validation=ValidationModel(
-                    state=qc_status, # type: ignore
+                    state=qc_status,  # type: ignore
                     data=[],
                     cleared=[],
                 )
