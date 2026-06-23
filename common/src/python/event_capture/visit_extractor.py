@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict, Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from deletions.models import DeleteRequest
 from flywheel.models.file_entry import FileEntry
 from nacc_common.data_identification import DataIdentification
@@ -45,16 +46,19 @@ class DataIdentificationExtractor:
 
     @staticmethod
     def from_json_file_metadata(
-        json_file: FileEntry, date_field: Optional[str] = None
+        json_file: FileEntry, form_configs: Optional[FormProjectConfigs] = None
     ) -> Optional[DataIdentification]:
         """Extract DataIdentification from a JSON file's forms.json metadata.
 
-        If date_field is not provided, the date is auto-detected from the known date fields.
+        The visit date is resolved from the module-specific date column. When
+        form_configs is provided and the file's module is known, the configured
+        date field is used; otherwise the date column is auto-detected from the
+        known module date fields.
 
         Args:
             json_file: JSON file with forms metadata
-            date_field: the module-specific date column name. If None, the date is
-                auto-detected from the known date fields in the record.
+            form_configs: optional form module configs used to resolve the
+                module-specific date field
 
         Returns:
             DataIdentification instance or None if not found/invalid
@@ -71,9 +75,40 @@ class DataIdentificationExtractor:
         if not forms_json:
             return None
 
+        date_field = DataIdentificationExtractor._date_field_from_configs(
+            forms_json, form_configs
+        )
         return DataIdentificationExtractor.from_forms_json(
             forms_json, date_field=date_field
         )
+
+    @staticmethod
+    def _date_field_from_configs(
+        forms_json: dict[str, Any],
+        form_configs: Optional[FormProjectConfigs],
+    ) -> Optional[str]:
+        """Resolve the module-specific date field for a forms.json record.
+
+        Looks up the record's module in the form module configs. Returns None
+        when configs are unavailable or the module is unknown, letting the
+        extractor auto-detect the date column.
+
+        Args:
+            forms_json: the forms.json record (raw visit record)
+            form_configs: optional form module configs
+
+        Returns:
+            the module-specific date field, or None if it cannot be resolved
+        """
+        if not form_configs:
+            return None
+
+        module = forms_json.get(FieldNames.MODULE)
+        if not module:
+            return None
+
+        module_configs = form_configs.module_configs.get(module.upper())
+        return module_configs.date_field if module_configs else None
 
     @staticmethod
     def from_deletion_request_file(

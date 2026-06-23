@@ -36,7 +36,6 @@ from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     FileQCModel,
 )
-from nacc_common.field_names import FieldNames
 
 from event_capture.event_capture import VisitEventCapture
 from event_capture.event_generator import EventGenerator
@@ -216,40 +215,6 @@ class QCEventProcessor:
         self._error_log_template = ErrorLogTemplate()
         self._form_configs = form_configs
 
-    def _date_field_for(self, json_file: FileEntry) -> Optional[str]:
-        """Return the configured module-specific date field for the file.
-
-        Reads the module from the file's forms.json metadata and looks up its
-        date field in the form module configs. Returns None when configs are
-        unavailable or the module is unknown, letting the extractor auto-detect
-        the date column.
-
-        Args:
-            json_file: the JSON file with forms metadata
-
-        Returns:
-            the module-specific date field, or None if it cannot be resolved
-        """
-        if not self._form_configs:
-            return None
-
-        try:
-            json_file = json_file.reload()
-            forms_json = (
-                json_file.info.get("forms", {}).get("json", {})
-                if json_file.info
-                else {}
-            )
-        except Exception:  # best-effort; fall back to auto-detection
-            return None
-
-        module = forms_json.get(FieldNames.MODULE)
-        if not module:
-            return None
-
-        module_configs = self._form_configs.module_configs.get(module.upper())
-        return module_configs.date_field if module_configs else None
-
     def process_json_files(self) -> None:
         """Discover and process all JSON files.
 
@@ -346,7 +311,7 @@ class QCEventProcessor:
         # Note: DataIdentificationExtractor is imported from
         # event_capture.visit_extractor
         visit_metadata = DataIdentificationExtractor.from_json_file_metadata(
-            json_file, date_field=self._date_field_for(json_file)
+            json_file, form_configs=self._form_configs
         )
         if not visit_metadata:
             info_keys = list(json_file.info.keys()) if json_file.info else None
