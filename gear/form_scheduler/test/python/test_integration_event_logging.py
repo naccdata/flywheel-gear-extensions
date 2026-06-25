@@ -695,3 +695,130 @@ class TestCaptureDeleteEvent:
         assert event.ptid == "adrc2002"
         assert event.visit_number is None
         assert event.module == "MLST"
+
+
+class TestQCStatusReloadBehavior:
+    """Regression tests for stale file info requiring reload.
+
+    Flywheel's SDK does not always populate the full info dict when
+    listing project files — info may be None or {}. The _check_qc_status
+    method must call file.reload() to fetch current metadata.
+    """
+
+    @pytest.fixture
+    def mock_event_capture(self) -> MockVisitEventCapture:
+        return MockVisitEventCapture()
+
+    @pytest.fixture
+    def event_accumulator(
+        self, mock_event_capture: MockVisitEventCapture
+    ) -> EventAccumulator:
+        return EventAccumulator(event_capture=mock_event_capture)
+
+    def test_qc_pass_event_logged_when_file_info_only_available_after_reload(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Events are logged even when the QC file initially has info=None.
+
+        Simulates the Flywheel SDK returning a FileEntry from the
+        project's cached file list with info=None, which then populates
+        correctly on reload(). Ensures _check_qc_status calls reload()
+        before reading info.
+        """
+
+        class StaleQCFile(MockFile):
+            """Mimics a FileEntry returned from project.files with no info,
+            where reload() fetches the real metadata."""
+
+            def __init__(self, name: str, real_info: dict, modified: datetime):
+                # Start with empty info (as Flywheel SDK may return)
+                super().__init__(name=name, info={}, modified=modified)
+                self._real_info = real_info
+                self._modified = modified
+
+            def reload(self, *args, **kwargs):
+                # Simulate fetching full metadata on reload
+                return MockFile(
+                    name=self.name,
+                    info=self._real_info,
+                    modified=self._modified,
+                )
+
+        json_file = FileEntryFactory.create_mock_json_file_with_forms_metadata(
+            name="NACC200000_FORMS-VISIT-1F_UDS.json",
+            ptid="adrc3000",
+            visitdate="2025-01-10",
+            visitnum="1F",
+            module="UDS",
+            packet="I",
+        )
+
+        qc_metadata = QCMetadataFactory.create_pass_qc_metadata(
+            ["identifier-lookup", "form-qc-checker"]
+        )
+        real_info = qc_metadata.model_dump(by_alias=True)
+
+        qc_completion_time = datetime(2025, 1, 10, 9, 0, 0)
+        stale_qc_file = StaleQCFile(
+            name="adrc3000_2025-01-10_uds_qc-status.log",
+            real_info=real_info,
+            modified=qc_completion_time,
+        )
+
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+            files=[stale_qc_file],
+        )
+
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        assert len(mock_event_capture.logged_events) == 1, (
+            "Expected pass-qc event to be logged after reload populates file info"
+        )
+        event = mock_event_capture.logged_events[0]
+        assert event.action == "pass-qc"
+        assert event.ptid == "adrc3000"
+
+    def test_no_event_when_qc_file_has_no_qc_key_after_reload(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """No event is logged when the reloaded QC file has no 'qc' key.
+
+        Prevents false-positive pass-qc events for files that exist at
+        project level but have not yet had QC metadata written (e.g., a
+        new log file with only text content and no custom info).
+        """
+        json_file = FileEntryFactory.create_mock_json_file_with_forms_metadata(
+            name="NACC200001_FORMS-VISIT-2F_UDS.json",
+            ptid="adrc3001",
+            visitdate="2025-02-20",
+            visitnum="2F",
+            module="UDS",
+            packet="I",
+        )
+
+        # QC file exists but has no 'qc' key in its info
+        qc_file = MockFile(
+            name="adrc3001_2025-02-20_uds_qc-status.log",
+            info={"some_other_key": "value"},
+            modified=datetime(2025, 2, 20, 10, 0, 0),
+        )
+
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+            files=[qc_file],
+        )
+
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        assert len(mock_event_capture.logged_events) == 0, (
+            "Should not log event when QC file has no 'qc' key in info"
+        )

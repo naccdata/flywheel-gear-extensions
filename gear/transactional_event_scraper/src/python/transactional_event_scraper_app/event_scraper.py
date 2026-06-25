@@ -29,6 +29,7 @@ UnmatchedSubmitEvents collection for efficient event matching.
 import logging
 from typing import Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from event_capture.event_capture import VisitEventCapture
 from event_capture.event_generator import EventGenerator
 from event_capture.event_processor import QCEventProcessor, SubmitEventProcessor
@@ -77,6 +78,7 @@ class EventScraper:
         event_capture: Optional[VisitEventCapture] = None,
         dry_run: bool = False,
         date_filter: Optional[DateRange] = None,
+        form_configs: Optional[FormProjectConfigs] = None,
     ) -> None:
         """Initialize the EventScraper.
 
@@ -88,11 +90,14 @@ class EventScraper:
             event_capture: Optional event capture for storing events (None for dry-run)
             dry_run: Whether to perform a dry run without capturing events
             date_filter: Optional date range for filtering files
+            form_configs: optional form module configs used to resolve the
+                module-specific date field for visit extraction
         """
         self._project = project
         self._event_capture = event_capture
         self._dry_run = dry_run
         self._date_filter = date_filter
+        self._form_configs = form_configs
 
         # Shared components
         self._event_generator = EventGenerator(project)
@@ -113,6 +118,7 @@ class EventScraper:
             event_capture=event_capture,
             dry_run=dry_run,
             date_filter=date_filter,
+            form_configs=form_configs,
         )
 
     def scrape_events(self) -> None:

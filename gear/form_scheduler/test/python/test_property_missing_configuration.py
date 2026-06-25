@@ -161,7 +161,8 @@ class TestMissingConfigurationHandling:
                 file=json_file, pipeline_name="finalization"
             )
 
-            # EventAccumulator should be instantiated with event_capture
+            # EventAccumulator should be instantiated with event_capture and
+            # the (here unset) form module configs.
             mock_accumulator_class.assert_called_once_with(
-                event_capture=mock_event_capture
+                event_capture=mock_event_capture, form_configs=None
             )

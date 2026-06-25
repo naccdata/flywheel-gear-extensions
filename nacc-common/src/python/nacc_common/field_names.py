@@ -9,6 +9,7 @@ class FieldNames:
     MODE = "mode"
     VISITNUM = "visitnum"
     DATE_COLUMN = "visitdate"
+    NPDATE = "npformdate"
     FORMVER = "formver"
     GUID = "guid"
     OLDADCID = "oldadcid"
