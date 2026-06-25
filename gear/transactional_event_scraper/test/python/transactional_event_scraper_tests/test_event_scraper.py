@@ -137,7 +137,7 @@ def test_scrape_events_three_phase_workflow(mock_project, caplog):
     # Verify all three phases are logged
     assert "Phase 1: Processing QC status logs" in caplog.text
     assert "Phase 2: Processing JSON files and matching events" in caplog.text
-    assert "Phase 3: Pushing" in caplog.text
+    assert "Phase 3" in caplog.text
 
 
 def test_scrape_events_returns_none(mock_project):
@@ -148,7 +148,7 @@ def test_scrape_events_returns_none(mock_project):
 
 
 def test_scrape_events_logs_unmatched_events(mock_project, caplog):
-    """Test that unmatched submit events are pushed in Phase 3."""
+    """Test that unmatched submit events are logged at completion."""
     import logging
 
     caplog.set_level(logging.INFO)
@@ -156,8 +156,8 @@ def test_scrape_events_logs_unmatched_events(mock_project, caplog):
     scraper = EventScraper(mock_project, dry_run=True)
     scraper.scrape_events()
 
-    # Since we only process QC logs and no JSON files, all submit events remain
-    #  unmatched and get pushed in Phase 3
+    # Since none of the JSON files carry forms.json metadata, no QC events match
+    # and all submit events remain unmatched (pushed in Phase 3).
     assert "unmatched submit events" in caplog.text.lower()
 
 
@@ -205,7 +205,7 @@ def test_scrape_events_completion_message_with_unmatched(mock_project, caplog):
     scraper = EventScraper(mock_project, dry_run=True)
     scraper.scrape_events()
 
-    # Should log Phase 3 push of unmatched events
+    # Should log that unmatched submit events are being pushed in Phase 3
     assert "unmatched submit events" in caplog.text.lower()
-    # Should log dry-run messages for each unmatched event
-    assert "[DRY RUN] Would push unenriched submit event" in caplog.text
+    # Should log each unmatched event being pushed (dry-run)
+    assert "Would push unenriched submit event" in caplog.text

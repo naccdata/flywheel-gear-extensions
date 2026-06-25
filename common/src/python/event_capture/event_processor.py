@@ -27,6 +27,7 @@ and packet information, which are stored in different source files.
 import logging
 from typing import List, Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
@@ -189,6 +190,7 @@ class QCEventProcessor:
         event_capture: Optional[VisitEventCapture],
         dry_run: bool = False,
         date_filter: Optional[DateRange] = None,
+        form_configs: Optional[FormProjectConfigs] = None,
     ):
         """Initialize the QCEventProcessor.
 
@@ -199,6 +201,10 @@ class QCEventProcessor:
             event_capture: Event capture for storing events to S3 (None for dry-run)
             dry_run: Whether to perform a dry run without capturing events
             date_filter: Optional date range for filtering files by creation time
+            form_configs: optional form module configs used to resolve the
+                module-specific date field when extracting visit metadata from
+                forms.json. Falls back to auto-detection when configs are not
+                provided or the module is unknown.
         """
         self._project = project
         self._event_generator = event_generator
@@ -207,6 +213,7 @@ class QCEventProcessor:
         self._dry_run = dry_run
         self._date_filter = date_filter
         self._error_log_template = ErrorLogTemplate()
+        self._form_configs = form_configs
 
     def process_json_files(self) -> None:
         """Discover and process all JSON files.
@@ -300,20 +307,13 @@ class QCEventProcessor:
         Returns:
             QCEventData if extraction successful, None otherwise
         """
-        # Reload file to ensure .info metadata is populated
-        # (files.find() returns FileOutput objects without full metadata)
-        json_file = json_file.reload()
-
         # Extract visit metadata from JSON file (includes packet)
-        # Note: DataIdentificationExtractor is imported from
-        # event_capture.visit_extractor
-        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        # Note: from_json_file_metadata handles reload() internally
+        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, form_configs=self._form_configs
+        )
         if not visit_metadata:
-            info_keys = list(json_file.info.keys()) if json_file.info else None
-            log.warning(
-                f"No forms.json metadata found for {json_file.name} "
-                f"(info keys: {info_keys})"
-            )
+            log.warning(f"No forms.json metadata found for {json_file.name}")
             return None
 
         # Find corresponding QC status log
