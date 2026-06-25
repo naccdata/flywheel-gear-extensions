@@ -15,9 +15,11 @@ Phase 2: Process JSON files to create and match QC events
     - Enriches matched submit events with packet information
     - Captures enriched submit events and PASS QC events to S3
 
-Phase 3: Report unmatched submit events
-    - Logs warnings for any submit events that couldn't be matched
-    - Indicates potential data loss or missing JSON files
+Phase 3: Push remaining unmatched submit events
+    - Captures any submit events that couldn't be matched
+    - These events lack packet enrichment but are still valid
+    - Mirrors live pipeline behavior where submit events are
+      independent of QC/JSON file availability
 
 The EventScraper uses dependency injection to coordinate two specialized
 processors (SubmitEventProcessor and QCEventProcessor) and a shared
