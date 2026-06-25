@@ -51,7 +51,7 @@ class QCMetadataFactory:
         for gear_name, state in gears.items():
             # Create ValidationModel with specified state
             validation_model = ValidationModel(
-                state=state,  # type: ignore
+                state=state,
                 data=[],  # No errors for PASS status
                 cleared=[],  # No cleared alerts needed
             )
@@ -215,7 +215,7 @@ class FileEntryFactory:
         qc_data = {
             "test-gear": GearQCModel(
                 validation=ValidationModel(
-                    state=qc_status,  # type: ignore
+                    state=qc_status,
                     cleared=[],
                     data=[],
                 )
