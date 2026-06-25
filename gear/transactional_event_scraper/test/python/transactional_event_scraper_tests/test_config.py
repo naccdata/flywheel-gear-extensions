@@ -322,16 +322,16 @@ class TestManifestConfigurationValidation:
         assert isinstance(date_range, DateRange)
 
         # Test that date range can filter files
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         # File within range
-        file_date = datetime(2024, 6, 15)
+        file_date = datetime(2024, 6, 15, tzinfo=timezone.utc)
         assert date_range.includes_file(file_date) is True
 
         # File before range
-        file_date = datetime(2023, 12, 31)
+        file_date = datetime(2023, 12, 31, tzinfo=timezone.utc)
         assert date_range.includes_file(file_date) is False
 
         # File after range
-        file_date = datetime(2025, 1, 1)
+        file_date = datetime(2025, 1, 1, tzinfo=timezone.utc)
         assert date_range.includes_file(file_date) is False

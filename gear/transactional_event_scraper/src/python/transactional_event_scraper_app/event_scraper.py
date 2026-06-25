@@ -15,9 +15,11 @@ Phase 2: Process JSON files to create and match QC events
     - Enriches matched submit events with packet information
     - Captures enriched submit events and PASS QC events to S3
 
-Phase 3: Report unmatched submit events
-    - Logs warnings for any submit events that couldn't be matched
-    - Indicates potential data loss or missing JSON files
+Phase 3: Push remaining unmatched submit events
+    - Captures any submit events that couldn't be matched
+    - These events lack packet enrichment but are still valid
+    - Mirrors live pipeline behavior where submit events are
+      independent of QC/JSON file availability
 
 The EventScraper uses dependency injection to coordinate two specialized
 processors (SubmitEventProcessor and QCEventProcessor) and a shared
@@ -127,10 +129,11 @@ class EventScraper:
             - Enriches and captures matched events
             - Logs warnings for unmatched QC events
 
-        Phase 3: Report unmatched submit events
-            - Logs warning if any submit events remain unmatched
-            - Provides sample of unmatched events for investigation
-            - Indicates potential data loss or missing JSON files
+        Phase 3: Push remaining unmatched submit events
+            - Captures any submit events that couldn't be matched
+            - These events lack packet enrichment but are still valid
+            - Mirrors live pipeline behavior where submit events are
+              independent of QC/JSON file availability
 
         The workflow is designed to be resilient to individual file
         processing failures - errors are logged but don't stop the
@@ -150,20 +153,24 @@ class EventScraper:
         log.info("Phase 2: Processing JSON files and matching events")
         self._qc_processor.process_json_files()
 
-        # Phase 3: Report unmatched submit events
+        # Phase 3: Push unmatched submit events without enrichment
         remaining = self._unmatched_events.get_remaining()
         if remaining:
-            log.warning(
-                f"Processing complete with {len(remaining)} unmatched submit "
-                f"events (no corresponding JSON/QC data found)"
+            log.info(
+                f"Phase 3: Pushing {len(remaining)} unmatched submit events "
+                f"(without packet enrichment)"
             )
-            # Log sample of unmatched events for investigation
-            for event in remaining[:5]:  # Log first 5
-                log.warning(
-                    f"  Unmatched: ptid={event.ptid}, date={event.visit_date}, "
-                    f"module={event.module}"
-                )
-            if len(remaining) > 5:
-                log.warning(f"  ... and {len(remaining) - 5} more")
+            for event in remaining:
+                if self._dry_run:
+                    log.info(
+                        f"[DRY RUN] Would push unenriched submit event: "
+                        f"{event.ptid} {event.visit_date} {event.module}"
+                    )
+                elif self._event_capture:
+                    self._event_capture.capture_event(event)
+                    log.info(
+                        f"Pushed unenriched submit event: {event.ptid} "
+                        f"{event.visit_date} {event.module}"
+                    )
         else:
             log.info("Processing complete: all submit events matched and enriched")

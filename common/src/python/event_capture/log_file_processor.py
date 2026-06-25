@@ -29,7 +29,13 @@ def extract_event_from_log(log_file: FileEntry) -> SubmitEventData | None:
 
     # Fall back to parsing filename if metadata not found (older files)
     if not visit_metadata:
-        visit_metadata = _extract_from_filename(log_file.name)
+        try:
+            visit_metadata = _extract_from_filename(log_file.name)
+        except (TypeError, ValueError) as error:
+            log.warning(
+                f"Could not extract visit metadata from {log_file.name}: {error}"
+            )
+            return None
 
     if not visit_metadata:
         log.warning(f"Could not extract visit metadata from {log_file.name}")
@@ -57,19 +63,19 @@ def _extract_from_filename(filename: str) -> DataIdentification | None:
 
     Returns:
         DataIdentification if filename matches pattern, None otherwise
+
+    Raises:
+        TypeError: If filename does not match the expected QC log pattern
+        ValueError: If extracted fields fail validation
     """
     # Create a mock file object with just the name to use extract_visit_keys
     mock_file = type("obj", (object,), {"name": filename})()
 
-    try:
-        visit_keys = extract_visit_keys(mock_file)
-        return DataIdentification.from_visit_metadata(
-            ptid=visit_keys.ptid,
-            date=visit_keys.date,
-            module=visit_keys.module,
-            visitnum=None,  # Not available in filename
-            packet=None,  # Not available in filename
-        )
-    except (TypeError, Exception) as error:
-        log.debug(f"Failed to extract visit keys from filename {filename}: {error}")
-        return None
+    visit_keys = extract_visit_keys(mock_file)
+    return DataIdentification.from_visit_metadata(
+        ptid=visit_keys.ptid,
+        date=visit_keys.date,
+        module=visit_keys.module,
+        visitnum=None,  # Not available in filename
+        packet=None,  # Not available in filename
+    )
