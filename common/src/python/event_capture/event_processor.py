@@ -307,22 +307,13 @@ class QCEventProcessor:
         Returns:
             QCEventData if extraction successful, None otherwise
         """
-        # Reload file to ensure .info metadata is populated
-        # (files.find() returns FileOutput objects without full metadata)
-        json_file = json_file.reload()
-
         # Extract visit metadata from JSON file (includes packet)
-        # Note: DataIdentificationExtractor is imported from
-        # event_capture.visit_extractor
+        # Note: from_json_file_metadata handles reload() internally
         visit_metadata = DataIdentificationExtractor.from_json_file_metadata(
             json_file, form_configs=self._form_configs
         )
         if not visit_metadata:
-            info_keys = list(json_file.info.keys()) if json_file.info else None
-            log.warning(
-                f"No forms.json metadata found for {json_file.name} "
-                f"(info keys: {info_keys})"
-            )
+            log.warning(f"No forms.json metadata found for {json_file.name}")
             return None
 
         # Find corresponding QC status log
