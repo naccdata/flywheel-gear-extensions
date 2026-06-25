@@ -6,29 +6,29 @@ Extract the "project mode" execution path from `gather_form_data` into a new sta
 
 ## Tasks
 
-- [ ] 1. Scaffold new gear and define manifest
-  - [ ] 1.1 Generate gear directory structure using cookiecutter template
+- [x] 1. Scaffold new gear and define manifest
+  - [x] 1.1 Generate gear directory structure using cookiecutter template
     - Install cookiecutter via `pipx install cookiecutter` (per developer docs)
     - Run `pipx run cookiecutter templates/gear/ --output-dir gear/` with `gear_name="Center Form Export"` 
     - This produces `gear/center_form_export/` with `src/docker/`, `src/python/center_form_export_app/`, and `test/python/center_form_export_test/`
     - Verify the generated directory structure matches the standard gear layout
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [ ] 1.2 Create the gear manifest (`manifest.json`)
+  - [x] 1.2 Create the gear manifest (`manifest.json`)
     - Define config fields: `group_id` (required string, no default), `project_name` (required string, no default), `modules` (string, default `"UDS,FTLD,LBD"`), `study_id` (string, default `"adrc"`), `include_derived` (boolean, default `false`), `formver_split` (boolean, default `false`)
     - Define input: `api-key` with base `"api-key"` — no `input_file` input
     - Do NOT include `execution_mode` config field
     - Set gear name to `"center-form-export"`, label to `"Center Form Export"`
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
 
-  - [ ] 1.3 Create the Dockerfile
+  - [x] 1.3 Create the Dockerfile
     - Base image `python:3.12`, working directory `/flywheel/v0`
     - Copy `manifest.json` to working directory
     - Copy PEX binary to `/bin/run`
     - Set entrypoint to `["/bin/run"]`
     - _Requirements: 1.4_
 
-  - [ ] 1.4 Create BUILD files for the new gear
+  - [x] 1.4 Create BUILD files for the new gear
     - `src/python/center_form_export_app/BUILD`: `python_sources` target and `pex_binary` target with entry point `run.py`
     - `src/docker/BUILD`: `file` target for `manifest.json` and `docker_image` target depending on manifest and pex_binary
     - `test/python/center_form_export_test/BUILD`: `python_tests` target
