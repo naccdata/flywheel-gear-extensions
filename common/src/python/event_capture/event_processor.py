@@ -29,7 +29,9 @@ from typing import List, Optional
 
 from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     FileQCModel,
 )
@@ -315,7 +317,7 @@ class QCEventProcessor:
             return None
 
         # Find corresponding QC status log
-        qc_log_file = self._find_qc_status_for_json_file(json_file)
+        qc_log_file = self._find_qc_status_for_visit(visit_metadata)
         if not qc_log_file:
             log.warning(
                 f"No QC status log found for {json_file.name} "
@@ -334,27 +336,22 @@ class QCEventProcessor:
             qc_completion_timestamp=qc_log_file.modified,
         )
 
-    def _find_qc_status_for_json_file(
-        self, json_file: FileEntry
+    def _find_qc_status_for_visit(
+        self, data_id: DataIdentification
     ) -> Optional[FileEntry]:
-        """Find QC status log for JSON file using ErrorLogTemplate.
+        """Find QC status log for a visit using ErrorLogTemplate.
 
         Uses the ErrorLogTemplate to generate the expected QC log filename
-        based on the JSON file's metadata, then looks up that file in the
-        project. Tries the current format first (with visitnum), then falls
-        back to legacy format (without visitnum).
+        based on the visit's DataIdentification, then looks up that file in
+        the project. Tries the current format first (with visitnum), then
+        falls back to legacy format (without visitnum).
 
         Args:
-            json_file: The form JSON file to find QC log for
+            data_id: The DataIdentification extracted from the JSON file
 
         Returns:
             QC status log file entry if found, None otherwise
         """
-        # Extract DataIdentification from JSON file metadata
-        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
-        if not data_id:
-            return None
-
         # Try current format first (with visitnum)
         qc_log_name = self._error_log_template.instantiate(data_id)
         if qc_log_name:
@@ -362,7 +359,7 @@ class QCEventProcessor:
                 result = self._project.get_file(qc_log_name)
                 if result:
                     return result
-            except Exception:
+            except ApiException:
                 pass
 
         # Fall back to legacy format (without visitnum)
@@ -372,7 +369,7 @@ class QCEventProcessor:
 
         try:
             return self._project.get_file(qc_log_name)
-        except Exception:
+        except ApiException:
             return None
 
     def _enrich_and_push_submit_event(
