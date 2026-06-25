@@ -2,8 +2,9 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
+from configs.ingest_configs import FormReleaseDates
 from keys.keys import SysErrorCodes
 from nacc_common.data_identification import (
     DataIdentification,
@@ -36,12 +37,39 @@ class VersionMap(BaseModel):
         return self.default
 
 
-class FieldFilter(BaseModel):
+class FieldFilter(BaseModel, ABC):
+    """Base class for filters that drop fields from an input record."""
+
+    nofill: bool = True
+
+    @abstractmethod
+    def apply(
+        self,
+        input_record: Dict[str, Any],
+        error_writer: ErrorWriter,
+        line_num: int,
+        date_field: str,
+        release_dates: Optional[FormReleaseDates] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Filters the input record by dropping fields.
+
+        Args:
+          input_record: the record to filter
+          error_writer: error metadata writer
+          line_num: line number in the input CSV
+          date_field: date field name for the module
+          release_dates: per-packet form release date configs for the module
+
+        Returns:
+          the input_record without the dropped fields, or None on error
+        """
+
+
+class VersionMapFilter(FieldFilter):
     """Defines a map of form field names for different versions of the form."""
 
     version_map: VersionMap
     fields: Dict[str, List[str]] = {}
-    nofill: bool = True
 
     def __unique_fields(self, version_name: str) -> Set[str]:
         """Finds the field names unique to the version.
@@ -60,6 +88,7 @@ class FieldFilter(BaseModel):
         error_writer: ErrorWriter,
         line_num: int,
         date_field: str,
+        release_dates: Optional[FormReleaseDates] = None,
     ) -> Optional[Dict[str, Any]]:
         """Filters the input record by dropping the key-value pairs for fields
         unique to the version.
@@ -69,6 +98,7 @@ class FieldFilter(BaseModel):
           error_writer: error metadata writer
           line_num: line number in the input CSV
           date_field: date field name for the module
+          release_dates: unused; accepted for interface compatibility
 
         Returns:
           the input_record without the keys for the excluded fields or None
@@ -109,12 +139,103 @@ class FieldFilter(BaseModel):
         return transformed
 
 
+class ReleaseDateFilter(FieldFilter):
+    """Drops fields for a form not yet released for the visit and not
+    submitted: when visit date < the form's release date and the mode field
+    value is not one of retain_modes, the data fields, header fields, and the
+    mode field are removed.
+
+    The release date is looked up by form_name from the module's release_dates;
+    a form with no configured release date is treated as already released. The
+    mode field is derived as MODE + form_name.
+
+    If nofill is set and any data field is non-empty, an error is reported and
+    the record rejected (header fields are exempt from this check).
+    """
+
+    form_name: str
+    retain_modes: List[str] = ["1"]
+    header_fields: List[str] = []
+    fields: List[str] = []
+
+    def apply(
+        self,
+        input_record: Dict[str, Any],
+        error_writer: ErrorWriter,
+        line_num: int,
+        date_field: str,
+        release_dates: Optional[FormReleaseDates] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Drops the form fields when the visit predates the form release date
+        and the form was not submitted.
+
+        Args:
+          input_record: the record to filter
+          error_writer: error metadata writer
+          line_num: line number in the input CSV
+          date_field: date field name for the module
+          release_dates: per-packet form release date configs for the module
+
+        Returns:
+          the record without the dropped fields, the record unchanged if the
+          drop condition is not met, or None if data fields are incorrectly
+          filled
+        """
+        if not release_dates:
+            # no release config; treat the form as already released
+            return input_record
+
+        packet = str(input_record.get(FieldNames.PACKET, "")).strip()
+        release_date = release_dates.get_release_date(packet, self.form_name.lower())
+        if not release_date:
+            # no configured release date; treat the form as already released
+            return input_record
+
+        mode_field = f"{FieldNames.MODE}{self.form_name.lower()}"
+        visit_date = str(input_record.get(date_field, "")).strip()
+        mode = str(input_record.get(mode_field, "")).strip()
+        # dates are normalized to YYYY-MM-DD by DateTransformer, so string
+        # comparison is lexicographically correct
+        if not (
+            visit_date and visit_date < release_date and mode not in self.retain_modes
+        ):
+            return input_record
+
+        # report error if data fields expected to be empty, but filled
+        incorrectly_filled = [
+            field for field in self.fields if self.nofill and input_record.get(field)
+        ]
+        if incorrectly_filled:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_record, date_field=date_field
+            )
+            error_writer.write(
+                preprocessing_error(
+                    field=mode_field,
+                    value=mode,
+                    line=line_num,
+                    error_code=SysErrorCodes.EXCLUDED_FIELDS,
+                    visit_keys=visit_keys,
+                    extra_args=[incorrectly_filled],
+                )
+            )
+            return None
+
+        drop = set(self.fields) | set(self.header_fields) | {mode_field}
+        return {
+            field: value for field, value in input_record.items() if field not in drop
+        }
+
+
+FieldFilterType = Union[VersionMapFilter, ReleaseDateFilter]
+
+
 class FieldTransformations(RootModel):
     """Root model for the form field schema."""
 
-    root: Dict[ModuleName, List[FieldFilter]] = {}
+    root: Dict[ModuleName, List[FieldFilterType]] = {}
 
-    def __getitem__(self, key: ModuleName) -> List[FieldFilter]:
+    def __getitem__(self, key: ModuleName) -> List[FieldFilterType]:
         """Returns the FormField schema for the module.
 
         Args:
@@ -127,11 +248,11 @@ class FieldTransformations(RootModel):
     def get(
         self,
         key: ModuleName,
-        default: List[FieldFilter] = [],  # noqa: B006
-    ) -> List[FieldFilter]:
+        default: List[FieldFilterType] = [],  # noqa: B006
+    ) -> List[FieldFilterType]:
         return self.root.get(key, default)
 
-    def __setitem__(self, key: ModuleName, value: List[FieldFilter]) -> None:
+    def __setitem__(self, key: ModuleName, value: List[FieldFilterType]) -> None:
         """Sets the form field schema for a module.
 
         Args:
@@ -140,7 +261,7 @@ class FieldTransformations(RootModel):
         """
         self.root[key] = value
 
-    def add(self, key: ModuleName, value: FieldFilter) -> None:
+    def add(self, key: ModuleName, value: FieldFilterType) -> None:
         """Adds the filter to the filters for the module name.
 
         Args:
@@ -259,10 +380,12 @@ class FilterTransformer(BaseRecordTransformer):
         field_filter: FieldFilter,
         error_writer: ErrorWriter,
         date_field: Optional[str] = None,
+        release_dates: Optional[FormReleaseDates] = None,
     ) -> None:
         self._transform = field_filter
         self._error_writer = error_writer
         self._date_field = date_field if date_field else FieldNames.DATE_COLUMN
+        self._release_dates = release_dates
 
     def transform(
         self, input_record: Dict[str, Any], line_num: int
@@ -281,6 +404,7 @@ class FilterTransformer(BaseRecordTransformer):
             error_writer=self._error_writer,
             line_num=line_num,
             date_field=self._date_field,
+            release_dates=self._release_dates,
         )
 
 
@@ -293,6 +417,7 @@ class TransformerFactory:
         module: Optional[str],
         date_field: Optional[str],
         error_writer: ErrorWriter,
+        release_dates: Optional[FormReleaseDates] = None,
     ) -> RecordTransformer:
         """Creates a transformer for the module using the transformations in
         this object.
@@ -304,6 +429,7 @@ class TransformerFactory:
           module: the module name
           date_field: date field name for the module
           error_writer: error metadata writer
+          release_dates: per-packet form release date configs for the module
 
         Returns:
           the record transformer
@@ -314,7 +440,9 @@ class TransformerFactory:
             filter_list = self.__transformations.get(module)
             for field_filter in filter_list:
                 transformer_list.append(
-                    FilterTransformer(field_filter, error_writer, date_field)
+                    FilterTransformer(
+                        field_filter, error_writer, date_field, release_dates
+                    )
                 )
 
         return RecordTransformer(transformer_list)
