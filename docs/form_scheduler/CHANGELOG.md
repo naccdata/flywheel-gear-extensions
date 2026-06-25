@@ -3,7 +3,10 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.4.1
-* Fixes event logging
+* Fixes pass-qc event logging: reloads QC status log file before reading metadata to avoid stale/empty info from Flywheel SDK
+* Resolves module-specific date field (e.g. `npformdate` for NP) when extracting visit metadata from forms.json
+* Makes `form_configs_file` input optional — falls back to auto-detection of date fields when not provided
+* Improves operational logging: upgrades debug messages to warning/info for QC metadata failures
   
 ## 1.4.0
 * Adds deletion workflow
