@@ -4,7 +4,7 @@
 //
 // --- BEGIN PANTS LOCKFILE METADATA: DO NOT EDIT OR REMOVE ---
 // {
-//   "version": 4,
+//   "version": 8,
 //   "valid_for_interpreter_constraints": [
 //     "CPython==3.12.*"
 //   ],
@@ -17,7 +17,13 @@
 //   "only_binary": [],
 //   "no_binary": [],
 //   "excludes": [],
-//   "overrides": []
+//   "overrides": [],
+//   "sources": [],
+//   "lock_style": "universal",
+//   "complete_platforms": [],
+//   "uploaded_prior_to": null,
+//   "lockfile_format": "pex",
+//   "resolve": "mypy"
 // }
 // --- END PANTS LOCKFILE METADATA ---
 
@@ -428,6 +434,7 @@
           "version": "0.4.2"
         }
       ],
+      "marker": null,
       "platform_tag": null
     }
   ],
@@ -435,7 +442,7 @@
   "only_wheels": [],
   "overridden": [],
   "path_mappings": {},
-  "pex_version": "2.55.2",
+  "pex_version": "2.95.1",
   "pip_version": "24.2",
   "prefer_older_binary": false,
   "requirements": [
