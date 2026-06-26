@@ -33,9 +33,6 @@ root_patterns = [
 default_repository = "naccdata/{name}"
 env_vars = ["BUILDX_NO_DEFAULT_ATTESTATIONS=1"]
 
-[dockerfile-parser]
-use_rust_parser = true
-
 [python]
 interpreter_constraints = ["==3.12.*"]
 enable_resolves = true
