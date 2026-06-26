@@ -134,8 +134,8 @@ class ProjectCurationScheduler:
             filename_patterns: The filename patterns to curate over
         """
         self.__project = project
-        self.__include_subjects = include_subjects
-        self.__exclude_subjects = exclude_subjects
+        self.__include_subjects = set(include_subjects)
+        self.__exclude_subjects = set(exclude_subjects)
 
     def __compute_cores(self) -> int:
         """Attempts to compute the number of cores available for processes.

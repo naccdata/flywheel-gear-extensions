@@ -3,6 +3,7 @@
 import logging
 from typing import Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from deletions.models import DeleteInfoModel
 from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
@@ -27,15 +28,23 @@ log = logging.getLogger(__name__)
 class EventAccumulator:
     """Simplified event accumulator for QC-pass events only."""
 
-    def __init__(self, event_capture: VisitEventCapture) -> None:
+    def __init__(
+        self,
+        event_capture: VisitEventCapture,
+        form_configs: Optional[FormProjectConfigs] = None,
+    ) -> None:
         """Initialize the simplified EventAccumulator.
 
         Args:
             event_capture: Logger for visit events
-            datatype: Type of data being processed (default: "form")
+            form_configs: optional form module configs used to resolve the
+                module-specific date field when extracting visit metadata from
+                forms.json. Falls back to auto-detection when configs are not
+                provided or the module is unknown.
         """
         self.__event_capture = event_capture
         self.__error_log_template = ErrorLogTemplate()
+        self.__form_configs = form_configs
 
     def create_qc_status_file_name(self, json_file: FileEntry) -> Optional[str]:
         """Creates the qc status log file from the form metadata for the file.
@@ -46,7 +55,9 @@ class EventAccumulator:
           the QC status file for the visit in the file.
         """
         # Extract DataIdentification from JSON file metadata
-        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        data_id = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, form_configs=self.__form_configs
+        )
         if not data_id:
             return None
 
@@ -70,8 +81,11 @@ class EventAccumulator:
             The corresponding QC status log file, or None if not found
         """
         # Extract DataIdentification from JSON file metadata
-        data_id = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        data_id = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, form_configs=self.__form_configs
+        )
         if not data_id:
+            log.warning("Could not extract data identification for %s", json_file.name)
             return None
 
         # Try new format first (with visitnum and packet if present)
@@ -120,7 +134,9 @@ class EventAccumulator:
                 return visit_metadata
 
         # Fall back to JSON file metadata
-        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(json_file)
+        visit_metadata = DataIdentificationExtractor.from_json_file_metadata(
+            json_file, form_configs=self.__form_configs
+        )
         if visit_metadata:
             return visit_metadata
 
@@ -129,6 +145,9 @@ class EventAccumulator:
     def _check_qc_status(self, qc_log_file: FileEntry) -> bool:
         """Check if QC status is PASS and return completion timestamp.
 
+        Assumes qc_log_file has already been reloaded by the caller so that
+        its custom info is populated.
+
         Args:
             qc_log_file: The QC status log file
 
@@ -136,8 +155,12 @@ class EventAccumulator:
             QC completion timestamp if status is PASS, None otherwise
         """
         try:
+            if not qc_log_file.info or "qc" not in qc_log_file.info:
+                log.info("No QC metadata found in %s", qc_log_file.name)
+                return False
             qc_model = FileQCModel.model_validate(qc_log_file.info)
-        except ValidationError:
+        except ValidationError as err:
+            log.warning("Failed to parse QC metadata for %s: %s", qc_log_file.name, err)
             return False
 
         # Check if QC status is PASS
@@ -163,12 +186,15 @@ class EventAccumulator:
             # Find corresponding QC status log
             qc_log_file = self.find_qc_status_for_json_file(json_file, project)
             if not qc_log_file:
-                log.debug("No QC status log found for %s", json_file.name)
+                log.warning("Failed to find the error log file for %s", json_file.name)
                 return
+
+            # Reload to get the latest file.info from Flywheel.
+            qc_log_file = qc_log_file.reload()
 
             # Check QC status - only proceed if PASS
             if not self._check_qc_status(qc_log_file):
-                log.debug("QC status is not PASS for %s", json_file.name)
+                log.info("QC status is not PASS for %s", json_file.name)
                 return
 
             # Extract visit metadata
@@ -233,7 +259,7 @@ class EventAccumulator:
             )
 
             if not delete_info or delete_info.delete_response.state != "PASS":
-                log.debug(
+                log.info(
                     "Skipping failed or incomplete delete event for %s",
                     request_file.name,
                 )

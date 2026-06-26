@@ -32,7 +32,7 @@ Located in `bin/` directory:
 
 ## Build System
 
-**Pants Build System** (v2.27.0) - <https://www.pantsbuild.org>
+**Pants Build System** (v2.29.0) - <https://www.pantsbuild.org>
 
 Pants is used for all builds, testing, linting, and packaging in this monorepo.
 

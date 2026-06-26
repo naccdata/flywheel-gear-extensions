@@ -14,7 +14,7 @@ pyarrow>=22.0.0
 pydicom>=2.4.0
 pydantic>=2.5.2
 pyyaml>=6.0.1
-pytest>=7.2.0
+pytest==9.0.3
 pytest-mock >= 3.14.0
 hypothesis>=6.0.0
 python_dateutil >= 2.5.3
@@ -25,9 +25,10 @@ requests-oauthlib>=2.0.0
 setuptools>=68.3.0
 types-PyYAML>=6.0.12
 types-pytz
+tzlocal
 urllib3 >= 2.2.1
 ratelimit>=2.2.1
 ratelimit-types>=0.0.1
 redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.4.0/redcap_api-0.4.0-py3-none-any.whl
-nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.3/nacc_form_validator-0.6.3-py3-none-any.whl
-nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.1/nacc_attribute_deriver-2.3.1-py3-none-any.whl
+nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.4/nacc_form_validator-0.6.4-py3-none-any.whl
+nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.4/nacc_attribute_deriver-2.3.4-py3-none-any.whl

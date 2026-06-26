@@ -1,6 +1,6 @@
 """Test the data models for the Transactional Event Scraper."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from event_capture.models import DateRange
@@ -78,7 +78,7 @@ def test_config_get_date_range():
     config = TransactionalEventScraperConfig(start_date="2024-01-01")
     date_range = config.get_date_range()
     assert date_range is not None
-    assert date_range.start_date == datetime(2024, 1, 1)
+    assert date_range.start_date == datetime(2024, 1, 1, tzinfo=timezone.utc)
     assert date_range.end_date is None
 
     # Test with end date only
@@ -86,7 +86,9 @@ def test_config_get_date_range():
     date_range = config.get_date_range()
     assert date_range is not None
     assert date_range.start_date is None
-    assert date_range.end_date == datetime(2024, 12, 31, 23, 59, 59)
+    assert date_range.end_date == datetime(
+        2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc
+    )
 
     # Test with both dates
     config = TransactionalEventScraperConfig(
@@ -94,5 +96,7 @@ def test_config_get_date_range():
     )
     date_range = config.get_date_range()
     assert date_range is not None
-    assert date_range.start_date == datetime(2024, 1, 1)
-    assert date_range.end_date == datetime(2024, 12, 31, 23, 59, 59)
+    assert date_range.start_date == datetime(2024, 1, 1, tzinfo=timezone.utc)
+    assert date_range.end_date == datetime(
+        2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc
+    )

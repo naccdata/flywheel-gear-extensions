@@ -77,13 +77,15 @@ class AcquisitionRemover:
         if not forms_json:
             return True
 
-        ptid = forms_json.get(FieldNames.PTID)
-        if ptid and ptid != self.__delete_request.ptid:
-            log.error(
-                f"PTID mismatch, value in acquisition file {ptid}, "
-                f"value in delete request {self.__delete_request.ptid}"
-            )
-            return False
+        ptid: Optional[str] = forms_json.get(FieldNames.PTID)
+        if ptid:
+            ptid = ptid.strip().lstrip("0")
+            if ptid != self.__delete_request.ptid:
+                log.error(
+                    f"PTID mismatch, value in acquisition file {ptid}, "
+                    f"value in delete request {self.__delete_request.ptid}"
+                )
+                return False
 
         date = forms_json.get(date_field)
         if date and date != self.__delete_request.visitdate:

@@ -1,7 +1,7 @@
 """Configuration handling for the Transactional Event Scraper."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from event_capture.models import DateRange
@@ -62,12 +62,14 @@ class TransactionalEventScraperConfig(BaseModel):
         end_datetime = None
 
         if self.start_date:
-            start_datetime = datetime.strptime(self.start_date, "%Y-%m-%d")
+            start_datetime = datetime.strptime(self.start_date, "%Y-%m-%d").replace(
+                tzinfo=timezone.utc
+            )
 
         if self.end_date:
-            end_datetime = datetime.strptime(self.end_date, "%Y-%m-%d")
-            # Set to end of day for inclusive filtering
-            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            end_datetime = datetime.strptime(self.end_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, tzinfo=timezone.utc
+            )
 
         return DateRange(start_date=start_datetime, end_date=end_datetime)
 
