@@ -3,7 +3,7 @@
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional, get_args
+from typing import Optional
 
 from data_requests.data_request import (
     DataRequestVisitor,
@@ -21,8 +21,6 @@ from inputs.parameter_store import ParameterStore
 from outputs.error_writer import ListErrorWriter
 
 from gather_form_data_app.main import run
-
-ModuleName = str
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +92,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         project_names: list[str],
         info_paths: list[str],
-        modules: set[ModuleName],
+        modules: set[str],
         study_id: str,
         formver_split: bool = False,
     ):
@@ -131,12 +129,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         project_names = options.get("project_names", "").split(",")
         include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
-        modules = options.get("modules", "").split(",")
-        unexpected_modules = [
-            module for module in modules if module not in get_args(ModuleName)
-        ]
-        if unexpected_modules:
-            log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
+        modules = set(options.get("modules", "").split(","))
 
         study_id = options.get("study_id", "adrc")
         formver_split = options.get("formver_split", False)
@@ -146,7 +139,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             file_input=file_input,
             project_names=project_names,
             info_paths=info_paths,
-            modules={module for module in get_args(ModuleName) if module in modules},
+            modules=modules,
             study_id=study_id,
             formver_split=formver_split,
         )
