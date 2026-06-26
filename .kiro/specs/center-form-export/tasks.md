@@ -34,14 +34,14 @@ Extract the "project mode" execution path from `gather_form_data` into a new sta
     - `test/python/center_form_export_test/BUILD`: `python_tests` target
     - _Requirements: 10.1, 10.2, 10.3_
 
-- [ ] 2. Implement core business logic
-  - [ ] 2.1 Implement `main.py` with `ProjectModeConfig` and `run_project_mode`
+- [x] 2. Implement core business logic
+  - [x] 2.1 Implement `main.py` with `ProjectModeConfig` and `run_project_mode`
     - Move `ProjectModeConfig` Pydantic model (field validators for blank `group_id`/`project_name`, valid modules)
     - Move `run_project_mode` function (iterates requests × gatherers, catches `ModuleDataError`, logs warning, returns `True`)
     - Import `DataRequestMatch`, `ModuleDataGatherer`, `ModuleDataError` from `data_requests.data_request`
     - _Requirements: 2.9, 3.3, 4.1, 4.2, 4.3, 4.4, 6.1_
 
-  - [ ] 2.2 Implement `run.py` with `CenterFormExportVisitor`
+  - [x] 2.2 Implement `run.py` with `CenterFormExportVisitor`
     - Create `CenterFormExportVisitor(GearExecutionEnvironment)` with `create()` and `run()` methods
     - `create()`: extract config from `GearContext`, validate via `ProjectModeConfig`, wrap `ValidationError` in `GearExecutionError`
     - `run()`: resolve group/project via `FlywheelProxy`, build `DataRequestMatch` list from subjects, create `ModuleDataGatherer` instances, call `run_project_mode`, call `_write_module_output`
@@ -49,7 +49,7 @@ Extract the "project mode" execution path from `gather_form_data` into a new sta
     - Implement `main()` function: `GearEngine().create_with_parameter_store().run(gear_type=CenterFormExportVisitor)`
     - _Requirements: 3.1, 3.2, 3.4, 3.5, 3.6, 3.7, 5.1, 5.2, 5.3, 5.4, 5.5, 6.1_
 
-  - [ ] 2.3 Write property test: blank config fields rejected
+  - [x] 2.3 Write property test: blank config fields rejected
     - **Property 1: Blank config fields are rejected**
     - Generate whitespace-only strings (empty, spaces, tabs, newlines), verify `ValidationError` raised for `group_id` and `project_name`
     - **Validates: Requirements 2.9**
@@ -64,31 +64,31 @@ Extract the "project mode" execution path from `gather_form_data` into a new sta
     - Generate request lists + failure masks, verify all (request, gatherer) pairs attempted, `True` returned, `ModuleDataError` not propagated
     - **Validates: Requirements 3.3, 4.1, 4.2, 4.3**
 
-  - [ ] 2.6 Write property test: output filename conforms to naming pattern
+  - [x] 2.6 Write property test: output filename conforms to naming pattern
     - **Property 4: Output filename conforms to naming pattern**
     - Generate `study_id`, `module_name`, date combos; verify regex match for both default and formver-split patterns
     - **Validates: Requirements 5.1, 5.2**
 
-- [ ] 3. Migrate tests to new gear
-  - [ ] 3.1 Migrate `test_project_mode_integration.py` to new gear
+- [x] 3. Migrate tests to new gear
+  - [x] 3.1 Migrate `test_project_mode_integration.py` to new gear
     - Copy from `gear/gather_form_data/test/python/test_project_mode_integration.py` to `gear/center_form_export/test/python/center_form_export_test/test_project_mode_integration.py`
     - Update imports: change `gather_form_data_app.run.ProjectModeVisitor` to `center_form_export_app.run.CenterFormExportVisitor`
     - Update all references from `ProjectModeVisitor` to `CenterFormExportVisitor`
     - Update patch targets from `gather_form_data_app.run.ModuleDataGatherer` to `center_form_export_app.run.ModuleDataGatherer` and similarly for `date`
     - _Requirements: 8.1, 8.3_
 
-  - [ ] 3.2 Migrate `test_run_project_mode.py` to new gear
+  - [x] 3.2 Migrate `test_run_project_mode.py` to new gear
     - Copy from `gear/gather_form_data/test/python/test_run_project_mode.py` to `gear/center_form_export/test/python/center_form_export_test/test_run_project_mode.py`
     - Update imports: change `gather_form_data_app.main` to `center_form_export_app.main`
     - Update patch targets from `gather_form_data_app.main.log` to `center_form_export_app.main.log`
     - _Requirements: 8.2, 8.4_
 
-  - [ ] 3.3 Create `conftest.py` and `__init__.py` for the new gear's test directory
+  - [x] 3.3 Create `conftest.py` and `__init__.py` for the new gear's test directory
     - Create `gear/center_form_export/test/python/center_form_export_test/__init__.py`
     - Create `gear/center_form_export/test/python/center_form_export_test/conftest.py` with shared fixtures (mock `ClientWrapper`, `FlywheelProxy`, `GearContext`)
     - _Requirements: 8.1, 8.2_
 
-- [ ] 4. Checkpoint - Verify new gear builds and tests pass
+- [x] 4. Checkpoint - Verify new gear builds and tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Revert gather_form_data to single-mode
@@ -110,7 +110,7 @@ Extract the "project mode" execution path from `gather_form_data` into a new sta
     - Retain `formver_split`, `modules`, `study_id`, `include_derived`, `project_names`, `dry_run`, `apikey_path_prefix`
     - _Requirements: 7.1, 7.2, 7.3, 7.9_
 
-  - [ ] 5.4 Delete obsolete test files from gather_form_data
+  - [x] 5.4 Delete obsolete test files from gather_form_data
     - Delete `gear/gather_form_data/test/python/test_project_mode_integration.py`
     - Delete `gear/gather_form_data/test/python/test_run_project_mode.py`
     - Delete `gear/gather_form_data/test/python/test_backward_compatibility.py`
