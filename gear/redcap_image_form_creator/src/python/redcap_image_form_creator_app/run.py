@@ -15,7 +15,6 @@ from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterStore
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_parameter_store import REDCapParameters
-
 from redcap_image_form_creator_app.main import run
 
 log = logging.getLogger(__name__)
@@ -108,7 +107,7 @@ class REDCapImageFormCreatorVisitor(GearExecutionEnvironment):
 def main():
     """Main method for REDCap Image Form Creator."""
 
-    GearEngine().create_with_parameter_store().run(
+    GearEngine.create_with_parameter_store().run(
         gear_type=REDCapImageFormCreatorVisitor
     )
 
