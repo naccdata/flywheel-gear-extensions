@@ -27,7 +27,7 @@ def ses(aws_credentials):
 class TestEmailClient:
     def test_client(self, ses):
         backend = ses_backends[DEFAULT_ACCOUNT_ID]["us-east-1"]
-        backend.addresses.append("dummy@dummy.org")
+        backend.verify_email_identity("dummy@dummy.org")
         backend.add_template(
             {
                 "template_name": "dummy",

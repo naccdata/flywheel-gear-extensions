@@ -5,13 +5,11 @@ import logging
 from configs.ingest_configs import FormProjectConfigs, PipelineType
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.subject_adaptor import (
-    ParticipantVisits,
-    SubjectAdaptor,
-)
-from flywheel_gear_toolkit import GearToolkitContext
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
+from submissions.models import ParticipantVisits
 
 from form_qc_coordinator_app.pipelines import create_pipeline_processor
 
@@ -20,7 +18,7 @@ log = logging.getLogger(__name__)
 
 def run(
     *,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     proxy: FlywheelProxy,
     subject: SubjectAdaptor,
     visits_info: ParticipantVisits,

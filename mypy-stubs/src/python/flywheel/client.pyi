@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Optional
 
-from flywheel.models.container_output import ContainerOutput
 import pandas
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.job import Job
@@ -14,26 +13,27 @@ from .models.container_id_view_input import ContainerIdViewInput
 from .models.container_output import ContainerOutput
 from .models.data_view import DataView
 from .models.deleted_result import DeletedResult
+from .models.file_version_output import FileVersionOutput
 from .models.gear_rule import GearRule
 from .models.gear_rule_input import GearRuleInput
 from .models.group import Group
-from .models.group_input import GroupInput
-from .models.group_role import GroupRole
 from .models.project import Project
 from .models.project_settings_output import ProjectSettingsOutput
-from .models.project_sharing_settings_project_settings_input import \
-    ProjectSharingSettingsProjectSettingsInput
-from .models.project_sharing_settings_project_settings_output import \
-    ProjectSharingSettingsProjectSettingsOutput
+from .models.project_sharing_settings_project_settings_output import (
+    ProjectSharingSettingsProjectSettingsOutput,
+)
 from .models.role_output import RoleOutput
 from .models.user import User
 from .models.view_id_output import ViewIdOutput
 from .typing.role_type import RoleType
 
-
 class Client:
 
     def __init__(self, api_key: Optional[str]) -> None:
+        ...
+
+    @property
+    def files(self) -> Finder[FileEntry]:
         ...
 
     @property
@@ -52,9 +52,16 @@ class Client:
     def jobs(self) -> Finder[Job]:
         ...
 
+    @property
+    def subjects(self) -> Finder[Subject]:
+        ...
+
     # the code says returns FileOutput but has no definition
     # documentation says returns FileEntry, so going with it
     def get_file(self, file_id: str) -> FileEntry:
+        ...
+
+    def get_file_versions(self, file_id: str) -> List[FileVersionOutput]:
         ...
 
     # type of group is actually GroupInput which has a common mixin with group
@@ -84,10 +91,10 @@ class Client:
     def add_user(self, user: User) -> str:
         ...
 
-    def modify_user(self, user_id: str, body: Dict[str, str]) -> None:
+    def modify_user(self, user_id: str, body: Dict[str, str | bool], clear_permissions: bool = False) -> None:
         ...
 
-    def get_views(self, view_id: str) -> List[DataView]:
+    def get_views(self, view_id: str, filter: Optional[str]=None) -> List[DataView]:  # noqa: A002
         ...
 
     def add_view(self, container_id: str,
@@ -98,6 +105,15 @@ class Client:
         ...
 
     def delete_view(self, view_id: str) -> DeletedResult:
+        ...
+
+    def delete_acquisition(self, acquisition_id: str) -> DeletedResult:
+        ...
+
+    def delete_session(self, session_id: str) -> DeletedResult:
+        ...
+
+    def delete_subject(self, subject_id: str) -> DeletedResult:
         ...
 
     def get_project_settings(self, project_id: str) -> ProjectSettingsOutput:

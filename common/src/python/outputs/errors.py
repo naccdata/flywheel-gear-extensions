@@ -4,11 +4,14 @@ import logging
 from typing import Any, List, Literal, Optional
 
 from keys.keys import SysErrorCodes
-
-from outputs.error_models import CSVLocation, FileError, JSONLocation, VisitKeys
+from nacc_common.error_models import (
+    CSVLocation,
+    DataIdentification,
+    FileError,
+    JSONLocation,
+)
 
 log = logging.getLogger(__name__)
-
 
 preprocess_errors = {
     SysErrorCodes.ADCID_MISMATCH: (
@@ -24,8 +27,9 @@ preprocess_errors = {
     SysErrorCodes.INVALID_MODULE_PACKET: (
         "Follow-up module packet cannot be submitted for a UDS initial visit packet (I)"
     ),
-    SysErrorCodes.UDS_NOT_EXIST: (
-        "A UDS packet must be submitted before submitting this module/form"
+    SysErrorCodes.CLINICAL_FORM_REQUIRED_MLST: (
+        "Participant must have an approved UDS, BDS, or MDS packet with "
+        "a visit date on or before than the Milestone visit date"
     ),
     SysErrorCodes.DIFF_VISITDATE: (
         "Two packets cannot have the same visit number (VISITNUM) "
@@ -92,8 +96,44 @@ preprocess_errors = {
         "must also have a higher visit number (VISITNUM)"
     ),
     SysErrorCodes.MISSING_SUBMISSION_STATUS: (
-        "Missing submission status (MODE<form name>) variables {0}"
+        "Missing submission status (MODE<form name>) variables {0} "
         "for one or more optional forms"
+    ),
+    SysErrorCodes.CLINICAL_FORM_REQUIRED_NP: (
+        "Participant must have an approved UDS, BDS, or MDS packet with "
+        "a visit date on or before than the NP form date"
+    ),
+    SysErrorCodes.DEATH_DENOTED_ON_MLST: (
+        "DECEASED and AUTOPSY should both equal 1 in the most recent Milestone "
+        "form in order for the NP form to be accepted"
+    ),
+    SysErrorCodes.NP_MLST_DOD_MISMATCH: (
+        "Date of death of the most recent Milestone form (DEATHMO, DEATHDY, DEATHYR) "
+        "must match the date of death on the on NP form (NPDODMO, NPDODDY, NPDODYR)"
+    ),
+    SysErrorCodes.LOWER_NP_DOD: (
+        "The date of death on the on the NP form (NPDODMO, NPDODDY, NPDODYR) cannot be "
+        "a date before the last UDS visit date (VISITDATE) for the participant"
+    ),
+    SysErrorCodes.NP_UDS_SEX_MISMATCH: (
+        "Sex reported on the NP form (NPSEX) does not match with "
+        "the sex/birthsex reported on the UDS initial visit packet"
+    ),
+    SysErrorCodes.NP_UDS_DAGE_MISMATCH: (
+        "Age at death (NPDAGE) reported on the NP form does not match with the "
+        "value computed from the date of death on the NP form and the "
+        "participant date of birth reported on the UDS initial visit packet"
+    ),
+    SysErrorCodes.UDS_NOT_EXIST: (
+        "A UDS packet must be submitted before submitting this module/form"
+    ),
+    SysErrorCodes.CLINICAL_FORM_REQUIRED: (
+        "Participant must have an approved UDS, BDS, or MDS packet before "
+        "this module/form can be submitted"
+    ),
+    SysErrorCodes.MULTIPLE_SUBMISSIONS: (
+        "Multiple submissions not allowed for {0} module, "
+        "delete the existing submissions for this participant with dates {1} and retry"
     ),
 }
 
@@ -103,7 +143,7 @@ def identifier_error(
     value: str,
     field: str = "ptid",
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError for an unrecognized PTID error in a CSV file.
 
@@ -170,7 +210,7 @@ def empty_field_error(
     field: str | set[str],
     line: Optional[int] = None,
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError for empty field(s)."""
     error_message = message if message else f"Required field(s) {field} cannot be blank"
@@ -204,7 +244,7 @@ def unexpected_value_error(
     expected: str,
     line: Optional[int] = None,
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError for an unexpected value.
 
@@ -248,7 +288,7 @@ def system_error(
     message: str,
     error_location: Optional[CSVLocation | JSONLocation] = None,
     error_type: Literal["alert", "error", "warning"] = "error",
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
 ) -> FileError:
     """Creates a FileError object for a system error.
 
@@ -272,7 +312,7 @@ def system_error(
 
 
 def previous_visit_failed_error(
-    prev_visit: str, visit_keys: Optional[VisitKeys] = None
+    prev_visit: str, visit_keys: Optional[DataIdentification] = None
 ) -> FileError:
     """Creates a FileError when participant has failed previous visits."""
     return FileError(
@@ -304,7 +344,7 @@ def preprocessing_error(
     line: Optional[int] = None,
     error_code: Optional[str] = None,
     message: Optional[str] = None,
-    visit_keys: Optional[VisitKeys] = None,
+    visit_keys: Optional[DataIdentification] = None,
     extra_args: Optional[List[Any]] = None,
 ) -> FileError:
     """Creates a FileError for pre-processing error.
@@ -337,7 +377,7 @@ def preprocessing_error(
     return FileError(
         error_type="error",  # pyright: ignore[reportCallIssue]
         error_code=(  # pyright: ignore[reportCallIssue]
-            error_code if error_code else "preprocess-error"
+            error_code if error_code else SysErrorCodes.PREPROCESSING_ERROR
         ),
         value=value,
         location=CSVLocation(line=line, column_name=field)
@@ -373,4 +413,25 @@ def existing_participant_error(
         error_code="participant-exists",  # pyright: ignore[reportCallIssue]
         location=CSVLocation(column_name=field, line=line),
         message=error_message,
+    )
+
+
+def delete_request_failed_error(
+    *,
+    ptid: str,
+    visitdate: str,
+    visitnum: Optional[str] = None,
+    naccid: Optional[str] = None,
+    message: str,
+) -> FileError:
+    """Creates a FileError for delete request failure."""
+
+    return FileError(
+        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_code="delete-error",  # pyright: ignore[reportCallIssue]
+        ptid=ptid,
+        date=visitdate,
+        visitnum=visitnum,
+        naccid=naccid,
+        message=message,
     )

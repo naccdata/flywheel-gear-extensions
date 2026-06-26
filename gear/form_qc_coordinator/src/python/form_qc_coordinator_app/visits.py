@@ -1,11 +1,13 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.subject_adaptor import SubjectAdaptor, VisitInfo
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
-from keys.keys import FieldNames, MetadataKeys
+from keys.keys import DefaultValues, MetadataKeys
+from nacc_common.field_names import FieldNames
+from submissions.models import VisitInfo
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +53,8 @@ class VisitsLookupHelper:
         module_configs: ModuleConfigs,
         cutoff_date: Optional[str] = None,
         search_op: Optional[str] = ">=",
+        missing_data_strategy: Literal["drop-row", "none"] = "drop-row",
+        add_timestamp: bool = False,
     ) -> Optional[List[Dict[str, str]]]:
         """Get the list of visits for this participant for the specified
         module. If cutoff_date specified, get the visits having a visit date on
@@ -64,6 +68,8 @@ class VisitsLookupHelper:
             module_configs: form ingest configs for the module
             cutoff_date (optional): If specified, filter visits on cutoff_date
             search_op (optional): Operator to filter visit date, defaults to >=
+            missing_data_strategy: missing_data_strategy, default 'drop-row'
+            add_timestamp: whether to add validation timestamp to result, default False
 
         Returns:
             List[Dict]: List of visits matching with the specified cutoff date
@@ -72,9 +78,11 @@ class VisitsLookupHelper:
         title = f"{module} visits for participant {self.__subject.label}"
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
-        columns = [
+        columns: List[Any] = [
             ptid_key,
+            naccid_key,
             date_col_key,
             "file.name",
             "file.file_id",
@@ -85,16 +93,27 @@ class VisitsLookupHelper:
             visitnum_key = MetadataKeys.get_column_key(FieldNames.VISITNUM)
             columns.append(visitnum_key)
 
+        if add_timestamp:
+            timestamp_key = f"file.info.{MetadataKeys.VALIDATED_TIMESTAMP}"
+            timestamp_label = f"{module}-{MetadataKeys.VALIDATED_TIMESTAMP}"
+            columns.append((timestamp_key, timestamp_label))
+
         filters = f"acquisition.label={module}"
 
         if cutoff_date:
+            # if OR operator is used, assumes cutoff date is a comma separated list
+            if search_op == DefaultValues.FW_SEARCH_OR:
+                cutoff_date = f"[{cutoff_date.replace(', ', ',')}]"
+
             filters += f",{date_col_key}{search_op}{cutoff_date}"
 
+        log.info(f"Searching for visits matching with {filters}")
         return self.__proxy.get_matching_acquisition_files_info(
             container_id=self.__subject.id,
             dv_title=title,
             columns=columns,
             filters=filters,
+            missing_data_strategy=missing_data_strategy,
         )
 
     def find_module_visits_with_matching_visitdate(
@@ -125,11 +144,13 @@ class VisitsLookupHelper:
         title = f"{module} visits for participant {self.__subject.label}"
 
         ptid_key = MetadataKeys.get_column_key(FieldNames.PTID)
+        naccid_key = MetadataKeys.get_column_key(FieldNames.NACCID)
         date_col_key = MetadataKeys.get_column_key(module_configs.date_field)
         timestamp_key = f"file.info.{MetadataKeys.VALIDATED_TIMESTAMP}"
         timestamp_label = f"{module}-{MetadataKeys.VALIDATED_TIMESTAMP}"
         columns = [
             ptid_key,
+            naccid_key,
             date_col_key,
             "file.name",
             "file.file_id",

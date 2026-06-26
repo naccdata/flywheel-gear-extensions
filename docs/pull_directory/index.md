@@ -14,17 +14,44 @@ The gear uses the following from the AWS parameter store:
 - API key for Flywheel
 - API token, URL and report ID for the Flywheel Access report of the NACC directory on REDCap
 
-Remaining configuration are listed in the manifest. 
-Defaults are set so that the gear is ready to run in the NACC instance.
-Using these defaults, files will be written in the project `nacc/project-admin` and are named `nacc-directory-users.yaml` and `conflicts-nacc-directory-users.yaml`
+### Manifest Config Options
 
-## REDCap configuration
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `dry_run` | boolean | `false` | Whether to do a dry run |
+| `user_file` | string | `nacc-directory-users.yaml` | The name for the directory user file |
+| `parameter_path` | string | `/prod/flywheel/gearbot/naccdirectory` | Parameter path for NACC directory |
+| `notifications_path` | string | `/prod/notifications` | Parameter path for notification configuration (sender and support emails) |
+| `preceding_hours` | number | `0` | Number of hours to look back from the current time for filtering records by last modification time. 0 means no filtering (full pull). |
+
+Defaults are set so that the gear is ready to run in the NACC instance.
+Using these defaults, files will be written in the project `nacc/project-admin` and are named `nacc-directory-users.yaml` and `conflicts-nacc-directory-users.yaml`.
+
+### Incremental Pulls
+
+By default (`preceding_hours: 0`), the gear pulls all approved and archived records from the directory. To perform an incremental pull of only recently modified records, set `preceding_hours` to a positive value. For example, `preceding_hours: 6` pulls records modified in the last 6 hours.
+
+The gear computes a date range from `now - preceding_hours` to `now` and passes it to the REDCap export API. Records are still filtered by approval or archive status regardless of the time window.
+
+### Archived Contacts
+
+Records with `archive_contact = '1'` bypass the approval and agreement checks at all filtering stages. They flow through the pipeline and appear in the output YAML with `active: false`. This allows the user management gear to process them as inactive users. Non-archived records without approval or a signed user agreement are excluded as before.
+
+## Error Handling
+
+When user records fail validation or are missing required data, the gear:
+
+1. Logs errors and continues processing remaining records
+2. Exports all errors to a CSV file (`directory-pull-errors.csv`) in the destination project
+3. Sends an email notification to configured support addresses with an error summary
+
+## REDCap Configuration
 
 The script expects that there is a user access report that is defined in the directory project.
 
-The following are assumed to be columns in the report
+The following are assumed to be columns in the report:
 
-- `flywheel_access_information_complete` - integer indicating whether all information has been provided.
+- `flywheel_access_information_complete` - integer indicating whether all information has been provided
 - `flywheel_access_activities` - list of activities indicated by letters `a` through `e`
 - `fw_credential_type` - string indicating type of credential
 - `fw_credential_id` - string ID for user credentials
@@ -34,5 +61,3 @@ The following are assumed to be columns in the report
 - `adresearchctr` - string with numeric ID for center
 - `email` - user email
 - `fw_cred_sub_time` - submission time for credentials
-
-

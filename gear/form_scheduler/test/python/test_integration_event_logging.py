@@ -1,0 +1,824 @@
+"""Integration tests for end-to-end event logging flow."""
+
+import json
+from datetime import datetime
+from typing import List, Optional
+
+import pytest
+from flywheel.models.file_entry import FileEntry
+from form_scheduler_app.event_accumulator import EventAccumulator
+from nacc_common.error_models import (
+    QC_STATUS_PASS,
+    DataIdentification,
+)
+from test_mocks.mock_event_capture import MockVisitEventCapture
+from test_mocks.mock_factories import (
+    DataIdentificationFactory,
+    FileEntryFactory,
+    QCMetadataFactory,
+)
+from test_mocks.mock_flywheel import (
+    MockFile,
+    MockProjectAdaptor,
+    create_mock_file_with_parent,
+)
+
+
+class MockProjectAdaptorIntegration(MockProjectAdaptor):
+    """Extended MockProject for integration testing."""
+
+    def __init__(
+        self,
+        label: str,
+        group: str = "dummy-center",
+        pipeline_adcid: int = 42,
+        files: Optional[List[FileEntry]] = None,
+    ):
+        super().__init__(label)
+        self.__group = group
+        self._pipeline_adcid = pipeline_adcid
+        if files:
+            for file in files:
+                self._MockProjectAdaptor__files[file.name] = file  # type: ignore
+
+    @property
+    def group(self):
+        return self.__group
+
+    def get_pipeline_adcid(self) -> int:
+        """Get pipeline ADCID."""
+        return self._pipeline_adcid
+
+    def iter_files(self, **kwargs):
+        """Iterate over files with optional filtering."""
+        file_filter = kwargs.get("filter")
+        if file_filter:
+            return filter(file_filter, self.files)
+        return iter(self.files)
+
+
+def create_mock_json_file_with_forms_metadata(
+    name: str,
+    ptid: str,
+    visitdate: str,
+    visitnum: str,
+    module: str,
+    packet: str,
+    parent_id: str = "acquisition-123",
+) -> MockFile:
+    """Create a mock JSON file with forms metadata.
+
+    Args:
+        name: File name
+        ptid: Participant ID
+        visitdate: Visit date
+        visitnum: Visit number
+        module: Module name
+        packet: Packet identifier
+        parent_id: Parent acquisition ID
+
+    Returns:
+        MockFile with forms metadata
+    """
+    return FileEntryFactory.create_mock_json_file_with_forms_metadata(
+        name=name,
+        ptid=ptid,
+        visitdate=visitdate,
+        visitnum=visitnum,
+        module=module,
+        packet=packet,
+        parent_id=parent_id,
+    )
+
+
+def create_mock_qc_status_file_with_visit_metadata(
+    ptid: str,
+    date: str,
+    module: str,
+    qc_metadata,
+    visit_metadata: Optional[DataIdentification] = None,
+    modified: Optional[datetime] = None,
+) -> MockFile:
+    """Create a mock QC-status file with visit metadata in custom info.
+
+    Args:
+        ptid: Participant ID
+        date: Visit date
+        module: Module name (e.g., "uds")
+        qc_metadata: FileQCModel instance
+        visit_metadata: DataIdentification to include in custom info
+        modified: File modification timestamp
+
+    Returns:
+        MockFile with QC metadata and visit metadata in custom info
+    """
+    return FileEntryFactory.create_mock_qc_status_file_with_visit_metadata(
+        ptid=ptid,
+        date=date,
+        module=module,
+        qc_metadata=qc_metadata,
+        visit_metadata=visit_metadata,
+        modified=modified,
+    )
+
+
+class TestEndToEndEventLogging:
+    """Integration tests for end-to-end event logging flow."""
+
+    @pytest.fixture
+    def mock_event_capture(self) -> MockVisitEventCapture:
+        """Create mock event logger."""
+        return MockVisitEventCapture()
+
+    @pytest.fixture
+    def event_accumulator(
+        self, mock_event_capture: MockVisitEventCapture
+    ) -> EventAccumulator:
+        """Create EventAccumulator instance."""
+        return EventAccumulator(event_capture=mock_event_capture)
+
+    def test_end_to_end_qc_pass_event_with_visit_metadata_from_custom_info(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Test end-to-end flow: JSON file -> QC status discovery ->
+        DataIdentification extraction from custom info -> QC-pass event
+        creation -> S3 logging.
+
+        This tests the complete flow when visit metadata is available in
+        QC status custom info (added by FileVisitAnnotator).
+        """
+        # Create JSON file in finalization queue
+        json_file = create_mock_json_file_with_forms_metadata(
+            name="NACC100000_FORMS-VISIT-3F_UDS.json",
+            ptid="adrc1000",
+            visitdate="2025-03-19",
+            visitnum="3F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create visit metadata for QC status custom info
+        visit_metadata = DataIdentificationFactory.create_visit_metadata(
+            ptid="adrc1000",
+            date="2025-03-19",
+            visitnum="3F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create QC metadata with PASS status
+        qc_metadata = QCMetadataFactory.create_qc_metadata_with_status(
+            {
+                "identifier-lookup": QC_STATUS_PASS,
+                "form-transformer": QC_STATUS_PASS,
+                "form-qc-coordinator": QC_STATUS_PASS,
+                "form-qc-checker": QC_STATUS_PASS,
+            }
+        )
+
+        # Create QC-status file with visit metadata in custom info
+        qc_completion_time = datetime(2025, 3, 19, 11, 30, 0)
+        qc_file = create_mock_qc_status_file_with_visit_metadata(
+            ptid="adrc1000",
+            date="2025-03-19",
+            module="uds",
+            qc_metadata=qc_metadata,
+            visit_metadata=visit_metadata,
+            modified=qc_completion_time,
+        )
+
+        # Create mock project
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+            files=[qc_file],
+        )
+
+        # Execute end-to-end event logging
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # Verify QC-pass event was created and logged
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
+
+        # Verify event structure and content
+        assert event.action == "pass-qc"
+        assert event.gear_name == "form-qc-checker"
+        assert event.ptid == "adrc1000"
+        assert event.visit_date == "2025-03-19"
+        assert event.visit_number == "3F"
+        assert event.module == "UDS"
+        assert event.packet == "I"
+        assert event.study == "alpha"  # Extracted from project label
+        assert event.project_label == "ingest-form-alpha"
+        assert event.center_label == "dummy-center"
+        assert event.pipeline_adcid == 42
+        assert event.datatype == "form"
+        assert event.timestamp == qc_completion_time
+
+    def test_end_to_end_qc_pass_event_with_visit_metadata_from_json_fallback(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Test end-to-end flow with fallback to JSON file metadata when QC
+        status custom info is not available.
+
+        This tests the fallback mechanism when FileVisitAnnotator hasn't
+        added visit metadata to the QC status file.
+        """
+        # Create JSON file in finalization queue
+        json_file = create_mock_json_file_with_forms_metadata(
+            name="NACC100001_FORMS-VISIT-4F_FTLD.json",
+            ptid="adrc1001",
+            visitdate="2025-08-22",
+            visitnum="4F",
+            module="FTLD",
+            packet="F",
+        )
+
+        # Create QC metadata with PASS status (no visit metadata in custom info)
+        qc_metadata = QCMetadataFactory.create_qc_metadata_with_status(
+            {
+                "identifier-lookup": QC_STATUS_PASS,
+                "form-transformer": QC_STATUS_PASS,
+                "form-qc-coordinator": QC_STATUS_PASS,
+                "form-qc-checker": QC_STATUS_PASS,
+            }
+        )
+
+        # Create QC-status file WITHOUT visit metadata in custom info
+        qc_completion_time = datetime(2025, 8, 22, 14, 45, 0)
+        qc_file = create_mock_qc_status_file_with_visit_metadata(
+            ptid="adrc1001",
+            date="2025-08-22",
+            module="ftld",
+            qc_metadata=qc_metadata,
+            visit_metadata=None,  # No visit metadata in custom info
+            modified=qc_completion_time,
+        )
+
+        # Create mock project
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-beta",
+            group="test-center",
+            pipeline_adcid=123,
+            files=[qc_file],
+        )
+
+        # Execute end-to-end event logging
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # Verify QC-pass event was created using JSON file metadata
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
+
+        # Verify event structure and content from JSON fallback
+        assert event.action == "pass-qc"
+        assert event.gear_name == "form-qc-checker"
+        assert event.ptid == "adrc1001"
+        assert event.visit_date == "2025-08-22"  # From JSON visitdate
+        assert event.visit_number == "4F"
+        assert event.module == "FTLD"
+        assert event.packet == "F"
+        assert event.study == "beta"
+        assert event.project_label == "ingest-form-beta"
+        assert event.center_label == "test-center"
+        assert event.pipeline_adcid == 123
+        assert event.timestamp == qc_completion_time
+
+    def test_end_to_end_qc_status_log_discovery_using_error_log_template(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Test QC status log discovery using ErrorLogTemplate to generate
+        expected filename from JSON file metadata.
+
+        This verifies that the EventAccumulator correctly uses
+        ErrorLogTemplate to find the corresponding QC status log for a
+        JSON file.
+        """
+        # Create JSON file with specific metadata for template matching
+        json_file = create_mock_json_file_with_forms_metadata(
+            name="NACC274180_FORMS-VISIT-2F_UDS.json",
+            ptid="adrc1002",
+            visitdate="2025-06-18",
+            visitnum="2F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create visit metadata
+        visit_metadata = DataIdentificationFactory.create_visit_metadata(
+            ptid="adrc1002",
+            date="2025-06-18",
+            visitnum="2F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create QC metadata with PASS status
+        qc_metadata = QCMetadataFactory.create_qc_metadata_with_status(
+            {
+                "form-qc-coordinator": QC_STATUS_PASS,
+                "form-qc-checker": QC_STATUS_PASS,
+            }
+        )
+
+        # Create QC-status file with filename that matches ErrorLogTemplate pattern
+        # ErrorLogTemplate should generate: "adrc1002_2025-06-18_uds_qc-status.log"
+        qc_completion_time = datetime(2025, 6, 18, 16, 20, 0)
+        qc_file = create_mock_qc_status_file_with_visit_metadata(
+            ptid="adrc1002",
+            date="2025-06-18",
+            module="uds",  # lowercase for filename
+            qc_metadata=qc_metadata,
+            visit_metadata=visit_metadata,
+            modified=qc_completion_time,
+        )
+
+        # Create mock project with the QC status file
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-gamma",
+            files=[qc_file],
+        )
+
+        # Execute event logging - should find QC file using ErrorLogTemplate
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # Verify event was logged (confirms QC status log was found)
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
+
+        assert event.action == "pass-qc"
+        assert event.ptid == "adrc1002"
+        assert event.visit_date == "2025-06-18"
+        assert event.module == "UDS"
+        assert event.study == "gamma"
+
+    def test_end_to_end_no_event_when_qc_status_not_pass(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Test that no events are logged when QC status is not PASS.
+
+        This verifies that the EventAccumulator only logs events for
+        visits that pass QC validation.
+        """
+        # Create JSON file
+        json_file = create_mock_json_file_with_forms_metadata(
+            name="NACC100003_FORMS-VISIT-1F_UDS.json",
+            ptid="adrc1003",
+            visitdate="2025-10-15",
+            visitnum="1F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create QC metadata with FAIL status
+        qc_metadata = QCMetadataFactory.create_fail_qc_metadata(
+            failing_gear="form-qc-checker",
+            gear_names=[
+                "identifier-lookup",
+                "form-transformer",
+                "form-qc-coordinator",
+                "form-qc-checker",
+            ],
+        )
+
+        # Create QC-status file
+        qc_file = create_mock_qc_status_file_with_visit_metadata(
+            ptid="adrc1003",
+            date="2025-10-15",
+            module="uds",
+            qc_metadata=qc_metadata,
+            modified=datetime(2025, 10, 15, 13, 0, 0),
+        )
+
+        # Create mock project
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            files=[qc_file],
+        )
+
+        # Execute event logging
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # Verify no events were logged (QC status is not PASS)
+        assert len(mock_event_capture.logged_events) == 0
+
+    def test_end_to_end_no_event_when_qc_status_log_not_found(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Test that no events are logged when QC status log is not found.
+
+        This verifies graceful handling when the corresponding QC status
+        log doesn't exist for a JSON file.
+        """
+        # Create JSON file
+        json_file = create_mock_json_file_with_forms_metadata(
+            name="NACC100004_FORMS-VISIT-5F_UDS.json",
+            ptid="adrc1004",
+            visitdate="2025-12-01",
+            visitnum="5F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create mock project with NO QC status files
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            files=[],  # No QC status files
+        )
+
+        # Execute event logging
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # Verify no events were logged (no QC status log found)
+        assert len(mock_event_capture.logged_events) == 0
+
+    def test_end_to_end_no_event_when_visit_metadata_invalid(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Test that no events are logged when visit metadata is invalid.
+
+        This verifies that the EventAccumulator skips event logging when
+        visit metadata is incomplete or invalid.
+        """
+        # Create JSON file with incomplete forms metadata (missing required fields)
+        incomplete_forms_metadata = {
+            "forms": {
+                "json": {
+                    "ptid": "adrc1005",
+                    # Missing visitdate, visitnum, module - required for VisitEvent
+                    "packet": "I",
+                }
+            }
+        }
+
+        json_file = create_mock_file_with_parent(
+            name="NACC100005_FORMS-VISIT-6F_UDS.json",
+            parent_id="acquisition-456",
+            info=incomplete_forms_metadata,
+        )
+
+        # Create QC metadata with PASS status
+        qc_metadata = QCMetadataFactory.create_pass_qc_metadata(["form-qc-checker"])
+
+        # Create QC-status file (also without visit metadata in custom info)
+        qc_file = create_mock_qc_status_file_with_visit_metadata(
+            ptid="adrc1005",
+            date="2025-11-20",
+            module="uds",
+            qc_metadata=qc_metadata,
+            visit_metadata=None,  # No visit metadata in custom info
+            modified=datetime(2025, 11, 20, 10, 0, 0),
+        )
+
+        # Create mock project
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            files=[qc_file],
+        )
+
+        # Execute event logging
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # Verify no events were logged (invalid visit metadata)
+        assert len(mock_event_capture.logged_events) == 0
+
+    def test_end_to_end_error_resilience_continues_processing(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Test that event logging errors don't stop processing.
+
+        This verifies that the EventAccumulator handles errors
+        gracefully and continues processing without failing.
+        """
+        # Create JSON file
+        json_file = create_mock_json_file_with_forms_metadata(
+            name="NACC100006_FORMS-VISIT-7F_UDS.json",
+            ptid="adrc1006",
+            visitdate="2025-09-30",
+            visitnum="7F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create mock project with invalid label format (will cause ValidationError)
+        project = MockProjectAdaptorIntegration(
+            label="invalid-label-format",  # Doesn't match PipelineLabel pattern
+            files=[],
+        )
+
+        # Execute event logging - should handle error gracefully
+        # This should not raise an exception
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # Verify no events were logged due to error, but no exception was raised
+        assert len(mock_event_capture.logged_events) == 0
+
+    def test_end_to_end_missing_event_logger_configuration(self) -> None:
+        """Test that event logging is skipped when event logger is None.
+
+        This verifies that the system handles missing event logger
+        configuration gracefully without errors.
+        """
+        # Create EventAccumulator with None event logger
+        event_accumulator = EventAccumulator(
+            event_capture=None,  # type: ignore
+        )
+
+        # Create JSON file
+        json_file = create_mock_json_file_with_forms_metadata(
+            name="NACC100007_FORMS-VISIT-8F_UDS.json",
+            ptid="adrc1007",
+            visitdate="2025-07-14",
+            visitnum="8F",
+            module="UDS",
+            packet="I",
+        )
+
+        # Create mock project
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            files=[],
+        )
+
+        # Execute event logging - should handle None logger gracefully
+        # This should not raise an exception
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        # No assertions needed - the test passes if no exception is raised
+
+
+class TestCaptureDeleteEvent:
+    """Integration tests for EventAccumulator.capture_delete_event."""
+
+    @pytest.fixture
+    def mock_event_capture(self) -> MockVisitEventCapture:
+        return MockVisitEventCapture()
+
+    @pytest.fixture
+    def event_accumulator(
+        self, mock_event_capture: MockVisitEventCapture
+    ) -> EventAccumulator:
+        return EventAccumulator(event_capture=mock_event_capture)
+
+    def test_capture_delete_event_pass_state_logs_event(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """State=PASS triggers a delete event to be captured."""
+        completion_time = datetime(2025, 6, 1, 12, 0, 0)
+        request_file = MockFile(
+            name="delete_100020_2025-06-01_uds.json",
+            info={"delete_response": {"state": "PASS"}},
+            contents=json.dumps(
+                {
+                    "ptid": "adrc2000",
+                    "module": "UDS",
+                    "visitdate": "2025-06-01",
+                    "visitnum": "1F",
+                    "timestamp": "2025-06-01T10:00:00",
+                    "requested-by": "test@example.com",
+                }
+            ),
+            modified=completion_time,
+        )
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+        )
+
+        event_accumulator.capture_delete_event(
+            request_file=request_file, project=project
+        )
+
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
+        assert event.action == "delete"
+        assert event.gear_name == "form-deletion"
+        assert event.ptid == "adrc2000"
+        assert event.visit_date == "2025-06-01"
+        assert event.visit_number == "1F"
+        assert event.module == "UDS"
+        assert event.packet is None
+        assert event.study == "alpha"
+        assert event.project_label == "ingest-form-alpha"
+        assert event.center_label == "dummy-center"
+        assert event.pipeline_adcid == 42
+        assert event.datatype == "form"
+        assert event.timestamp == completion_time
+
+    def test_capture_delete_event_fail_state_skips_event(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """State=FAIL skips event capture without raising an exception."""
+        request_file = MockFile(
+            name="delete_100021_2025-06-01_uds.json",
+            info={"delete_response": {"state": "FAIL"}},
+            contents=json.dumps(
+                {
+                    "ptid": "adrc2001",
+                    "module": "UDS",
+                    "visitdate": "2025-06-01",
+                    "visitnum": "1F",
+                    "timestamp": "2025-06-01T10:00:00",
+                    "requested-by": "test@example.com",
+                }
+            ),
+            modified=datetime(2025, 6, 1, 12, 0, 0),
+        )
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+        )
+
+        event_accumulator.capture_delete_event(
+            request_file=request_file, project=project
+        )
+
+        assert len(mock_event_capture.logged_events) == 0
+
+    def test_capture_delete_event_without_visitnum(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Deletion request without visitnum captures an event with
+        visit_number=None."""
+        completion_time = datetime(2025, 7, 15, 9, 0, 0)
+        request_file = MockFile(
+            name="delete_100022_2025-07-15_mlst.json",
+            info={"delete_response": {"state": "PASS"}},
+            contents=json.dumps(
+                {
+                    "ptid": "adrc2002",
+                    "module": "MLST",
+                    "visitdate": "2025-07-15",
+                    "timestamp": "2025-07-15T08:00:00",
+                    "requested-by": "test@example.com",
+                }
+            ),
+            modified=completion_time,
+        )
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+        )
+
+        event_accumulator.capture_delete_event(
+            request_file=request_file, project=project
+        )
+
+        assert len(mock_event_capture.logged_events) == 1
+        event = mock_event_capture.logged_events[0]
+        assert event.action == "delete"
+        assert event.ptid == "adrc2002"
+        assert event.visit_number is None
+        assert event.module == "MLST"
+
+
+class TestQCStatusReloadBehavior:
+    """Regression tests for stale file info requiring reload.
+
+    Flywheel's SDK does not always populate the full info dict when
+    listing project files — info may be None or {}. The _check_qc_status
+    method must call file.reload() to fetch current metadata.
+    """
+
+    @pytest.fixture
+    def mock_event_capture(self) -> MockVisitEventCapture:
+        return MockVisitEventCapture()
+
+    @pytest.fixture
+    def event_accumulator(
+        self, mock_event_capture: MockVisitEventCapture
+    ) -> EventAccumulator:
+        return EventAccumulator(event_capture=mock_event_capture)
+
+    def test_qc_pass_event_logged_when_file_info_only_available_after_reload(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """Events are logged even when the QC file initially has info=None.
+
+        Simulates the Flywheel SDK returning a FileEntry from the
+        project's cached file list with info=None, which then populates
+        correctly on reload(). Ensures _check_qc_status calls reload()
+        before reading info.
+        """
+
+        class StaleQCFile(MockFile):
+            """Mimics a FileEntry returned from project.files with no info,
+            where reload() fetches the real metadata."""
+
+            def __init__(self, name: str, real_info: dict, modified: datetime):
+                # Start with empty info (as Flywheel SDK may return)
+                super().__init__(name=name, info={}, modified=modified)
+                self._real_info = real_info
+                self._modified = modified
+
+            def reload(self, *args, **kwargs):
+                # Simulate fetching full metadata on reload
+                return MockFile(
+                    name=self.name,
+                    info=self._real_info,
+                    modified=self._modified,
+                )
+
+        json_file = FileEntryFactory.create_mock_json_file_with_forms_metadata(
+            name="NACC200000_FORMS-VISIT-1F_UDS.json",
+            ptid="adrc3000",
+            visitdate="2025-01-10",
+            visitnum="1F",
+            module="UDS",
+            packet="I",
+        )
+
+        qc_metadata = QCMetadataFactory.create_pass_qc_metadata(
+            ["identifier-lookup", "form-qc-checker"]
+        )
+        real_info = qc_metadata.model_dump(by_alias=True)
+
+        qc_completion_time = datetime(2025, 1, 10, 9, 0, 0)
+        stale_qc_file = StaleQCFile(
+            name="adrc3000_2025-01-10_uds_qc-status.log",
+            real_info=real_info,
+            modified=qc_completion_time,
+        )
+
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+            files=[stale_qc_file],
+        )
+
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        assert len(mock_event_capture.logged_events) == 1, (
+            "Expected pass-qc event to be logged after reload populates file info"
+        )
+        event = mock_event_capture.logged_events[0]
+        assert event.action == "pass-qc"
+        assert event.ptid == "adrc3000"
+
+    def test_no_event_when_qc_file_has_no_qc_key_after_reload(
+        self,
+        event_accumulator: EventAccumulator,
+        mock_event_capture: MockVisitEventCapture,
+    ) -> None:
+        """No event is logged when the reloaded QC file has no 'qc' key.
+
+        Prevents false-positive pass-qc events for files that exist at
+        project level but have not yet had QC metadata written (e.g., a
+        new log file with only text content and no custom info).
+        """
+        json_file = FileEntryFactory.create_mock_json_file_with_forms_metadata(
+            name="NACC200001_FORMS-VISIT-2F_UDS.json",
+            ptid="adrc3001",
+            visitdate="2025-02-20",
+            visitnum="2F",
+            module="UDS",
+            packet="I",
+        )
+
+        # QC file exists but has no 'qc' key in its info
+        qc_file = MockFile(
+            name="adrc3001_2025-02-20_uds_qc-status.log",
+            info={"some_other_key": "value"},
+            modified=datetime(2025, 2, 20, 10, 0, 0),
+        )
+
+        project = MockProjectAdaptorIntegration(
+            label="ingest-form-alpha",
+            group="dummy-center",
+            pipeline_adcid=42,
+            files=[qc_file],
+        )
+
+        event_accumulator.capture_qc_event(json_file=json_file, project=project)
+
+        assert len(mock_event_capture.logged_events) == 0, (
+            "Should not log event when QC file has no 'qc' key in info"
+        )

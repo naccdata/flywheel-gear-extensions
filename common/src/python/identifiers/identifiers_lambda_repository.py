@@ -1,21 +1,26 @@
 """Identifiers repository using AWS Lambdas."""
 
+from datetime import date
 from typing import List, Literal, Optional, overload
 
 from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from identifiers.identifiers_repository import (
+    DateQueryObject,
     IdentifierQueryObject,
     IdentifierRepository,
     IdentifierRepositoryError,
+    IdentifierUpdateObject,
 )
 from identifiers.model import (
     ADCIDField,
     CenterIdentifiers,
+    EnrollmentDurationResponse,
     GUIDField,
     IdentifierList,
     IdentifierObject,
+    IdentifiersMode,
     NACCIDField,
 )
 
@@ -70,6 +75,65 @@ class NACCIDListRequest(NACCIDRequest, ListRequest):
     """Request model to search all matching identifiers for a NACCID."""
 
 
+class NACCIDsListRequest(ListRequest):
+    """Request model to search identifiers for a list of NACCIDs."""
+
+    naccids: List[str]
+    allow_missing: bool = True
+    allow_multiple: bool = False
+    active_only: bool = True
+
+    def __bool__(self) -> bool:
+        return bool(self.naccids)
+
+    def __len__(self):
+        return len(self.naccids)
+
+    @model_validator(mode="after")
+    def validate_identifier_mode(self) -> "NACCIDsListRequest":
+        """Ensures naccid prefix matches with repo mode."""
+        if not self.naccids:
+            raise ValueError("NACCIDs list cannot be empty")
+
+        unmatched = []
+        for naccid in self.naccids:
+            if self.mode == "prod":
+                if not naccid.startswith("NACC"):
+                    unmatched.append(naccid)
+            else:
+                if not naccid.startswith("TEST"):
+                    unmatched.append(naccid)
+
+        if unmatched:
+            raise ValueError(
+                f"Identifier database mode {self.mode} does not match "
+                f"with the provided NACCID(s): {', '.join(unmatched)}"
+            )
+
+        return self
+
+
+class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
+    """Request model for adding/updating Identifier with known NACCID."""
+
+    active: bool
+    naccadc: Optional[int]
+
+    @classmethod
+    def create_from(
+        cls, mode: IdentifiersMode, identifier: IdentifierUpdateObject
+    ) -> "KnownIdentifierRequest":
+        return KnownIdentifierRequest(
+            mode=mode,
+            naccid=identifier.naccid,
+            adcid=identifier.adcid,
+            ptid=identifier.ptid,
+            guid=identifier.guid,
+            active=identifier.active,
+            naccadc=identifier.naccadc,
+        )
+
+
 class ListResponseObject(BaseModel):
     """Model for return object with partial list of Identifiers."""
 
@@ -78,7 +142,22 @@ class ListResponseObject(BaseModel):
     data: List[IdentifierObject]
 
 
-IdentifiersMode = Literal["dev", "prod"]
+class EnrollmentDurationRequest(BaseRequest, CenterIdentifiers):
+    """Request model for checking whether a visitdate is within the valid
+    enrollment period for the specified participant in specified center."""
+
+    visitdate: date
+
+    @classmethod
+    def create_from(
+        cls, mode: IdentifiersMode, date_query: DateQueryObject
+    ) -> "EnrollmentDurationRequest":
+        return EnrollmentDurationRequest(
+            mode=mode,
+            adcid=date_query.adcid,
+            ptid=date_query.ptid,
+            visitdate=date_query.visitdate,
+        )
 
 
 class IdentifiersLambdaRepository(IdentifierRepository):
@@ -311,6 +390,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         raise IdentifierRepositoryError(response.body)
 
     def __list_for_adcid(self, adcid: int) -> List[IdentifierObject]:
+        """Get the identifier records for the provided ADCID.
+
+        Args:
+            adcid: ADCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the adcid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -341,6 +431,17 @@ class IdentifiersLambdaRepository(IdentifierRepository):
         return identifier_list
 
     def __list_for_naccid(self, naccid: str) -> List[IdentifierObject]:
+        """Get the identifier records for the provided NACCID.
+
+        Args:
+            naccid: NACCID to lookup the identifiers
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the naccid
+        """
         identifier_list: List[IdentifierObject] = []
         index = 0
         limit = 100
@@ -369,3 +470,121 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             index += limit
 
         return identifier_list
+
+    def search_naccids(
+        self,
+        naccids: List[str],
+        allow_missing: bool = True,
+        allow_multiple: bool = False,
+        active_only: bool = True,
+    ) -> List[IdentifierObject]:
+        """Get the identifier records for the provided list of NACCIDs.
+
+        Args:
+            naccids: list of NACCID to lookup the identifiers
+            allow_missing: allow a NACCID in the list to be missing
+            allow_multiple: allow a NACCID to have multiple identifiers
+            active_only: only return active NACCIDs
+
+        Note that allow_multiple and active_only often influence each other. If you
+        want all identifiers, both active and inactive, set allow_multiple to True
+        and active_only to Fales. If you only want the active identifier, set
+        allow_multiple to False and active_only to True.
+
+        Raises:
+            IdentifierRepositoryError: if no Identifier record was found
+
+        Returns:
+            List[IdentifierObject]: the identifiers list for the list of NACCIDs
+        """
+        identifier_list: List[IdentifierObject] = []
+        limit = 100
+
+        for i in range(0, len(naccids), limit):
+            batch = naccids[i : i + limit]
+
+            try:
+                response = self.__client.invoke(
+                    name="identifier-search-naccids-lambda-function",
+                    request=NACCIDsListRequest(
+                        mode=self.__mode,
+                        naccids=batch,
+                        allow_missing=allow_missing,
+                        allow_multiple=allow_multiple,
+                        active_only=active_only,
+                        offset=0,
+                        limit=limit,
+                    ),
+                )
+            except (LambdaInvocationError, ValidationError) as error:
+                raise IdentifierRepositoryError(error) from error
+
+            if response.statusCode != 200:
+                raise IdentifierRepositoryError(response.body)
+
+            try:
+                response_object = ListResponseObject.model_validate_json(response.body)
+            except ValidationError as error:
+                raise IdentifierRepositoryError(error) from error
+
+            identifier_list += response_object.data
+
+        return identifier_list
+
+    def add_or_update(self, identifier: IdentifierUpdateObject) -> bool:
+        """Adds/updates an identifier record with known NACCID to the database.
+        Update the active status of the identifier record if found or add a new
+        identifier record for provided (ADCID, PTID, NACCID).
+
+        Args:
+          identifier: Identifier record to add/update
+
+        Returns:
+          True if add/update successful, else false
+        """
+        try:
+            response = self.__client.invoke(
+                name="add-update-identifier-lambda-function",
+                request=KnownIdentifierRequest.create_from(
+                    mode=self.__mode, identifier=identifier
+                ),
+            )
+        except (LambdaInvocationError, ValidationError) as error:
+            raise IdentifierRepositoryError(error) from error
+
+        if response.statusCode != 200:
+            raise IdentifierRepositoryError(
+                f"No identifier created or updated: {response.body}"
+            )
+
+        return True
+
+    def check_enrollment_period(
+        self, date_query: DateQueryObject
+    ) -> Optional[EnrollmentDurationResponse]:
+        """Checks whether there is a valid enrollment period in the repository
+        matching with the visit date in query object.
+
+        Args:
+          date_query: visitdate query to validate
+
+        Returns:
+          EnrollmentDurationResponse (optional) if match found, else None
+        """
+        try:
+            response = self.__client.invoke(
+                name="check-identifier-duration-lambda-function",
+                request=EnrollmentDurationRequest.create_from(
+                    mode=self.__mode, date_query=date_query
+                ),
+            )
+        except (LambdaInvocationError, ValidationError) as error:
+            raise IdentifierRepositoryError(error) from error
+
+        if response.statusCode == 200:
+            return EnrollmentDurationResponse.model_validate_json(response.body)
+
+        raise IdentifierRepositoryError(
+            f"Validation failed for visitdate {date_query.visitdate} for participant "
+            f"ADCID: {date_query.adcid}, PTID: {date_query.ptid}: {response.body}"
+        )

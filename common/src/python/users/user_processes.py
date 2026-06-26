@@ -1,184 +1,72 @@
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from datetime import datetime
-from typing import Dict, Generic, List, Literal, Optional, TypeVar
+from typing import TYPE_CHECKING, Dict, Generic, List, Optional, TypeVar
 
-from centers.nacc_group import NACCGroup
+if TYPE_CHECKING:
+    from authorization_sync.sync_service import AuthorizationSyncService
+
+from centers.center_group import CenterError, CenterGroup
 from coreapi_client.models.identifier import Identifier
 from flywheel.models.user import User
-from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
-from notifications.email import DestinationModel, EmailClient, TemplateDataModel
+from flywheel_adaptor.flywheel_proxy import FlywheelError
+from redcap_api.redcap_connection import REDCapConnectionError
 
-from users.authorizations import AuthMap, Authorizations
-from users.nacc_directory import ActiveUserEntry, RegisteredUserEntry, UserEntry
-from users.user_registry import RegistryPerson, UserRegistry
+from users.authorization_visitor import (
+    CenterAuthorizationVisitor,
+    GeneralAuthorizationVisitor,
+)
+from users.authorizations import Authorizations, PageResource, StudyAuthorizations
+from users.event_models import (
+    EventCategory,
+    EventType,
+    UserContext,
+    UserEventCollector,
+    UserProcessEvent,
+)
+from users.failure_analyzer import FailureAnalyzer
+from users.redcap_disable_visitor import REDCapDisableVisitor
+from users.redcap_user_operations import unassign_user_role, user_has_role_assignment
+from users.user_entry import ActiveUserEntry, CenterUserEntry, UserEntry
+from users.user_process_environment import NotificationClient, UserProcessEnvironment
+from users.user_registry import DomainCandidate, RegistryError, RegistryPerson
 
 log = logging.getLogger(__name__)
 
-NotificationModeType = Literal["date", "force", "none"]
-
-
-class NotificationClient:
-    """Wrapper for the email client to send email notifications for the user
-    enrollment flow."""
-
-    def __init__(
-        self,
-        email_client: EmailClient,
-        configuration_set_name: str,
-        portal_url: str,
-        mode: NotificationModeType,
-    ) -> None:
-        self.__client = email_client
-        self.__configuration_set_name = configuration_set_name
-        self.__portal_url = portal_url
-        self.__mode: NotificationModeType = mode
-
-    def __claim_template(self, user_entry: ActiveUserEntry) -> TemplateDataModel:
-        """Creates the email data template from the user entry for a registry
-        claim email.
-
-        The user entry must have the auth email address set.
-
-        Args:
-          user_entry: the user entry
-        Returns:
-          the template model with first name and auth email address
-        """
-        assert user_entry.auth_email, "user entry must have auth email"
-        return TemplateDataModel(
-            firstname=user_entry.first_name, email_address=user_entry.auth_email
-        )
-
-    def __claim_destination(self, user_entry: ActiveUserEntry) -> DestinationModel:
-        """Creates the email destination from the user entry for a registry
-        claim email.
-
-        The user entry must have the auth email address set.
-
-        Args:
-          user_entry: the user entry
-        Returns:
-          the destination model with auth email address.
-        """
-        assert user_entry.auth_email, "user entry must have auth email"
-        return DestinationModel(to_addresses=[user_entry.auth_email])
-
-    def send_claim_email(self, user_entry: ActiveUserEntry) -> None:
-        """Sends the initial claim email to the auth email of the user.
-
-        The user entry must have the auth email address set.
-
-        Args:
-          user_entry: the user entry for the user
-        """
-        self.__client.send(
-            configuration_set_name=self.__configuration_set_name,
-            destination=self.__claim_destination(user_entry),
-            template="claim",
-            template_data=self.__claim_template(user_entry),
-        )
-
-    def send_followup_claim_email(self, user_entry: ActiveUserEntry) -> None:
-        """Sends the followup claim email to the auth email of the user.
-
-        The user entry must have the auth email address set.
-
-        Args:
-          user_entry: the user entry for the user
-        """
-        if self.__should_send(user_entry):
-            self.__client.send(
-                configuration_set_name=self.__configuration_set_name,
-                destination=self.__claim_destination(user_entry),
-                template="followup-claim",
-                template_data=self.__claim_template(user_entry),
-            )
-
-    def send_creation_email(self, user_entry: ActiveUserEntry) -> None:
-        """Sends the user creation email to the email of the user.
-
-        Args:
-          user_entry: the user entry for the user
-        """
-        assert user_entry.auth_email, "user entry must have auth email"
-        self.__client.send(
-            configuration_set_name=self.__configuration_set_name,
-            destination=DestinationModel(
-                to_addresses=[user_entry.email], cc_addresses=[user_entry.auth_email]
-            ),
-            template="user-creation",
-            template_data=TemplateDataModel(
-                firstname=user_entry.first_name, url=self.__portal_url
-            ),
-        )
-
-    def __should_send(self, user_entry: ActiveUserEntry) -> bool:
-        """Determines whether to send a notification.
-
-        If notification mode is force, then returns true.
-        If mode is none, returns False.
-        If mode is date, returns true if the number of days since creation is
-        a multiple of 7, and False otherwise.
-
-        Args:
-        user_entry: the directory entry for user
-        Returns:
-        True if criteria for notification mode is met. False, otherwise.
-        """
-        if self.__mode == "force":
-            return True
-        if self.__mode == "none":
-            return False
-
-        assert user_entry.registration_date, "user must be registered"
-
-        time_since_creation = user_entry.registration_date - datetime.now()
-        return time_since_creation.days % 7 == 0 and time_since_creation.days / 7 <= 3
-
-
-class UserProcessEnvironment:
-    """Defines the environment consisting of services used in user
-    management."""
-
-    def __init__(
-        self,
-        *,
-        admin_group: NACCGroup,
-        authorization_map: AuthMap,
-        proxy: FlywheelProxy,
-        registry: UserRegistry,
-        notification_client: NotificationClient,
-    ) -> None:
-        self.__admin_group = admin_group
-        self.__authorization_map = authorization_map
-        self.__proxy = proxy
-        self.__registry = registry
-        self.__notification_client = notification_client
-
-    @property
-    def admin_group(self) -> NACCGroup:
-        return self.__admin_group
-
-    @property
-    def authorization_map(self) -> AuthMap:
-        return self.__authorization_map
-
-    @property
-    def proxy(self) -> FlywheelProxy:
-        return self.__proxy
-
-    @property
-    def user_registry(self) -> UserRegistry:
-        return self.__registry
-
-    @property
-    def notification_client(self) -> NotificationClient:
-        return self.__notification_client
-
-
 T = TypeVar("T")
+
+
+def _try_sync_profile(
+    sync_service: "AuthorizationSyncService",
+    registry_id: str,
+    user_entry: UserEntry,
+) -> None:
+    """Attempt to sync a user profile, logging errors without propagating.
+
+    This is a fault-isolation wrapper around sync_service.sync_profile.
+    Expected API failures are handled inside sync_profile via the event
+    collector. This wrapper catches unexpected programming errors
+    (TypeError, KeyError, etc.) so they don't disrupt the calling workflow.
+
+    Args:
+        sync_service: The authorization sync service.
+        registry_id: The user's registry ID (ePPN).
+        user_entry: The user entry containing profile data.
+    """
+    try:
+        sync_service.sync_profile(
+            registry_id=registry_id,
+            user_entry=user_entry,
+        )
+    except Exception as error:
+        log.error(
+            "Profile sync failed for user %s: %s",
+            registry_id,
+            error,
+        )
 
 
 class BaseUserProcess(ABC, Generic[T]):
@@ -192,6 +80,19 @@ class BaseUserProcess(ABC, Generic[T]):
 
     Subclasses should apply the process as a visitor to the queue.
     """
+
+    def __init__(self, collector: UserEventCollector) -> None:
+        """Initialize the base user process.
+
+        Args:
+            collector: Error collector for capturing error events
+        """
+        self.__collector = collector
+
+    @property
+    def collector(self) -> UserEventCollector:
+        """Get the error collector (read-only access)."""
+        return self.__collector
 
     @abstractmethod
     def visit(self, entry: T) -> None:
@@ -210,6 +111,10 @@ class UserQueue(Generic[T]):
 
     def __init__(self) -> None:
         self.__queue: deque[T] = deque()
+
+    def __len__(self) -> int:
+        """Returns the number of entries in the queue."""
+        return len(self.__queue)
 
     def enqueue(self, user_entry: T) -> None:
         """Adds the user entry to the queue.
@@ -230,26 +135,441 @@ class UserQueue(Generic[T]):
     def apply(self, process: BaseUserProcess[T]) -> None:
         """Applies the user process to the entries of the queue.
 
-        Destroys the queue.
+        Destroys the queue. Individual entry processing errors are logged
+        but do not stop the batch processing.
 
         Args:
           process: the user process
         """
         while self.__queue:
             entry = self.__dequeue()
-            process.visit(entry)
+            try:
+                process.visit(entry)
+            except (
+                FlywheelError,
+                RegistryError,
+                ValueError,
+                KeyError,
+                AttributeError,
+            ) as error:
+                # Individual user processing errors should not stop the batch
+                # Log the error and continue with the next user
+                log.error(
+                    "Error processing user entry: %s. Continuing with remaining users.",
+                    error,
+                    exc_info=True,
+                )
 
 
 class InactiveUserProcess(BaseUserProcess[UserEntry]):
     """User process for user entries marked inactive."""
 
+    def __init__(
+        self,
+        environment: UserProcessEnvironment,
+        collector: UserEventCollector,
+    ) -> None:
+        """Initialize the inactive user process.
+
+        Args:
+            environment: The user process environment
+            collector: Error collector for capturing error events
+        """
+        super().__init__(collector)
+        self.__env = environment
+
+    def __resolve_redcap_username(
+        self,
+        entry: UserEntry,
+        auth_email: Optional[str],
+    ) -> str:
+        """Resolve the REDCap username for role unassignment.
+
+        Priority: entry.auth_email > COmanage auth_email > directory email.
+
+        Args:
+            entry: The inactive user entry
+            auth_email: The resolved auth_email from COmanage lookup
+
+        Returns:
+            The resolved username string
+        """
+        if entry.auth_email:
+            return entry.auth_email
+        if auth_email:
+            return auth_email
+        return entry.email
+
+    def __unassign_redcap_project(
+        self,
+        center_group: CenterGroup,
+        pid: int,
+        username: str,
+        user_context: UserContext,
+    ) -> None:
+        """Attempt to unassign a user's role from a single REDCap project.
+
+        Args:
+            center_group: The center group providing REDCap project access
+            pid: The REDCap project ID
+            username: The REDCap username to unassign
+            user_context: The user context for event collection
+        """
+        redcap_project = center_group.get_redcap_project(pid)
+        if not redcap_project:
+            log.warning(
+                "REDCap project credentials unavailable for PID %s, skipping",
+                pid,
+            )
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=f"REDCap project credentials unavailable for PID {pid}",
+            )
+            self.collector.collect(error_event)
+            return
+
+        title = redcap_project.title
+
+        try:
+            has_role = user_has_role_assignment(redcap_project, username)
+        except REDCapConnectionError as error:
+            log.error(
+                (
+                    "failed to check role assignment for %s in REDCap project %s "
+                    "(PID %s): %s"
+                ),
+                username,
+                title,
+                pid,
+                error,
+            )
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"Failed to check role assignment for {username} "
+                    f"in REDCap project {title} (PID {pid}): {error}"
+                ),
+            )
+            self.collector.collect(error_event)
+            return
+
+        if not has_role:
+            log.info(
+                (
+                    "User %s has no role assignment in REDCap project %s "
+                    "(PID %s), skipping"
+                ),
+                username,
+                title,
+                pid,
+            )
+            return
+
+        if self.__env.proxy.dry_run:
+            log.info(
+                "DRY RUN: Would unassign role for %s in REDCap project %s (PID %s)",
+                username,
+                title,
+                pid,
+            )
+            success_event = UserProcessEvent(
+                event_type=EventType.SUCCESS,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"DRY RUN: Would unassign role for {username} "
+                    f"in REDCap project {title} (PID {pid})"
+                ),
+            )
+            self.collector.collect(success_event)
+            return
+
+        try:
+            unassign_user_role(redcap_project, username)
+            log.info(
+                "unassigned role for %s in REDCap project %s (PID %s)",
+                username,
+                title,
+                pid,
+            )
+            success_event = UserProcessEvent(
+                event_type=EventType.SUCCESS,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"Unassigned role for {username} "
+                    f"in REDCap project {title} (PID {pid})"
+                ),
+            )
+            self.collector.collect(success_event)
+        except REDCapConnectionError as error:
+            log.error(
+                "failed to unassign role for %s in REDCap project %s (PID %s): %s",
+                username,
+                title,
+                pid,
+                error,
+            )
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.REDCAP_USER_DISABLED,
+                user_context=user_context,
+                message=(
+                    f"Failed to unassign role for {username} "
+                    f"in REDCap project {title} (PID {pid}): {error}"
+                ),
+            )
+            self.collector.collect(error_event)
+
+    def __disable_in_redcap(
+        self,
+        entry: UserEntry,
+        user_context: UserContext,
+        auth_email: Optional[str],
+    ) -> None:
+        """Step 3: Remove user roles from all REDCap projects.
+
+        Iterates over all centers, finds REDCap projects via the visitor
+        pattern, and unassigns the user's role from each project.
+
+        Args:
+            entry: The inactive user entry
+            user_context: The user context for event collection
+            auth_email: The resolved auth_email from COmanage lookup
+                in Step 2 (if found)
+        """
+        username = self.__resolve_redcap_username(entry, auth_email)
+        center_map = self.__env.admin_group.get_center_map()
+
+        for adcid in center_map.get_adcids():
+            center_group = self.__env.admin_group.get_center(adcid)
+            if not center_group:
+                log.warning(
+                    "could not retrieve center group for ADCID %s, skipping",
+                    adcid,
+                )
+                continue
+
+            project_info = center_group.get_project_info()
+            visitor = REDCapDisableVisitor()
+            project_info.apply(visitor)
+
+            for pid in visitor.redcap_pids:
+                self.__unassign_redcap_project(
+                    center_group, pid, username, user_context
+                )
+
+    def __disable_in_flywheel(
+        self,
+        entry: UserEntry,
+        user_context: UserContext,
+    ) -> None:
+        """Step 1: Disable matching Flywheel users.
+
+        Args:
+            entry: The inactive user entry
+            user_context: The user context for event collection
+        """
+        users = self.__env.proxy.find_user_by_email(entry.email)
+        if not users:
+            log.info("no matching Flywheel users found for %s", entry.email)
+            return
+
+        for user in users:
+            try:
+                self.__env.proxy.disable_user(user)
+                log.info(
+                    "disabled user %s (%s)",
+                    user.id,
+                    entry.email,
+                )
+                success_event = UserProcessEvent(
+                    event_type=EventType.SUCCESS,
+                    category=EventCategory.FLYWHEEL_USER_DISABLED,
+                    user_context=user_context,
+                    message=f"User {user.id} disabled in Flywheel",
+                )
+                self.collector.collect(success_event)
+            except FlywheelError as error:
+                log.error(
+                    "failed to disable user %s (%s): %s",
+                    user.id,
+                    entry.email,
+                    error,
+                )
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.FLYWHEEL_ERROR,
+                    user_context=user_context,
+                    message=f"Failed to disable user {user.id}: {error}",
+                )
+                self.collector.collect(error_event)
+
+    def __suspend_in_comanage(
+        self,
+        entry: UserEntry,
+        user_context: UserContext,
+        person_list: Optional[list[RegistryPerson]],
+    ) -> None:
+        """Step 4: Suspend matching COmanage registry persons.
+
+        Args:
+            entry: The inactive user entry
+            user_context: The user context for event collection
+            person_list: The list of registry persons from Step 2
+        """
+        if not person_list:
+            log.info("no matching COmanage registry persons for %s", entry.email)
+            return
+
+        for person in person_list:
+            registry_id = person.registry_id()
+            if not registry_id:
+                continue
+            if person.is_suspended():
+                log.info(
+                    "user %s (%s) already suspended in COmanage, skipping",
+                    registry_id,
+                    entry.email,
+                )
+                continue
+            try:
+                self.__env.user_registry.suspend(registry_id)
+                log.info(
+                    "suspended user %s (%s) in COmanage",
+                    registry_id,
+                    entry.email,
+                )
+                success_event = UserProcessEvent(
+                    event_type=EventType.SUCCESS,
+                    category=EventCategory.COMANAGE_USER_SUSPENDED,
+                    user_context=user_context,
+                    message=f"User {registry_id} suspended in COmanage",
+                )
+                self.collector.collect(success_event)
+            except RegistryError as error:
+                log.error(
+                    "failed to suspend user %s (%s) in COmanage: %s",
+                    registry_id,
+                    entry.email,
+                    error,
+                )
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.COMANAGE_USER_SUSPENDED,
+                    user_context=user_context,
+                    message=(
+                        f"Failed to suspend user {registry_id} in COmanage: {error}"
+                    ),
+                )
+                self.collector.collect(error_event)
+
+    def __sync_inactive_profile(
+        self,
+        entry: UserEntry,
+        person_list: Optional[list[RegistryPerson]],
+    ) -> None:
+        """Sync the inactive user's profile to the Authorization API.
+
+        Resolves the registry_id from the person_list and calls
+        sync_profile. Wrapped in try/except for fault isolation.
+
+        Args:
+            entry: The inactive user entry
+            person_list: The list of registry persons from COmanage lookup
+        """
+        registry_id: Optional[str] = None
+        if person_list:
+            first_person = person_list[0]
+            registry_id = first_person.registry_id()
+        if not registry_id:
+            return
+
+        sync_service = self.__env.authorization_sync
+        if sync_service is not None:
+            _try_sync_profile(sync_service, registry_id, entry)
+
     def visit(self, entry: UserEntry) -> None:
         """Visit method for an inactive user entry.
+
+        Processes the entry through four independent steps:
+        1. Disable in Flywheel
+        2. COmanage lookup (resolve auth_email)
+        3. REDCap role removal
+        4. COmanage suspend
+
+        Each step is wrapped in its own try/except so failure of one
+        does not block the others.
 
         Args:
           entry: the inactive user entry
         """
-        log.info("ignoring inactive entry %s", entry.email)
+        log.info("processing inactive entry %s", entry.email)
+
+        center_id = entry.adcid if isinstance(entry, CenterUserEntry) else None
+        user_context = UserContext(
+            email=entry.email,
+            name=entry.name.as_str(),
+            center_id=center_id,
+        )
+
+        # Step 1: Disable in Flywheel
+        try:
+            self.__disable_in_flywheel(entry, user_context)
+        except FlywheelError as error:
+            log.error(
+                "Step 1 (Flywheel disable) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
+
+        # Step 2: COmanage lookup
+        # (resolve auth_email for Step 3, person_list for Step 4)
+        auth_email: Optional[str] = None
+        person_list: Optional[list[RegistryPerson]] = None
+        try:
+            person_list = self.__env.user_registry.get(email=entry.email)
+            if not entry.auth_email and person_list:
+                first_person = person_list[0]
+                if first_person.email_address:
+                    auth_email = first_person.email_address.mail
+        except RegistryError as error:
+            log.error(
+                "Step 2 (COmanage lookup) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
+
+        # Profile sync (mark inactive)
+        self.__sync_inactive_profile(entry, person_list)
+
+        # Step 3: REDCap role removal
+        try:
+            self.__disable_in_redcap(entry, user_context, auth_email)
+        except (REDCapConnectionError, CenterError) as error:
+            log.error(
+                "Step 3 (REDCap role removal) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
+
+        # Step 4: COmanage suspend
+        try:
+            self.__suspend_in_comanage(entry, user_context, person_list)
+        except RegistryError as error:
+            log.error(
+                "Step 4 (COmanage suspend) failed for %s: %s",
+                entry.email,
+                error,
+                exc_info=True,
+            )
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Applies this process to the queue.
@@ -261,22 +581,50 @@ class InactiveUserProcess(BaseUserProcess[UserEntry]):
         queue.apply(self)
 
 
-class CreatedUserProcess(BaseUserProcess[RegisteredUserEntry]):
+class CreatedUserProcess(BaseUserProcess[ActiveUserEntry]):
     """Defines the user process for user entries recently created in
     Flywheel."""
 
-    def __init__(self, notification_client: NotificationClient) -> None:
-        self.__notification_client = notification_client
-
-    def visit(self, entry: RegisteredUserEntry) -> None:
-        """Processes the user entry by sending a notification email.
+    def __init__(
+        self,
+        notification_client: NotificationClient,
+        collector: UserEventCollector,
+    ) -> None:
+        """Initialize the created user process.
 
         Args:
-          entry: the user entry
+            notification_client: Client for sending notifications
+            collector: Event collector for capturing events
         """
+        super().__init__(collector)
+        self.__notification_client = notification_client
+
+    def visit(self, entry: ActiveUserEntry) -> None:
+        """Processes the user entry by sending a notification email and
+        collecting success event.
+
+        Args:
+          entry: the user entry (must be registered)
+        """
+        if not entry.is_registered:
+            log.error(
+                "Cannot process created user without registry_person: %s", entry.email
+            )
+            return
+
+        # Send user creation email to the user
         self.__notification_client.send_creation_email(entry)
 
-    def execute(self, queue: UserQueue[RegisteredUserEntry]) -> None:
+        # Collect success event for end-of-run notification
+        success_event = UserProcessEvent(
+            event_type=EventType.SUCCESS,
+            category=EventCategory.USER_CREATED,
+            user_context=UserContext.from_user_entry(entry),
+            message="User successfully created in Flywheel",
+        )
+        self.collector.collect(success_event)
+
+    def execute(self, queue: UserQueue[ActiveUserEntry]) -> None:
         """Applies this process to the queue.
 
         Args:
@@ -286,56 +634,278 @@ class CreatedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         queue.apply(self)
 
 
-class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
-    """Defines the user process for user entries with existing Flywheel
+class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
+    """Defines the user process for center user entries with existing Flywheel
     users."""
 
-    def __init__(self, environment: UserProcessEnvironment) -> None:
+    def __init__(
+        self, environment: UserProcessEnvironment, collector: UserEventCollector
+    ) -> None:
+        super().__init__(collector)
         self.__env = environment
+        self.__failure_analyzer = FailureAnalyzer(environment)
 
-    def visit(self, entry: RegisteredUserEntry) -> None:
-        """Makes updates to the user for the user entry: setting the user
-        email, and authorizing user.
-
-        Args:
-          entry: the user entry
-        """
-
-        registry_person = self.__env.user_registry.find_by_registry_id(
-            entry.registry_id
-        )
-
-        # user should have been claimed if it reaches this step
-        if not registry_person or not registry_person.email_address:
+    def visit(self, entry: CenterUserEntry) -> None:
+        if not entry.registry_person:
             log.error(
-                "Failed to find a claimed user with Registry ID %s and email %s",
-                entry.registry_id,
+                "Cannot update center user without registry_person: %s",
                 entry.email,
             )
             return
 
-        fw_user = self.__env.proxy.find_user(entry.registry_id)
-        if not fw_user:
+        if not entry.fw_user:
             log.error(
-                "Failed to add user %s with ID %s", entry.email, entry.registry_id
+                "Cannot update center user without fw_user: %s",
+                entry.email,
             )
             return
 
-        self.__update_email(user=fw_user, email=entry.email)
-
-        registry_address = registry_person.email_address
+        registry_address = entry.registry_person.email_address
         if not registry_address:
             log.error(
                 "Registry record does not have email address: %s", entry.registry_id
             )
             return
 
+        authorizations = {
+            authorization.study_id: authorization
+            for authorization in entry.study_authorizations
+        }
+
+        registry_id = entry.registry_id
+        if not registry_id:
+            log.error(
+                "Cannot update center user without registry_id: %s",
+                entry.email,
+            )
+            return
+
         self.__authorize_user(
-            user=fw_user,
+            user=entry.fw_user,
             auth_email=registry_address.mail,
             center_id=entry.adcid,
-            authorizations=entry.authorizations,
+            authorizations=authorizations,
+            registry_id=registry_id,
+            entry=entry,
         )
+
+    def __authorize_user(
+        self,
+        *,
+        user: User,
+        auth_email: str,
+        center_id: int,
+        authorizations: dict[str, StudyAuthorizations],
+        registry_id: str,
+        entry: CenterUserEntry,
+    ) -> None:
+        """Adds authorizations to the user.
+
+        Users are granted access to nacc/metadata and projects per authorizations.
+
+        Args:
+        user: the user
+        auth_email: the email used in the registry
+        center_id: the center of the user
+        authorizations: list of authorizations
+        registry_id: the user's registry ID (ePPN)
+        entry: the center user entry for profile sync
+        """
+        center_group = self.__env.admin_group.get_center(center_id)
+        if not center_group:
+            log.warning("No center found with ID %s", center_id)
+            return
+
+        # give users access to nacc metadata project
+        self.__env.admin_group.add_center_user(user=user)
+
+        # give users access to center projects
+
+        assert user.id, "requires user has ID"
+        log.info("Adding roles for user %s", user.id)
+        visitor = CenterAuthorizationVisitor(
+            user=user,
+            auth_email=auth_email,
+            user_authorizations=authorizations,
+            auth_map=self.__env.authorization_map,
+            center_group=center_group,
+        )
+        portal_info = center_group.get_project_info()
+        portal_info.apply(visitor)
+
+        # Sync authorizations to the Authorization API (if available)
+        sync_service = self.__env.authorization_sync
+        if sync_service is not None:
+            center_group_id = center_group.label
+            for study_auth in authorizations.values():
+                try:
+                    sync_service.sync_user(
+                        registry_id=registry_id,
+                        authorizations=study_auth,
+                        center_group_id=center_group_id,
+                    )
+                except Exception as error:
+                    # Safety net for programming errors (e.g., TypeError,
+                    # KeyError). Expected API failures are handled inside
+                    # sync_user via the event collector and do not propagate.
+                    log.error(
+                        "Authorization sync failed for user %s, study %s: %s",
+                        registry_id,
+                        study_auth.study_id,
+                        error,
+                    )
+                    # Fault isolation: sync failure must not affect
+                    # Flywheel role assignment
+
+            _try_sync_profile(sync_service, registry_id, entry)
+
+    def execute(self, queue: UserQueue[CenterUserEntry]) -> None:
+        log.info("**Processing center users")
+        queue.apply(self)
+
+
+class UpdateUserProcess(BaseUserProcess[ActiveUserEntry]):
+    """Defines the user process for user entries with existing Flywheel
+    users."""
+
+    def __init__(
+        self,
+        environment: UserProcessEnvironment,
+        collector: UserEventCollector,
+    ) -> None:
+        """Initialize the update user process.
+
+        Args:
+            environment: The user process environment
+            collector: Error collector for capturing error events
+        """
+        super().__init__(collector)
+        self.__env = environment
+        self.__failure_analyzer = FailureAnalyzer(environment)
+        self.__center_queue: UserQueue[CenterUserEntry] = UserQueue()
+
+    def visit(self, entry: ActiveUserEntry) -> None:
+        """Makes updates to the user for the user entry: setting the user
+        email, and authorizing user.
+
+        Args:
+          entry: the user entry (must be registered)
+        """
+        if not entry.registry_person:
+            log.error(
+                "Cannot update user without registry_person: %s",
+                entry.email,
+            )
+            return
+
+        if not entry.registry_id:
+            log.error(
+                "Cannot update user without registry_id: %s",
+                entry.email,
+            )
+            return
+
+        registry_id = entry.registry_id
+
+        fw_user = self.__env.find_user(registry_id)
+        if not fw_user:
+            log.error(
+                "Expected user %s with ID %s in Flywheel not found",
+                entry.email,
+                registry_id,
+            )
+            return
+
+        # Store the Flywheel user in the entry for downstream processes
+        entry.set_fw_user(fw_user)
+
+        self.__authorize_user(
+            user=fw_user,
+            email=entry.email,
+            authorizations=entry.authorizations,
+            registry_id=registry_id,
+            entry=entry,
+        )
+        self.__update_email(user=fw_user, email=entry.email)
+
+        if isinstance(entry, CenterUserEntry):
+            self.__center_queue.enqueue(entry)
+
+    def __authorize_user(
+        self,
+        *,
+        user: User,
+        email: str,
+        authorizations: Authorizations,
+        registry_id: str,
+        entry: ActiveUserEntry,
+    ) -> None:
+        """Applies authorizations to give access to general resources.
+
+        Processes general authorizations (not tied to specific centers) by creating
+        a GeneralAuthorizationVisitor and dispatching page resource activities to it.
+        After the visitor completes, invokes the authorization sync service (if
+        available) to synchronize grants with the Authorization API.
+
+        Args:
+            user: The Flywheel user to authorize
+            email: The user's email address
+            authorizations: The general authorizations containing activities
+            registry_id: The user's registry ID (ePPN) for authorization sync
+            entry: The active user entry for profile sync
+        """
+        # Apply Flywheel role assignment via GeneralAuthorizationVisitor
+        if authorizations.activities:
+            try:
+                # Retrieve admin_group from environment
+                admin_group = self.__env.admin_group
+
+                # Create GeneralAuthorizationVisitor
+                visitor = GeneralAuthorizationVisitor(
+                    user=user,
+                    authorizations=authorizations,
+                    auth_map=self.__env.authorization_map,
+                    nacc_group=admin_group,
+                    collector=self.collector,
+                )
+
+                # Iterate through activities and process page resources
+                for activity in authorizations.activities.values():
+                    if isinstance(activity.resource, PageResource):
+                        visitor.visit_page_resource(activity.resource)
+            except Exception as error:
+                # Catch unexpected exceptions, log error, don't propagate
+                log.error(
+                    "Unexpected error during general authorization for user %s: %s",
+                    user.id,
+                    str(error),
+                    exc_info=True,
+                )
+        else:
+            log.info("No general authorizations for user %s", user.id)
+
+        # Sync with Authorization API after Flywheel role assignment completes
+        # (regardless of whether the visitor succeeded or failed)
+        sync_service = self.__env.authorization_sync
+        if sync_service is not None:
+            try:
+                sync_service.sync_user(
+                    registry_id=registry_id,
+                    authorizations=authorizations,
+                )
+            except Exception as error:
+                # Safety net for programming errors (e.g., TypeError, KeyError).
+                # Expected API failures are handled inside sync_user via the
+                # event collector and do not propagate here.
+                log.error(
+                    "Authorization sync failed for user %s: %s",
+                    registry_id,
+                    error,
+                )
+                # Fault isolation: sync failure must not affect
+                # Flywheel role assignment or downstream processing
+
+            _try_sync_profile(sync_service, registry_id, entry)
 
     def __update_email(self, *, user: User, email: str) -> None:
         """Updates user email on FW instance if email is different.
@@ -356,41 +926,7 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         log.info("Setting user %s email to %s", user.id, email)
         self.__env.proxy.set_user_email(user=user, email=email)
 
-    def __authorize_user(
-        self,
-        *,
-        user: User,
-        auth_email: str,
-        center_id: int,
-        authorizations: Authorizations,
-    ) -> None:
-        """Adds authorizations to the user.
-
-        Users are granted access to nacc/metadata and projects per authorizations.
-
-        Args:
-        user: the user
-        auth_email: the email used in the registry
-        center_id: the center of the user
-        authorizations: list of authorizations
-        """
-        center_group = self.__env.admin_group.get_center(center_id)
-        if not center_group:
-            log.warning("No center found with ID %s", center_id)
-            return
-
-        # give users access to nacc metadata project
-        self.__env.admin_group.add_center_user(user=user)
-
-        # give users access to center projects
-        center_group.add_user_roles(
-            user=user,
-            auth_email=auth_email,
-            authorizations=authorizations,
-            auth_map=self.__env.authorization_map,
-        )
-
-    def execute(self, queue: UserQueue[RegisteredUserEntry]) -> None:
+    def execute(self, queue: UserQueue[ActiveUserEntry]) -> None:
         """Applies this process to the queue.
 
         Args:
@@ -399,33 +935,50 @@ class UpdateUserProcess(BaseUserProcess[RegisteredUserEntry]):
         log.info("**Update Flywheel users")
         queue.apply(self)
 
+        update_process = UpdateCenterUserProcess(self.__env, self.collector)
+        update_process.execute(self.__center_queue)
 
-class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
+
+class ClaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
     """Processes user records that have been claimed in the user registry."""
 
     def __init__(
         self,
         environment: UserProcessEnvironment,
-        claimed_queue: UserQueue[RegisteredUserEntry],
+        claimed_queue: UserQueue[ActiveUserEntry],
+        collector: UserEventCollector,
     ) -> None:
-        self.__failed_count: Dict[str, int] = defaultdict(int)
-        self.__claimed_queue: UserQueue[RegisteredUserEntry] = claimed_queue
-        self.__created_queue: UserQueue[RegisteredUserEntry] = UserQueue()
-        self.__update_queue: UserQueue[RegisteredUserEntry] = UserQueue()
-        self.__env = environment
+        """Initialize the claimed user process.
 
-    def __add_user(self, entry: RegisteredUserEntry) -> Optional[str]:
+        Args:
+            environment: The user process environment
+            claimed_queue: Queue for claimed user entries
+            collector: Event collector for capturing events
+        """
+        super().__init__(collector)
+        self.__failed_count: Dict[str, int] = defaultdict(int)
+        self.__claimed_queue: UserQueue[ActiveUserEntry] = claimed_queue
+        self.__created_queue: UserQueue[ActiveUserEntry] = UserQueue()
+        self.__update_queue: UserQueue[ActiveUserEntry] = UserQueue()
+        self.__env = environment
+        self.__failure_analyzer = FailureAnalyzer(environment)
+
+    def __add_user(self, entry: ActiveUserEntry) -> Optional[str]:
         """Adds a user for the entry to Flywheel.
 
         Makes three attempts, and logs the error on the third attempt.
 
         Args:
-          entry: the user entry
+          entry: the user entry (must be registered)
         Returns:
           the user id for the added user if succeeded. None, otherwise.
         """
+        if not entry.registry_id:
+            log.error("Cannot add user without registry_id: %s", entry.email)
+            return None
+
         try:
-            return self.__env.proxy.add_user(entry.as_user())
+            return self.__env.add_user(entry.as_user())
         except FlywheelError as error:
             self.__failed_count[entry.registry_id] += 1
             if self.__failed_count[entry.registry_id] >= 3:
@@ -435,12 +988,22 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
                     entry.registry_id,
                     str(error),
                 )
+
+                # Use failure analyzer to analyze the error
+                error_event = (
+                    self.__failure_analyzer.analyze_flywheel_user_creation_failure(
+                        entry, error
+                    )
+                )
+                if error_event:
+                    self.collector.collect(error_event)
+
                 return None
 
             self.__claimed_queue.enqueue(entry)
         return None
 
-    def visit(self, entry: RegisteredUserEntry) -> None:
+    def visit(self, entry: ActiveUserEntry) -> None:
         """Processes a claimed user entry.
 
         Creates a Flywheel user if the entry does not have one.
@@ -449,10 +1012,15 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         Adds all users to the "update" queue.
 
         Args:
-          entry: the user entry
+          entry: the user entry (must be registered)
         """
-        assert entry.registry_id
-        fw_user = self.__env.proxy.find_user(entry.registry_id)
+        if not entry.registry_id:
+            log.error(
+                "Cannot process claimed user without registry_id: %s", entry.email
+            )
+            return
+
+        fw_user = self.__env.find_user(entry.registry_id)
         if not fw_user:
             log.info(
                 "User %s has no flywheel user with ID: %s",
@@ -467,16 +1035,16 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
 
             log.info("Added user %s", entry.registry_id)
 
-        fw_user = self.__env.proxy.find_user(entry.registry_id)
+        fw_user = self.__env.find_user(entry.registry_id)
         if not fw_user:
             log.error(
-                "Failed to find user %s with ID %s", entry.email, entry.registry_id
+                "Failed to add user %s with ID %s", entry.email, entry.registry_id
             )
             return
 
         self.__update_queue.enqueue(entry)
 
-    def execute(self, queue: UserQueue[RegisteredUserEntry]) -> None:
+    def execute(self, queue: UserQueue[ActiveUserEntry]) -> None:
         """Applies this process to the queue to create flywheel users and apply
         processes for created users, and user updates.
 
@@ -486,10 +1054,12 @@ class ClaimedUserProcess(BaseUserProcess[RegisteredUserEntry]):
         log.info("**Processing claimed users")
         queue.apply(self)
 
-        created_process = CreatedUserProcess(self.__env.notification_client)
+        created_process = CreatedUserProcess(
+            self.__env.notification_client, self.collector
+        )
         created_process.execute(self.__created_queue)
 
-        update_process = UpdateUserProcess(self.__env)
+        update_process = UpdateUserProcess(self.__env, self.collector)
         update_process.execute(self.__update_queue)
 
 
@@ -497,12 +1067,42 @@ class UnclaimedUserProcess(BaseUserProcess[ActiveUserEntry]):
     """Applies the process for user entries with unclaimed user registry
     entries."""
 
-    def __init__(self, notification_client: NotificationClient) -> None:
+    def __init__(
+        self,
+        notification_client: NotificationClient,
+        collector: UserEventCollector,
+    ) -> None:
+        """Initialize the unclaimed user process.
+
+        Args:
+            notification_client: Client for sending notifications
+            collector: Error collector for capturing error events
+        """
+        super().__init__(collector)
         self.__notification_client = notification_client
 
     def visit(self, entry: ActiveUserEntry) -> None:
-        """Sends a notification email to claim the user."""
+        """Sends a notification email to claim the user and creates error event
+        for tracking."""
         self.__notification_client.send_followup_claim_email(entry)
+
+        # Create error event for unclaimed user tracking
+        message = "User has not claimed their user registry record"
+        if entry.registration_date:
+            days_unclaimed = (datetime.now() - entry.registration_date).days
+            message = (
+                "User has not claimed their user registry record "
+                f"({days_unclaimed} days unclaimed)"
+            )
+
+        error_event = UserProcessEvent(
+            event_type=EventType.ERROR,
+            category=EventCategory.UNCLAIMED_RECORDS,
+            user_context=UserContext.from_user_entry(entry),
+            message=message,
+            action_needed="follow_up_with_user_to_claim_account",
+        )
+        self.collector.collect(error_event)
 
     def execute(self, queue: UserQueue[ActiveUserEntry]) -> None:
         """Applies this process to the queue.
@@ -522,30 +1122,96 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
     active users into claimed and unclaimed queues.
     """
 
-    def __init__(self, environment: UserProcessEnvironment) -> None:
+    def __init__(
+        self,
+        environment: UserProcessEnvironment,
+        collector: UserEventCollector,
+    ) -> None:
+        """Initialize the active user process.
+
+        Args:
+            environment: The user process environment
+            collector: Event collector for capturing events
+        """
+        super().__init__(collector)
         self.__env = environment
-        self.__claimed_queue: UserQueue[RegisteredUserEntry] = UserQueue()
+        self.__claimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
         self.__unclaimed_queue: UserQueue[ActiveUserEntry] = UserQueue()
+        self.failure_analyzer = FailureAnalyzer(environment)
 
     def visit(self, entry: ActiveUserEntry) -> None:
         """Adds a new user to user registry, otherwise, adds the user to
         claimed or unclaimed queues.
+
+        When a matching registry person is found with status 'S' (Suspended),
+        re-enables them instead of treating them as a new user. This prevents
+        duplicate record creation for returning users.
+
+        The re-enable check happens after the email lookup but before the
+        existing claimed/unclaimed routing.
 
         Args:
           entry: the user entry
         """
         if not entry.auth_email:
             log.error("User %s must have authentication email", entry.email)
+
+            # Create error event for missing auth email
+            error_event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.MISSING_DIRECTORY_DATA,
+                user_context=UserContext.from_user_entry(entry),
+                message="User has no authentication email in directory",
+                action_needed="update_directory_auth_email",
+            )
+            self.collector.collect(error_event)
             return
 
         person_list = self.__env.user_registry.get(email=entry.auth_email)
         if not person_list:
-            if self.__env.user_registry.has_bad_claim(entry.full_name):
+            bad_claim = self.__env.user_registry.get_bad_claim(entry.full_name)
+            if bad_claim:
                 log.error(
                     "Active user has incomplete claim: %s, %s",
                     entry.full_name,
                     entry.email,
                 )
+
+                incomplete_claim_event = self.failure_analyzer.detect_incomplete_claim(
+                    entry, bad_claim
+                )
+                if incomplete_claim_event:
+                    self.collector.collect(incomplete_claim_event)
+                return
+
+            # Domain-aware and name-based fallback checks.
+            # Only block skeleton creation when there is a name match
+            # (combined signal or name-only). Domain-only hits are too
+            # noisy at large institutions and are not reported.
+            domain_candidates = self.__env.user_registry.get_by_parent_domain(
+                entry.auth_email
+            )
+            name_candidates = self.__env.user_registry.get_by_name(entry.full_name)
+
+            # Filter out self-matches: candidates whose email matches the
+            # query email (case-insensitive). This handles registry records
+            # stored with different casing than the directory entry.
+            query_email_lower = entry.auth_email.lower()
+            domain_candidates = [
+                dc
+                for dc in domain_candidates
+                if dc.matched_email.lower() != query_email_lower
+            ]
+            name_candidates = [
+                p
+                for p in name_candidates
+                if not any(
+                    addr.mail.lower() == query_email_lower for addr in p.email_addresses
+                )
+            ]
+
+            if name_candidates:
+                self.__emit_near_miss_events(entry, domain_candidates, name_candidates)
                 return
 
             log.info("Active user not in registry: %s", entry.email)
@@ -558,6 +1224,12 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             )
             return
 
+        # Check for suspended persons and re-enable them
+        suspended = [person for person in person_list if person.is_suspended()]
+        if suspended:
+            self.__re_enable_suspended(entry, suspended)
+            return
+
         creation_date = self.__get_creation_date(person_list)
         if not creation_date:
             log.warning("person record for %s has no creation date", entry.email)
@@ -567,12 +1239,9 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
 
         claimed = self.__get_claimed(person_list)
         if claimed:
-            registry_id = self.__get_registry_id(claimed)
-            if not registry_id:
-                log.error("User %s has no registry ID", entry.email)
-                return
-
-            self.__claimed_queue.enqueue(entry.register(registry_id))
+            # Store the whole RegistryPerson object instead of just the ID
+            entry.register(claimed[0])
+            self.__claimed_queue.enqueue(entry)
             return
 
         self.__unclaimed_queue.enqueue(entry)
@@ -587,8 +1256,151 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         """
         return [person for person in person_list if person.is_claimed()]
 
+    def __re_enable_suspended(
+        self,
+        entry: ActiveUserEntry,
+        suspended: List[RegistryPerson],
+    ) -> None:
+        """Re-enable suspended registry persons matched by email.
+
+        For each suspended person with a registry ID, calls re_enable on
+        the user registry. Collects success or error events for each.
+
+        Args:
+          entry: the active user entry
+          suspended: list of suspended RegistryPerson objects
+        """
+        for person in suspended:
+            registry_id = person.registry_id()
+            if not registry_id:
+                continue
+            try:
+                self.__env.user_registry.re_enable(registry_id)
+                log.info(
+                    "re-enabled user %s (%s) in COmanage",
+                    registry_id,
+                    entry.auth_email,
+                )
+                success_event = UserProcessEvent(
+                    event_type=EventType.SUCCESS,
+                    category=EventCategory.USER_RE_ENABLED,
+                    user_context=UserContext.from_user_entry(entry),
+                    message=(f"User {registry_id} re-enabled in COmanage"),
+                )
+                self.collector.collect(success_event)
+            except RegistryError as error:
+                log.error(
+                    "failed to re-enable user %s (%s) in COmanage: %s",
+                    registry_id,
+                    entry.auth_email,
+                    error,
+                )
+                error_event = UserProcessEvent(
+                    event_type=EventType.ERROR,
+                    category=EventCategory.USER_RE_ENABLED,
+                    user_context=UserContext.from_user_entry(entry),
+                    message=(
+                        f"Failed to re-enable user {registry_id} in COmanage: {error}"
+                    ),
+                )
+                self.collector.collect(error_event)
+
+    def __emit_near_miss_events(
+        self,
+        entry: ActiveUserEntry,
+        domain_candidates: List[DomainCandidate],
+        name_candidates: List[RegistryPerson],
+    ) -> None:
+        """Emit near-miss diagnostic events for combined-signal and name-only
+        candidates.
+
+        Only emits events when a name match is present. Domain candidates
+        are only reported when they also appear in the name results
+        (combined signal). Pure domain-only matches are suppressed to
+        avoid noise from large institutions.
+
+        Args:
+          entry: the active user entry being processed
+          domain_candidates: candidates found via domain-aware lookup
+          name_candidates: candidates found via name-based lookup
+        """
+        # Build sets of registry IDs (or object ids) for overlap detection
+        domain_person_ids: set[str] = set()
+        for dc in domain_candidates:
+            pid = dc.person.registry_id() or str(id(dc.person))
+            domain_person_ids.add(pid)
+
+        name_person_ids: set[str] = set()
+        for person in name_candidates:
+            pid = person.registry_id() or str(id(person))
+            name_person_ids.add(pid)
+
+        combined_ids = domain_person_ids & name_person_ids
+
+        # Determine summary category for logging
+        if combined_ids:
+            category = EventCategory.COMBINED_NEAR_MISS
+        else:
+            category = EventCategory.NAME_NEAR_MISS
+
+        user_context = UserContext.from_user_entry(entry)
+
+        # Emit events only for domain candidates that also matched by name
+        for dc in domain_candidates:
+            pid = dc.person.registry_id() or str(id(dc.person))
+            if pid not in combined_ids:
+                continue  # Skip domain-only matches
+            event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.COMBINED_NEAR_MISS,
+                user_context=user_context,
+                message=(
+                    f"Combined near-miss: candidate email={dc.matched_email}, "
+                    f"name={dc.person.primary_name}, "
+                    f"registry_id={dc.person.registry_id()}, "
+                    f"query_domain={dc.query_domain}, "
+                    f"candidate_domain={dc.candidate_domain}, "
+                    f"parent_domain={dc.parent_domain}"
+                ),
+                action_needed="review_potential_duplicate",
+            )
+            self.collector.collect(event)
+
+        # Emit events for name-only candidates (not already covered by combined)
+        for person in name_candidates:
+            pid = person.registry_id() or str(id(person))
+            if pid in domain_person_ids:
+                continue  # Already emitted as combined candidate
+            candidate_email = (
+                person.email_address.mail if person.email_address else "N/A"
+            )
+            event = UserProcessEvent(
+                event_type=EventType.ERROR,
+                category=EventCategory.NAME_NEAR_MISS,
+                user_context=user_context,
+                message=(
+                    f"Name near-miss: candidate email={candidate_email}, "
+                    f"name={person.primary_name}, "
+                    f"registry_id={person.registry_id()}"
+                ),
+                action_needed="review_potential_duplicate",
+            )
+            self.collector.collect(event)
+
+        log.info(
+            "Near-miss candidates found for %s: %d combined, %d name-only, category=%s",
+            entry.email,
+            len(combined_ids),
+            len(name_candidates) - len(combined_ids),
+            category.value,
+        )
+
     def __add_to_registry(self, *, user_entry: UserEntry) -> List[Identifier]:
         """Adds a user to the registry using the user entry data.
+
+        When both auth_email and contact email are available and distinct,
+        passes both to RegistryPerson.create() so the skeleton has a
+        higher chance of matching the IdP-returned email during claim.
 
         Note: the comanage API was not returning any identifiers last checked
 
@@ -598,38 +1410,22 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         the list of identifiers for the new registry record
         """
         assert user_entry.auth_email, "user entry must have auth email"
+
+        # Determine email(s) to pass to skeleton creation
+        email: str | list[str] = user_entry.auth_email
+        if user_entry.email and user_entry.email != user_entry.auth_email:
+            email = [user_entry.auth_email, user_entry.email]
+
         identifier_list = self.__env.user_registry.add(
             RegistryPerson.create(
                 firstname=user_entry.first_name,
                 lastname=user_entry.last_name,
-                email=user_entry.auth_email,
+                email=email,
                 coid=self.__env.user_registry.coid,
             )
         )
 
         return identifier_list
-
-    def __get_registry_id(self, person_list: List[RegistryPerson]) -> Optional[str]:
-        """Gets the registry ID for a list of RegistryPerson objects with the
-        same email address.
-
-        Should only have one registry ID.
-
-        Args:
-        person_list: list of person objects representing "same" person
-        Returns:
-        registry ID from person object. None if none is found.
-        """
-        registered = {
-            person.registry_id() for person in person_list if person.registry_id()
-        }
-        if not registered:
-            return None
-        if len(registered) > 1:
-            log.error("More than one registry ID found: %s", registered)
-            return None
-
-        return registered.pop()
 
     def __get_creation_date(
         self, person_list: List[RegistryPerson]
@@ -664,11 +1460,15 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
         queue.apply(self)
 
         claimed_process = ClaimedUserProcess(
-            environment=self.__env, claimed_queue=self.__claimed_queue
+            environment=self.__env,
+            claimed_queue=self.__claimed_queue,
+            collector=self.collector,
         )
         claimed_process.execute(self.__claimed_queue)
 
-        unclaimed_process = UnclaimedUserProcess(self.__env.notification_client)
+        unclaimed_process = UnclaimedUserProcess(
+            self.__env.notification_client, self.collector
+        )
         unclaimed_process.execute(self.__unclaimed_queue)
 
 
@@ -676,7 +1476,18 @@ class UserProcess(BaseUserProcess[UserEntry]):
     """Defines the main process for handling directory user entries, which
     splits the queue into active and inactive sub-queues."""
 
-    def __init__(self, environment: UserProcessEnvironment) -> None:
+    def __init__(
+        self,
+        environment: UserProcessEnvironment,
+        collector: UserEventCollector,
+    ) -> None:
+        """Initialize the user process.
+
+        Args:
+            environment: The user process environment
+            collector: Event collector for capturing events
+        """
+        super().__init__(collector)
         self.__active_queue: UserQueue[ActiveUserEntry] = UserQueue()
         self.__inactive_queue: UserQueue[UserEntry] = UserQueue()
         self.__env = environment
@@ -688,16 +1499,16 @@ class UserProcess(BaseUserProcess[UserEntry]):
         Args:
           entry: the user entry
         """
-        if entry.active:
-            if not entry.auth_email:
-                log.info("Ignoring active user with no auth email: %s", entry.email)
-                return
+        if not entry.active:
+            self.__inactive_queue.enqueue(entry)
+            return
 
-            if isinstance(entry, ActiveUserEntry):
-                self.__active_queue.enqueue(entry)
-                return
+        if not entry.auth_email:
+            log.info("Ignoring active user with no auth email: %s", entry.email)
+            return
 
-        self.__inactive_queue.enqueue(entry)
+        if isinstance(entry, ActiveUserEntry):
+            self.__active_queue.enqueue(entry)
 
     def execute(self, queue: UserQueue[UserEntry]) -> None:
         """Splits the queue into active and inactive queues of entries, and
@@ -709,5 +1520,5 @@ class UserProcess(BaseUserProcess[UserEntry]):
         log.info("**Processing directory entries")
         queue.apply(self)
 
-        ActiveUserProcess(self.__env).execute(self.__active_queue)
-        InactiveUserProcess().execute(self.__inactive_queue)
+        ActiveUserProcess(self.__env, self.collector).execute(self.__active_queue)
+        InactiveUserProcess(self.__env, self.collector).execute(self.__inactive_queue)

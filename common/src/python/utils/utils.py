@@ -1,11 +1,6 @@
 """Utility functions."""
 
-import logging
 from typing import Any, Dict, List, MutableMapping, Optional, Tuple
-
-from configs.ingest_configs import FormProjectConfigs
-
-log = logging.getLogger(__name__)
 
 
 def parse_string_to_list(
@@ -29,23 +24,6 @@ def parse_string_to_list(
     return [x.strip() for x in input_str.split(delimiter)]
 
 
-def load_form_ingest_configurations(config_file_path: str) -> FormProjectConfigs:
-    """Load the form module configs from the configs file.
-
-    Args:
-      config_file_path: the form module configs file path
-
-    Returns:
-      FormProjectConfigs
-
-    Raises:
-      ValidationError if failed to load the configs file
-    """
-
-    with open(config_file_path, mode="r", encoding="utf-8-sig") as configs_file:
-        return FormProjectConfigs.model_validate_json(configs_file.read())
-
-
 def flatten_dict(
     dictionary: MutableMapping, parent_key: str = "", separator: str = "."
 ) -> Dict[str, Any]:
@@ -67,3 +45,30 @@ def flatten_dict(
         else:
             items.append((new_key, value))
     return dict(items)
+
+
+def filter_include_exclude(
+    in_list: List[str], include: Optional[str] = None, exclude: Optional[str] = None
+) -> List[str]:
+    """Filters the given list with the provided include/exclude strings.
+
+    Args:
+        in_list: List/set to filter
+        include: Comma-delimited string of fields to include
+        exclude: Comma-delimited string of fields to exclude
+
+    Returns:
+        filtered set
+    """
+    s_include = set(parse_string_to_list(include))
+    s_exclude = set(parse_string_to_list(exclude))
+
+    if (s_include and s_exclude) and s_include.intersection(s_exclude):
+        raise ValueError("Include and exclude lists cannot overlap")
+
+    if s_include:
+        return [adcid for adcid in in_list if adcid in s_include]
+    if s_exclude:
+        return [adcid for adcid in in_list if adcid not in s_exclude]
+
+    return in_list

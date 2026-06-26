@@ -2,9 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.2.1
+Fixes loading the input file
 
-* tbd
+## 1.2.0
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
+## 1.1.4
+* Rebuilt for ssm-parameter-store update
+* Refactors role assignment for groups.
+* "Pipeline ADCIDs" are no longer "centers".
 
 ## 1.1.1
 

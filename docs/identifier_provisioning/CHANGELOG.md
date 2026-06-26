@@ -2,9 +2,31 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.3.0
+## 2.2.2, 2.2.3
+* Fixes a bug in reporting CSV column header errors
+  
+## 2.2.1
+* Adds enrollment project URL to transfer request notification
+  
+## 2.2.0
+* Rebuilt for log file naming format update
+  
+## 2.1.0
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+ 
+## 2.0.2
+* Updates module pattern to support B1a ingest
+* Bug fixes and improvements
+
+## 2.0.1
+* Rebuilt for reset error log content in read failure
+
+## 2.0.0
+* Rebuilt for ssm-parameter-store update
+* Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
 * Updates to use new identifier lambda functions with restructured identifiers database
 * Updates error metadata to include date and naccid
+* Updates processing participant transfer requests
   
 ## 1.2.7
 * Rebuilding to call identifier lambda function alias depending on request mode

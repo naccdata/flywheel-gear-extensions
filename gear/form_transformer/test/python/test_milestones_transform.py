@@ -3,15 +3,17 @@
 import json
 from typing import Any, Dict, Optional, Tuple
 
+from configs.ingest_configs import FormProjectConfigs
 from form_csv_app.main import CSVTransformVisitor
-from keys.keys import FieldNames, SysErrorCodes
+from keys.keys import SysErrorCodes
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocess_errors,
 )
 from preprocess.preprocessor import FormPreprocessor
 from test_mocks.mock_configs import milestone_ingest_configs
-from test_mocks.mock_flywheel import MockProject
+from test_mocks.mock_flywheel import MockProjectAdaptor
 from test_mocks.mock_forms_store import MockFormsStore
 from transform.transformer import (
     FieldTransformations,
@@ -21,7 +23,7 @@ from transform.transformer import (
 
 def create_mlst_visitor(
     transform_schema: Optional[Dict[str, Any]] = None,
-) -> Tuple[CSVTransformVisitor, MockProject, MockFormsStore]:
+) -> Tuple[CSVTransformVisitor, MockProjectAdaptor, MockFormsStore]:
     """Create a visitor with some default/consistent values for testing.
 
     Returns the visitor, mocked project, and mocked form store.
@@ -52,10 +54,16 @@ def create_mlst_visitor(
         transformer_factory = TransformerFactory(FieldTransformations())
 
     form_store = MockFormsStore(date_field=date_field)
-    project = MockProject(label="mlst-project")
+    project = MockProjectAdaptor(label="mlst-project")
+
+    form_configs = FormProjectConfigs(
+        primary_key=FieldNames.NACCID,
+        accepted_modules=[module.upper()],
+        module_configs={module.upper(): module_configs},
+    )
 
     preprocessor = FormPreprocessor(
-        primary_key="naccid",
+        form_configs=form_configs,
         forms_store=form_store,
         module=module,
         module_configs=module_configs,
@@ -103,7 +111,7 @@ def create_milestones_record(data: Dict[str, Any]):
     return record
 
 
-def get_qc_errors(project: MockProject):
+def get_qc_errors(project: MockProjectAdaptor):
     """Get the first QC error from mock project.
 
     Args:
@@ -111,12 +119,12 @@ def get_qc_errors(project: MockProject):
     """
     # tests are designed to only expect 1 error log but there
     # will often be multiple in real scenarios
-    error_logs = {
-        k: v for k, v in project.files.items() if k.endswith("_qc-status.log")
-    }
+    error_logs = [
+        file for file in project.files if file.name.endswith("_qc-status.log")
+    ]
     assert error_logs
 
-    error_file = list(error_logs.values())[0]  # noqa: RUF015
+    error_file = error_logs[0]
     return error_file.info["qc"]["form-transformer"]["validation"]["data"]
 
 

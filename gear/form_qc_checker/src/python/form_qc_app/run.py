@@ -4,7 +4,8 @@ import logging
 import sys
 from typing import Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from configs.ingest_configs import load_form_ingest_configurations
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -21,8 +22,7 @@ from redcap_api.redcap_connection import (
     REDCapConnectionError,
     REDCapReportConnection,
 )
-from s3.s3_client import S3BucketReader
-from utils.utils import load_form_ingest_configurations
+from s3.s3_bucket import S3BucketInterface
 
 from form_qc_app.main import run
 
@@ -39,7 +39,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         config_input: InputFileWrapper,
         redcap_con: REDCapReportConnection,
-        s3_client: S3BucketReader,
+        s3_client: S3BucketInterface,
         supplement_input: Optional[InputFileWrapper] = None,
     ):
         """
@@ -60,7 +60,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "FormQCCheckerVisitor":
         """Creates a form-qc-checker execution visitor.
 
@@ -103,7 +103,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         except ParameterError as error:
             raise GearExecutionError(f"Parameter error: {error}") from error
 
-        s3_client = S3BucketReader.create_from_environment(rules_s3_bucket)
+        s3_client = S3BucketInterface.create_from_environment(rules_s3_bucket)
         if not s3_client:
             raise GearExecutionError(f"Unable to access S3 bucket {rules_s3_bucket}")
 
@@ -121,7 +121,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             supplement_input=supplement_input,
         )
 
-    def run(self, context: GearToolkitContext):
+    def run(self, context: GearContext):
         """Runs the form-qc-checker app.
 
         Args:
@@ -131,7 +131,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
         assert context, "Gear context required"
 
         admin_group = self.admin_group(
-            admin_id=context.config.get("admin_group", DefaultValues.NACC_GROUP_ID)
+            admin_id=context.config.opts.get("admin_group", DefaultValues.NACC_GROUP_ID)
         )
 
         try:
@@ -145,6 +145,7 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
             ) from error
 
         run(
+            gear_name=self.get_gear_name(context, "form-qc-checker"),
             client_wrapper=self.client,
             input_wrapper=self.__file_input,
             s3_client=self.__s3_client,

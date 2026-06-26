@@ -2,7 +2,18 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.2.0
+## 2.1.1
+Sets status and legacy fields in the enrollment record
+
+## 2.1.0
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
+## 2.0.1
+* Supports having study suffix in retrospective-form project label
+  
+## 2.0.0
+* Rebuilt for ssm-parameter-store update
+* Changes to use the ADCID from the parent project custom info for the pipeline ADCID. Fails if the ADCID is not set.
 * Updates to use new identifier lambda functions with restructured identifiers database
   
 ## 1.1.6

@@ -7,6 +7,7 @@ validator) for validating the inputs.
 
 import json
 import logging
+from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Optional
 
@@ -14,22 +15,23 @@ from centers.nacc_group import NACCGroup
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearExecutionError,
     InputFileWrapper,
 )
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, MetadataKeys
+from nacc_common.error_models import FileErrorList, GearTags
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
 )
-from outputs.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
 from redcap_api.redcap_connection import REDCapReportConnection
-from s3.s3_client import S3BucketReader
+from s3.s3_bucket import S3BucketInterface
 
 from form_qc_app.datastore import DatastoreHelper
 from form_qc_app.definitions import DefinitionException, DefinitionsLoader
@@ -43,7 +45,7 @@ log = logging.getLogger(__name__)
 
 def update_input_file_qc_status(
     *,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     gear_name: str,
     input_wrapper: InputFileWrapper,
     file: FileEntry,
@@ -70,20 +72,24 @@ def update_input_file_qc_status(
         data=errors.model_dump(by_alias=True) if errors is not None else None,
     )
 
-    fail_tag = f"{gear_name}-FAIL"
-    pass_tag = f"{gear_name}-PASS"
-    new_tag = f"{gear_name}-{status_str}"
+    # set/update the validation timestamp in file.info
+    timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
+    gear_context.metadata.update_file_metadata(
+        input_wrapper.file_input,
+        container_type=gear_context.config.destination["type"],
+        info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
+    )
 
-    if file.tags:
-        if fail_tag in file.tags:
-            file.delete_tag(fail_tag)
-        if pass_tag in file.tags:
-            file.delete_tag(pass_tag)
+    gear_tags = GearTags(gear_name=gear_name)
+    updated_tags = gear_tags.update_tags(tags=file.tags, status=status_str)
+    gear_context.metadata.update_file_metadata(
+        input_wrapper.file_input,
+        tags=updated_tags,
+        container_type=gear_context.config.destination["type"],
+    )
 
-    # file.add_tag(new_tag)
-    gear_context.metadata.add_file_tags(input_wrapper.file_input, tags=new_tag)
+    log.info("QC check status for file %s : %s [%s]", file.name, status_str, timestamp)
 
-    log.info("QC check status for file %s : %s", file.name, status_str)
     return True
 
 
@@ -105,11 +111,12 @@ def load_supplement_input(
 
 def run(  # noqa: C901
     *,
+    gear_name: str,
     client_wrapper: ClientWrapper,
     input_wrapper: InputFileWrapper,
-    s3_client: S3BucketReader,
+    s3_client: S3BucketInterface,
     admin_group: NACCGroup,
-    gear_context: GearToolkitContext,
+    gear_context: GearContext,
     form_project_configs: FormProjectConfigs,
     redcap_connection: Optional[REDCapReportConnection] = None,
     supplement_input: Optional[InputFileWrapper] = None,
@@ -118,6 +125,7 @@ def run(  # noqa: C901
     the appropriate file processor.
 
     Args:
+        gear_name: The gear name
         client_wrapper: Flywheel SDK client wrapper
         input_wrapper: Gear input file wrapper
         s3_client: boto3 client for QC rules S3 bucket
@@ -146,11 +154,11 @@ def run(  # noqa: C901
 
     if file_type == "json":
         separator = "_"
-        allowed = "a-z"
+        allowed = DefaultValues.MODULE_PATTERN.replace("_", "")
         split = None
     else:
         separator = "-"
-        allowed = "a-z_"
+        allowed = DefaultValues.MODULE_PATTERN
         split = "_"
 
     module = input_wrapper.get_module_name_from_file_suffix(
@@ -184,15 +192,10 @@ def run(  # noqa: C901
             f"Failed to find the configurations for module {module}"
         )
 
-    legacy_label = (
-        form_project_configs.legacy_project_label
-        if form_project_configs.legacy_project_label
-        else DefaultValues.LEGACY_PRJ_LABEL
-    )
     pk_field = form_project_configs.primary_key.lower()
     module_configs: ModuleConfigs = form_project_configs.module_configs.get(module)  # type: ignore
     date_field = module_configs.date_field
-    strict = gear_context.config.get("strict_mode", True)
+    strict = gear_context.config.opts.get("strict_mode", True)
 
     error_writer = ListErrorWriter(
         container_id=file_id, fw_path=proxy.get_lookup_path(file)
@@ -202,11 +205,11 @@ def run(  # noqa: C901
         s3_client=s3_client,
         error_writer=error_writer,
         module_configs=module_configs,
+        project=project_adaptor,
         strict=strict,
     )
 
     error_store = REDCapErrorStore(redcap_con=redcap_connection)
-    gear_name = gear_context.manifest.get("name", "form-qc-checker")
 
     file_processor: FileProcessor
     if file_type == "json":
@@ -267,23 +270,25 @@ def run(  # noqa: C901
         raise GearExecutionError(error) from error
 
     gid = file.parents.group
-    adcid = admin_group.get_adcid(gid)
-    if adcid is None:
-        raise GearExecutionError(f"Failed to find ADCID for group: {gid}")
+    try:
+        adcid = project_adaptor.get_pipeline_adcid()
+    except ProjectError as error:
+        raise GearExecutionError(error) from error
 
     datastore = DatastoreHelper(
         pk_field=pk_field,
         proxy=proxy,
         adcid=adcid,
+        module=module,
         group_id=gid,
         project=project_adaptor,
         admin_group=admin_group,
         module_configs=module_configs,
-        legacy_label=legacy_label,
+        form_project_configs=form_project_configs,
     )
 
     try:
-        qual_check = QualityCheck(pk_field, schema, strict, datastore)
+        qual_check = QualityCheck(pk_field, schema, strict, datastore)  # type: ignore
     except QualityCheckException as error:
         raise GearExecutionError(f"Failed to initialize QC module: {error}") from error
 

@@ -11,7 +11,7 @@ from redcap_api.redcap_connection import REDCapReportConnection
 def redcap_email_list():
     """Fixture for REDCapEmailList."""
     redcap_con = MockREDCapReportConnection(
-        token="dummy-token", url="dummy-url", report_id=0
+        token="dummy-token", url="dummy-url", report_id="0"
     )
     return REDCapEmailList(redcap_con=redcap_con, email_key="email")
 

@@ -7,7 +7,7 @@ from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -50,7 +50,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "LegacySanityCheckVisitor":
         """Creates a Legacy Sanity Check execution visitor.
@@ -76,9 +76,9 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         assert form_configs_input, "missing expected input, form_configs_file"
 
         config = context.config
-        ingest_project_label = config.get("ingest_project_label", "ingest-form")
-        sender_email = config.get("sender_email", "nacchelp@uw.edu")
-        target_emails = config.get("target_emails", "nacc_dev@uw.edu")
+        ingest_project_label = config.inputs.get("ingest_project_label", "ingest-form")
+        sender_email = config.inputs.get("sender_email", "nacchelp@uw.edu")
+        target_emails = config.inputs.get("target_emails", "nacc_dev@uw.edu")
         target_emails = [x.strip() for x in target_emails.split(",")]
 
         return LegacySanityCheckVisitor(
@@ -90,7 +90,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             target_emails=target_emails,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Run the Legacy Sanity Checker."""
         file_id = self.__file_input.file_id
         try:
@@ -104,7 +104,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
             container_id=file_id, fw_path=self.proxy.get_lookup_path(file)
         )
 
-        gear_name = context.manifest.get("name", "legacy-sanity-check")
+        gear_name = self.get_gear_name(context, "legacy-sanity-check")
 
         form_configs = None
         with open(self.__form_configs_input.filepath, mode="r") as fh:
@@ -121,9 +121,10 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
         project = ProjectAdaptor(project=p_project, proxy=self.proxy)
 
         try:
-            project_label = DefaultValues.METADATA_PRJ_LBL
             metadata_project = ProjectAdaptor.create(
-                proxy=self.proxy, group_id=project.group, project_label=project_label
+                proxy=self.proxy,
+                group_id=project.group,
+                project_label=DefaultValues.METADATA_PRJ_LBL,
             )
 
             prj_metadata = metadata_project.get_info()
@@ -134,7 +135,7 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 )
                 return
 
-            adrc = metadata_project.get_custom_project_info(
+            """ adrc = metadata_project.get_custom_project_info(
                 f"studies:{DefaultValues.PRIMARY_STUDY}"
             )
 
@@ -149,17 +150,25 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 context.metadata.add_file_tags(
                     self.__file_input.file_input, tags=gear_name
                 )
-                return
+                return """
 
             # all active centers should have a corresponding ingest project
             # raise error if group/project not found
-            project_label = self.__ingest_project_label
+            ingest_prj_label = self.__ingest_project_label
+            if len(project.label) > len(DefaultValues.LEGACY_PRJ_LABEL):
+                ingest_prj_label = (
+                    self.__ingest_project_label
+                    + project.label[len(DefaultValues.LEGACY_PRJ_LABEL) :]
+                )
+
             ingest_project = ProjectAdaptor.create(
-                proxy=self.proxy, group_id=project.group, project_label=project_label
+                proxy=self.proxy, group_id=project.group, project_label=ingest_prj_label
             )
+            log.info("Ingest project %s/%s", project.group, ingest_project.label)
         except ProjectError as error:
             raise GearExecutionError(
-                f"Could not find {project.group}/{project_label}: {error}"
+                "Error in retrieving ingest project "
+                f"{project.group}/{ingest_prj_label}: {error}"
             ) from error
 
         form_store = FormsStore(ingest_project=ingest_project, legacy_project=project)

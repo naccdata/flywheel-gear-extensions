@@ -1,16 +1,16 @@
 # Identifier Provisioning
 
-This gear provisions NACCIDs for data entered with Participant Enrollment and Transfer (PTENRL) forms.
+This gear provisions NACCIDs for data entered with Participant Enrollment and Transfer (ENROLL) forms.
 
 ## Processing
 
-The following diagrams describe the processing of the PTRENRL form data.
+The following diagrams describe the processing of the ENROLL form data.
 
 First, check that the module for the form is the right one, and then determine whether this is a new enrollment or transfer.
 
 ```mermaid
 graph TB
-    start((*)) -->module{module is\nPTENRL} -- no --> moduleerror((error))
+    start((*)) -->module{module is\nENROLL} -- no --> moduleerror((error))
     module -- yes --> enrltype{Is new\nenrollment?}
     enrltype -- yes --> newenrollment(New Enrollment)    
     enrltype -- no --> transfer(Transfer)
@@ -67,8 +67,6 @@ sequenceDiagram
 ### Transfer
 
 A transfer is reported by the receiving center.
-The form has a slight ambiguity about whether it is a transfer out of a center or into a center.
-
 When a form represents a transfer into a center, the goal is to
 
 * identify the participant by NACCID
@@ -98,3 +96,14 @@ graph TB
 style start fill:#000, stroke:#000
 ```
 
+
+## File Metadata and Tagging
+
+After processing, the gear updates the input file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on whether provisioning succeeded
+   - `data`: List of `FileError` objects with error details if any errors occurred during provisioning
+
+2. **File Tag**: The gear name (e.g., `"identifier-provisioning"`) is added as a simple tag to the input file, indicating the file has been processed by this gear.

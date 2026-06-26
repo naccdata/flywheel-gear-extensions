@@ -3,7 +3,7 @@
 import json
 import logging
 from json import JSONDecodeError
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues, MetadataKeys
@@ -77,10 +77,10 @@ class FormsStore:
         search_col: str,
         search_val: Optional[str] | Optional[List[str]] = None,
         search_op: Optional[SearchOperator] | Optional[str] = None,
-        qc_gear: Optional[str] = None,
+        qc_gear: Optional[str | List[str]] = None,
         extra_columns: Optional[List[str]] = None,
         find_all: bool = False,
-    ) -> Optional[List[Dict[str, str]]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         """Retrieve previous visit records for the specified subject/module.
 
         Args:
@@ -90,7 +90,7 @@ class FormsStore:
             search_col: field to search
             search_val: value(s) to search
             search_op: search operator
-            qc_gear (optional): specify qc_gear name to retrieve records that passed QC
+            qc_gear (optional): specify qc_gear names to retrieve records that passed QC
             extra_columns (optional): list of extra columns to return if any
             find_all (optional): bypass search and return all visits for the module
 
@@ -163,7 +163,14 @@ class FormsStore:
             filters += f",{search_col}{search_op}{search_val}"
 
         if qc_gear:
-            filters += f",file.info.qc.{qc_gear}.validation.state=PASS"
+            # filters += f",file.info.qc.{qc_gear}.validation.state=PASS"
+            if isinstance(qc_gear, str):
+                qc_gear = [qc_gear]
+
+            tags = []
+            for gear in qc_gear:
+                tags.append(f"{gear}-PASS")
+            filters += f",file.tags=|[{','.join(tags)}]"
 
         log.info("Searching for visits matching with filters: %s", filters)
 
@@ -260,19 +267,20 @@ class FormsStore:
         )
 
         if not visits:
+            log.info("No matches found for %s", subject_lbl)
             return None
 
         return sorted(visits, key=lambda d: d[orderby_col], reverse=True)
 
-    def get_visit_data(self, *, file_name: str, acq_id: str) -> dict[str, str] | None:
-        """Read the previous visit file and convert to python dictionary.
+    def get_visit_data(self, *, file_name: str, acq_id: str) -> Dict[str, Any] | None:
+        """Read the visit file and convert to python dictionary.
 
         Args:
-            file_name: Previous visit file name
-            acq_id: Previous visit acquisition id
+            file_name: visit file name
+            acq_id: visit acquisition id
 
         Returns:
-            dict[str, str] | None: Previous visit data or None
+            dict[str, str] | None: visit data or None
         """
         visit_data = None
 
@@ -281,10 +289,8 @@ class FormsStore:
 
         try:
             visit_data = json.loads(file_content)
-            log.info("Found previous visit file: %s", file_name)
+            log.info("Found visit file: %s", file_name)
         except (JSONDecodeError, TypeError, ValueError) as error:
-            log.error(
-                "Failed to read the previous visit file - %s : %s", file_name, error
-            )
+            log.error("Failed to read the visit file - %s : %s", file_name, error)
 
         return visit_data

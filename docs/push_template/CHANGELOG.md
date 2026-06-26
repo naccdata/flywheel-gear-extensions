@@ -2,8 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 2.1.1
 
+* Fixes issue where `None` file hashes on both source and destination were causing files to not get copied over 
+
+## 2.1.0
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
+## 2.0.2
+* Moves the `TemplateProject` class’s static `__copy_file` method to `utils.files.copy_file` so other gears can access that functionality
+
+## 2.0.1
+* Rebuilt for ssm-parameter-store update
+  
 ## 2.0.0
 
 * Changes template project label matching projects to use label w/o the `-template` suffix and no reorganization.

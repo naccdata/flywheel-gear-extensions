@@ -3,26 +3,33 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
-from configs.ingest_configs import ErrorLogTemplate, FormProjectConfigs
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
+from configs.ingest_configs import FormProjectConfigs
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+    MetadataCleanupFlag,
+)
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
+)
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
-    VisitInfo,
 )
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
-from keys.keys import DefaultValues, FieldNames, MetadataKeys
-from outputs.error_logger import (
-    MetadataCleanupFlag,
-    update_error_log_and_qc_metadata,
+from keys.keys import DefaultValues
+from nacc_common.data_identification import (
+    DataIdentification,
+    EmptyFieldError,
+    InvalidDateError,
 )
-from outputs.error_models import JSONLocation, VisitKeys
+from nacc_common.error_models import JSONLocation
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -31,6 +38,7 @@ from outputs.errors import (
     previous_visit_failed_error,
     system_error,
 )
+from submissions.models import VisitInfo
 
 from form_qc_app.definitions import DefinitionsLoader
 from form_qc_app.validate import RecordValidator
@@ -64,7 +72,7 @@ class FileProcessor(ABC):
         self._gear_name = gear_name
         self._module_configs = self._form_configs.module_configs.get(self._module)
         self._req_fields = self._set_required_fields()
-        self._errorlog_template = self._set_error_log_template()
+        self._errorlog_template = ErrorLogTemplate()
 
     @abstractmethod
     def validate_input(
@@ -131,17 +139,6 @@ class FileProcessor(ABC):
 
         return req_fields
 
-    def _set_error_log_template(self) -> ErrorLogTemplate:
-        """Get the error log naming template from module configs.
-
-        Returns:
-            ErrorLogTemplate: error log template for the module
-        """
-        if self._module_configs and self._module_configs.errorlog_template:
-            return self._module_configs.errorlog_template
-
-        return ErrorLogTemplate(id_field=FieldNames.PTID, date_field=self._date_field)
-
     def update_visit_error_log(
         self,
         *,
@@ -163,15 +160,31 @@ class FileProcessor(ABC):
         Returns:
             bool: True if error log updated successfully, else False
         """
-        error_log_name = self._errorlog_template.instantiate(
-            record=input_record, module=self._module
+        # Create DataIdentification from CSV record
+        try:
+            data_id = DataIdentification.from_form_record(
+                input_record, self._date_field
+            )
+        except (EmptyFieldError, InvalidDateError) as error:
+            log.warning(
+                "Failed to create DataIdentification for record %s, %s: %s",
+                input_record.get(self._pk_field),
+                input_record.get(self._date_field),
+                error,
+            )
+            return False
+
+        # Use QCStatusLogManager to update QC log (handles both new and legacy formats)
+        qc_manager = QCStatusLogManager(
+            error_log_template=self._errorlog_template,
+            visit_annotator=FileVisitAnnotator(self._project),
         )
 
-        if not error_log_name or not update_error_log_and_qc_metadata(
-            error_log_name=error_log_name,
-            destination_prj=self._project,
+        if not qc_manager.update_qc_log(
+            visit_keys=data_id,
+            project=self._project,
             gear_name=self._gear_name,
-            state="PASS" if qc_passed else "FAIL",
+            status="PASS" if qc_passed else "FAIL",
             errors=self._error_writer.errors(),
             reset_qc_metadata=reset_qc_metadata,
         ):
@@ -250,31 +263,25 @@ class JSONFileProcessor(FileProcessor):
             # same file but the visit date is different from previously recorded value
             if same_file:
                 log.warning(
-                    "In {subject.label}/{module}, visit date updated from %s to %s",
-                    failed_visit.visitdate,
-                    visitdate,
+                    f"In {self.__subject.label}/{self._module} visit date {visitdate} "
+                    f"is different from failed record date {failed_visit.visitdate}"
                 )
                 return "SAME"
 
             # has a failed previous visit
             if failed_visit.visitdate < visitdate:
+                visit_keys = DataIdentification.from_form_record_safe(
+                    record=self.__input_record, date_field=self._date_field
+                )
                 self._error_writer.write(
                     previous_visit_failed_error(
                         prev_visit=failed_visit.filename,
-                        visit_keys=VisitKeys.create_from(
-                            record=self.__input_record, date_field=self._date_field
-                        ),
+                        visit_keys=visit_keys,
                     )
                 )
                 return "DIFFERENT"
 
         return "NONE"
-
-    def __update_validated_timestamp(self) -> None:
-        """Set/update the validation timestamp in file.info."""
-        timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
-        self.__file_entry = self.__file_entry.reload()
-        self.__file_entry.update_info({MetadataKeys.VALIDATED_TIMESTAMP: timestamp})
 
     def validate_input(
         self, *, input_wrapper: InputFileWrapper
@@ -309,12 +316,13 @@ class JSONFileProcessor(FileProcessor):
                 found_all = False
 
         if not found_all:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_data, date_field=self._date_field
+            )
             self._error_writer.write(
                 empty_field_error(
                     field=empty_fields,
-                    visit_keys=VisitKeys.create_from(
-                        record=input_data, date_field=self._date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return None
@@ -327,13 +335,14 @@ class JSONFileProcessor(FileProcessor):
                 f"{subject_lbl} in project {self._project.label}"
             )
             log.error(message)
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=input_data, date_field=self._date_field
+            )
             self._error_writer.write(
                 system_error(
                     message=message,
                     error_location=JSONLocation(key_path=self._pk_field),
-                    visit_keys=VisitKeys.create_from(
-                        record=input_data, date_field=self._date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             return None
@@ -419,14 +428,12 @@ class JSONFileProcessor(FileProcessor):
                     filename=self.__file_entry.name,
                     file_id=self.__file_entry.file_id,
                     visitdate=visitdate,
+                    visitnum=self.__input_record.get(FieldNames.VISITNUM),
                 )
                 self.__subject.set_last_failed_visit(self._module, visit_info)
             # reset failed visit metadata in Flywheel
             elif failed_visit == "SAME":
                 self.__subject.reset_last_failed_visit(self._module)
-
-            # update last validated timestamp in file.info metadata
-            self.__update_validated_timestamp()
 
         if not self.update_visit_error_log(
             input_record=self.__input_record, qc_passed=valid, reset_qc_metadata="GEAR"

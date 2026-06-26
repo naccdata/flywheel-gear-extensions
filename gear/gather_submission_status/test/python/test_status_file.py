@@ -1,23 +1,37 @@
 from csv import DictReader, DictWriter
 from io import StringIO
 
-from gather_submission_status_app.main import StatusRequest
+from data_requests.status_request import StatusRequest
 
 
 class TestSubmissionStatus:
-    def test_query(self):
-        query = StatusRequest(
-            adcid=0, naccid="NACC000000", study="adrc", modalities=["UDS", "LBD"]
-        )
+    def test_query_without_study(self):
+        query = StatusRequest(adcid=0, ptid="alpha00000")
         output_stream = StringIO()
-        writer = DictWriter(
-            output_stream, fieldnames=StatusRequest.model_fields, dialect="unix"
-        )
+        fieldnames = list(StatusRequest.model_fields.keys())
+        writer = DictWriter(output_stream, fieldnames=fieldnames, dialect="unix")
         writer.writeheader()
-        writer.writerow(query.model_dump())
+        writer.writerow(query.model_dump(exclude_none=True))
+
+        assert output_stream.getvalue() == ('"adcid","ptid"\n"0","alpha00000"\n')
+
+        output_stream.seek(0)
+        reader = DictReader(output_stream)
+        row = reader.__next__()
+        print(row)
+        row_query = StatusRequest.model_validate(row)
+        assert query == row_query
+
+    def test_query_with_study(self):
+        query = StatusRequest(adcid=0, ptid="alpha00000")
+        output_stream = StringIO()
+        fieldnames = ["adcid", "ptid", "study"]
+        writer = DictWriter(output_stream, fieldnames=fieldnames, dialect="unix")
+        writer.writeheader()
+        writer.writerow({"adcid": 0, "ptid": "alpha00000", "study": "adrc"})
 
         assert output_stream.getvalue() == (
-            '"adcid","naccid","study","modalities"\n"0","NACC000000","adrc","UDS,LBD"\n'
+            '"adcid","ptid","study"\n"0","alpha00000","adrc"\n'
         )
 
         output_stream.seek(0)
