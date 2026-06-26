@@ -1,49 +1,17 @@
-"""Integration tests for project mode end-to-end.
+"""Integration tests for the Center Form Export gear.
 
-Tests the CenterFormExportVisitor.run method with mocked Flywheel SDK
-components (group resolution, project resolution, subject iteration).
+Tests CenterFormExportVisitor.run with mocked Flywheel SDK components
+(group resolution, project resolution, subject iteration).
 
 Validates: Requirements 8.1, 8.3
 """
 
 import logging
-from contextlib import contextmanager
-from io import StringIO
 from unittest.mock import MagicMock, patch
 
 import pytest
 from center_form_export_app.run import CenterFormExportVisitor
-from gear_execution.gear_execution import ClientWrapper, GearExecutionError
-
-
-@pytest.fixture
-def mock_client() -> MagicMock:
-    """Create a mock ClientWrapper."""
-    return MagicMock(spec=ClientWrapper)
-
-
-@pytest.fixture
-def mock_proxy(mock_client: MagicMock) -> MagicMock:
-    """Create a mock FlywheelProxy returned by the client."""
-    proxy = MagicMock()
-    mock_client.get_proxy.return_value = proxy
-    return proxy
-
-
-@pytest.fixture
-def mock_context() -> MagicMock:
-    """Create a mock GearContext with open_output support."""
-    context = MagicMock()
-
-    @contextmanager
-    def fake_open_output(filename, mode="w", encoding="utf-8"):
-        buf = StringIO()
-        yield buf
-        context.output_files[filename] = buf.getvalue()
-
-    context.output_files = {}
-    context.open_output.side_effect = fake_open_output
-    return context
+from gear_execution.gear_execution import GearExecutionError
 
 
 def create_visitor(
@@ -53,6 +21,7 @@ def create_visitor(
     modules: set[str] | None = None,
     info_paths: list[str] | None = None,
     study_id: str = "adrc",
+    formver_split: bool = False,
 ) -> CenterFormExportVisitor:
     """Factory to create a CenterFormExportVisitor with test defaults."""
     if modules is None:
@@ -67,6 +36,7 @@ def create_visitor(
         info_paths=info_paths,
         modules=modules,
         study_id=study_id,
+        formver_split=formver_split,
     )
 
 
@@ -78,7 +48,7 @@ def create_mock_subject(label: str, subject_id: str) -> MagicMock:
     return subject
 
 
-class TestProjectModeErrorHandling:
+class TestErrorHandling:
     """Tests for graceful handling of missing groups, projects, and subjects.
 
     Validates: Requirements 3.4, 3.5, 3.6
@@ -151,7 +121,7 @@ class TestProjectModeErrorHandling:
         mock_context.open_output.assert_not_called()
 
 
-class TestProjectModeOutput:
+class TestOutput:
     """Tests for CSV output file production.
 
     Validates: Requirements 5.1, 5.2, 5.3
@@ -283,14 +253,14 @@ class TestProjectModeOutput:
         assert "skipping output for module FTLD" in caplog.text
 
 
-class TestProjectModeFormverSplit:
-    """Tests for formver_split=True output behavior in project mode.
+class TestFormverSplit:
+    """Tests for formver_split=True output behavior.
 
     When formver_split is enabled, the gear produces one CSV per
     (module, formver) pair instead of one CSV per module.
     """
 
-    def _build_visitor_with_formver_split(self, mock_client: MagicMock):
+    def _build_visitor(self, mock_client: MagicMock):
         return CenterFormExportVisitor(
             client=mock_client,
             group_id="test-group",
@@ -317,7 +287,7 @@ class TestProjectModeFormverSplit:
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
 
-        visitor = self._build_visitor_with_formver_split(mock_client)
+        visitor = self._build_visitor(mock_client)
 
         with patch(
             "center_form_export_app.run.ModuleDataGatherer"
@@ -365,7 +335,7 @@ class TestProjectModeFormverSplit:
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
 
-        visitor = self._build_visitor_with_formver_split(mock_client)
+        visitor = self._build_visitor(mock_client)
 
         with patch(
             "center_form_export_app.run.ModuleDataGatherer"
@@ -402,7 +372,7 @@ class TestProjectModeFormverSplit:
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
 
-        visitor = self._build_visitor_with_formver_split(mock_client)
+        visitor = self._build_visitor(mock_client)
 
         with patch(
             "center_form_export_app.run.ModuleDataGatherer"

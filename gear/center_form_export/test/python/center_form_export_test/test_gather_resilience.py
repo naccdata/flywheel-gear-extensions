@@ -1,4 +1,7 @@
-"""Property test for resilience of run_project_mode.
+"""Property test for resilience of data gathering.
+
+Verifies that the gathering loop processes all subject-module combinations
+even when individual gatherers raise errors.
 
 **Feature: center-form-export,
   Property 3: All subjects processed with resilience**
@@ -7,7 +10,7 @@
 
 from unittest.mock import Mock, patch
 
-from center_form_export_app.main import run_project_mode
+from center_form_export_app.main import run
 from data_requests.data_request import (
     DataRequestMatch,
     ModuleDataError,
@@ -39,7 +42,7 @@ def data_request_match_strategy() -> st.SearchStrategy[DataRequestMatch]:
     )
 
 
-def mock_gatherer_strategy(raises: bool, module_name: str) -> Mock:
+def mock_gatherer(raises: bool, module_name: str) -> Mock:
     """Create a mock ModuleDataGatherer that either succeeds or raises."""
     mock = Mock(spec=ModuleDataGatherer)
     mock.module_name = module_name
@@ -53,12 +56,12 @@ def mock_gatherer_strategy(raises: bool, module_name: str) -> Mock:
 MODULE_NAMES = ["UDS", "FTLD", "LBD"]
 
 
-class TestRunProjectModeResilience:
-    """Property tests for run_project_mode resilience.
+class TestGatherResilience:
+    """Property tests for data gathering resilience.
 
-    Verifies that run_project_mode always returns True regardless of
-    whether individual gatherers raise ModuleDataError, and that all
-    request-gatherer combinations are attempted.
+    Verifies that run() always returns True regardless of whether
+    individual gatherers raise ModuleDataError, and that all request-
+    gatherer combinations are attempted.
     """
 
     @given(
@@ -79,15 +82,12 @@ class TestRunProjectModeResilience:
         requests: list[DataRequestMatch],
         failure_mask: list[bool],
     ):
-        """run_project_mode always returns True regardless of gatherer
-        failures.
+        """run() always returns True regardless of gatherer failures.
 
-        **Feature: center-form-export,
-          Property 3: All subjects processed with resilience**
         **Validates: Requirements 4.2, 5.1**
         """
         gatherers = [
-            mock_gatherer_strategy(
+            mock_gatherer(
                 raises=failure_mask[i % len(failure_mask)],
                 module_name=MODULE_NAMES[i % len(MODULE_NAMES)],
             )
@@ -95,7 +95,7 @@ class TestRunProjectModeResilience:
         ]
 
         with patch("center_form_export_app.main.log"):
-            result = run_project_mode(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
+            result = run(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
 
         assert result is True
 
@@ -119,12 +119,10 @@ class TestRunProjectModeResilience:
     ):
         """All request-gatherer combinations are attempted even when some fail.
 
-        **Feature: center-form-export,
-          Property 3: All subjects processed with resilience**
         **Validates: Requirements 5.3, 5.4, 8.2**
         """
         gatherers = [
-            mock_gatherer_strategy(
+            mock_gatherer(
                 raises=failure_mask[i % len(failure_mask)],
                 module_name=MODULE_NAMES[i % len(MODULE_NAMES)],
             )
@@ -132,7 +130,7 @@ class TestRunProjectModeResilience:
         ]
 
         with patch("center_form_export_app.main.log"):
-            run_project_mode(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
+            run(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
 
         # Every gatherer should be called once for every request
         for gatherer in gatherers:
@@ -165,16 +163,14 @@ class TestRunProjectModeResilience:
         All gatherers raise for the first request but succeed for the rest.
         Verifies remaining subjects are still processed.
 
-        **Feature: center-form-export,
-          Property 3: All subjects processed with resilience**
         **Validates: Requirements 5.1, 5.4**
         """
         first_request = requests[0]
         gatherers: list = []
 
         for i in range(num_gatherers):
-            mock = Mock(spec=ModuleDataGatherer)
-            mock.module_name = MODULE_NAMES[i % len(MODULE_NAMES)]
+            m = Mock(spec=ModuleDataGatherer)
+            m.module_name = MODULE_NAMES[i % len(MODULE_NAMES)]
 
             def make_side_effect(req_to_fail):
                 def side_effect(req):
@@ -183,11 +179,11 @@ class TestRunProjectModeResilience:
 
                 return side_effect
 
-            mock.gather_request_data.side_effect = make_side_effect(first_request)
-            gatherers.append(mock)
+            m.gather_request_data.side_effect = make_side_effect(first_request)
+            gatherers.append(m)
 
         with patch("center_form_export_app.main.log"):
-            result = run_project_mode(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
+            result = run(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
 
         assert result is True
 
