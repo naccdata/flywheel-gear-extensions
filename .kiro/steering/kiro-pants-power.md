@@ -13,7 +13,7 @@ The power now supports intent-based parameters for simpler usage without needing
 
 ## MCP Configuration
 
-The power discovers the workspace folder from the `WORKSPACE_FOLDER` environment variable, which uses Kiro's `${workspaceFolder}` variable substitution to automatically resolve to the current workspace root.
+The power discovers the workspace folder automatically using MCP protocol roots (provided by Kiro at first tool call) or the process CWD as a fallback. No explicit `WORKSPACE_FOLDER` env var is needed.
 
 The MCP config in `.kiro/settings/mcp.json` should include:
 
@@ -23,14 +23,11 @@ The MCP config in `.kiro/settings/mcp.json` should include:
   "args": [
     "--from", "git+https://github.com/naccdata/kiro-pants-power",
     "pants-devcontainer-power"
-  ],
-  "env": {
-    "WORKSPACE_FOLDER": "${workspaceFolder}"
-  }
+  ]
 }
 ```
 
-If task agents encounter working directory errors, verify `WORKSPACE_FOLDER` is set in the MCP config `env` object.
+**Do NOT add a `WORKSPACE_FOLDER` env var to the config.** Kiro does not support `${workspaceFolder}` variable substitution in MCP env blocks. The power handles workspace discovery automatically via MCP roots and CWD fallback.
 
 ## Quick Reference
 
@@ -161,7 +158,8 @@ Use: container_rebuild tool   # Rebuild from scratch
 
 ### Working directory or path resolution errors
 
-- Verify `WORKSPACE_FOLDER` is set in the MCP config `env` object with value `"${workspaceFolder}"`
+- The power resolves workspace via MCP protocol roots (automatic) or CWD fallback
+- Ensure the MCP config does NOT include a `WORKSPACE_FOLDER` env var (Kiro doesn't support `${workspaceFolder}` substitution)
 - Reconnect the MCP server after config changes
 
 ### Test or lint failures
