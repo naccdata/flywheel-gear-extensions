@@ -91,21 +91,21 @@ Extract the "project mode" execution path from `gather_form_data` into a new sta
 - [x] 4. Checkpoint - Verify new gear builds and tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Revert gather_form_data to single-mode
-  - [ ] 5.1 Remove project-mode code from `gather_form_data/main.py`
+- [x] 5. Revert gather_form_data to single-mode
+  - [x] 5.1 Remove project-mode code from `gather_form_data/main.py`
     - Remove `ProjectModeConfig` class, `run_project_mode` function
     - Remove `pydantic` import, `DataRequestMatch`/`ModuleDataError`/`ModuleDataGatherer` imports (keep only `DataRequestVisitor`)
     - Retain `run()` function unchanged
     - _Requirements: 7.5, 7.6, 7.10_
 
-  - [ ] 5.2 Remove project-mode code from `gather_form_data/run.py`
+  - [x] 5.2 Remove project-mode code from `gather_form_data/run.py`
     - Remove `ProjectModeVisitor` class entirely
     - Remove mode dispatch logic from `main()` — simplify to: `engine = GearEngine().create_with_parameter_store(); engine.run(gear_type=GatherFormDataVisitor)`
     - Remove `sys` import, `ProjectModeConfig`/`run_project_mode` imports from `main`
     - Retain `_write_module_output`, `GatherFormDataVisitor`, and all their imports
     - _Requirements: 7.4, 7.7, 7.8, 7.10_
 
-  - [ ] 5.3 Remove project-mode config fields from `gather_form_data/manifest.json`
+  - [x] 5.3 Remove project-mode config fields from `gather_form_data/manifest.json`
     - Remove `execution_mode`, `group_id`, `project_name` config fields
     - Retain `formver_split`, `modules`, `study_id`, `include_derived`, `project_names`, `dry_run`, `apikey_path_prefix`
     - _Requirements: 7.1, 7.2, 7.3, 7.9_
@@ -116,24 +116,24 @@ Extract the "project mode" execution path from `gather_form_data` into a new sta
     - Delete `gear/gather_form_data/test/python/test_backward_compatibility.py`
     - _Requirements: 8.3, 8.4, 8.5_
 
-- [ ] 6. Checkpoint - Verify gather_form_data still builds and passes
+- [x] 6. Checkpoint - Verify gather_form_data still builds and passes
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Documentation
-  - [ ] 7.1 Update `docs/gather_form_data/index.md`
+- [x] 7. Documentation
+  - [x] 7.1 Update `docs/gather_form_data/index.md`
     - Remove all references to project mode, `execution_mode`, `group_id`, `project_name`
     - Describe participant-list mode as the sole execution behavior
     - Document required `input_file` CSV input and all remaining config fields with types and defaults
     - _Requirements: 9.1, 9.2_
 
-  - [ ] 7.2 Create `docs/center_form_export/index.md`
+  - [x] 7.2 Create `docs/center_form_export/index.md`
     - Describe gear purpose: center-level export of all subjects in a project without a participant list
     - List all config fields with types and default values
     - Document output filename patterns for both `formver_split` modes
     - Distinguish from `gather_form_data` which requires a participant list CSV
     - _Requirements: 9.3, 9.4, 9.5_
 
-- [ ] 8. Final checkpoint - Full quality check
+- [x] 8. Final checkpoint - Full quality check
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
