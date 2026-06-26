@@ -4,6 +4,12 @@ Documentation of release versions of the `nacc-common` package.
 
 ## Unreleased
 
+## v3.1.1
+
+### Bug Fixes
+
+* Removes dead `get_args(ModuleName)` validation in `visit_submission_status.py` that rejected every module name (since `ModuleName` was changed from a `Literal` to plain `str`).
+
 ## v3.1.0
 
 ### New Features

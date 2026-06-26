@@ -25,6 +25,9 @@ def create_mock_file_entry(
     file_entry.info = info or {}
     file_entry.modified = datetime.now()
     file_entry.created = datetime.now()
+    # reload() must return the same mock so reload-aware extractors
+    # (e.g. DataIdentificationExtractor.from_json_file_metadata) see the info.
+    file_entry.reload.return_value = file_entry
     return file_entry
 
 
@@ -213,6 +216,7 @@ class FileEntryFactory:
             "test-gear": GearQCModel(
                 validation=ValidationModel(
                     state=qc_status,
+                    cleared=[],
                     data=[],
                 )
             )
@@ -226,6 +230,10 @@ class FileEntryFactory:
         # Put QC data in custom info, not file contents
         file_entry.info = custom_info or {}
         file_entry.info["qc"] = qc_data
+
+        # reload() must return the same object so callers that call reload()
+        # before reading info (e.g. _check_qc_status) see the populated info.
+        file_entry.reload.return_value = file_entry
 
         return file_entry
 

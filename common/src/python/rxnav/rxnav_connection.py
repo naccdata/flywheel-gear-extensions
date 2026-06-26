@@ -6,6 +6,7 @@ https://lhncbc.nlm.nih.gov/RxNav/APIs
 import json
 import logging
 from dataclasses import dataclass
+from datetime import date, datetime
 from json import JSONDecodeError
 from typing import Any, Dict, List, MutableMapping, Optional
 
@@ -133,6 +134,57 @@ class RxCuiConnection(RxNavConnection):
         )
 
         return record["rxcuiStatusHistory"]["metaData"]["status"]
+
+    @classmethod
+    def is_rxcui_active(cls, rxcui: int, target_date: Optional[date] = None) -> bool:
+        """Returns whether or not the RxCUI is active. Uses the uses the
+        getRxcuiHistoryStatus endpoint:
+
+        https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getRxcuiHistoryStatus.html
+
+        This endpoint provides the active status in MMYYYY format, so we can only
+        compare up to the month. As such, this function normalizes all
+        dates to the first of the month.
+
+        Args:
+            rxcui: int, the RXCUI
+            target_date: If provided, checks if the RxCUI was active at that
+                time. Otherwise, just checks if it's currently active.
+
+        Returns:
+            boolean: Whether or not the RxCUI is active.
+        """
+        record = cls.handle_response(
+            message=f"Getting the RXCUI history status for {rxcui}",
+            path=f"REST/rxcui/{rxcui}/historystatus.json",
+        )
+
+        metadata = record["rxcuiStatusHistory"]["metaData"]
+
+        # If no target date, just check if currently active
+        if not target_date:
+            return metadata["status"] == RxCuiStatus.ACTIVE
+
+        # otherwise check if it was active at the given target date
+        active_start_date = metadata.get("activeStartDate")
+        active_end_date = metadata.get("activeEndDate")
+
+        # if no start date, was never active
+        if not active_start_date:
+            return False
+
+        # normalize the target date to the first of the month since
+        # we do not have day information from RxNorm
+        target_date_norm = target_date.replace(day=1)
+        start_date = datetime.strptime(active_start_date, "%m%Y").date()
+
+        # if no end date, just compare start date
+        if not active_end_date:
+            return start_date <= target_date_norm
+
+        # else needs to be between start and end date
+        end_date = datetime.strptime(active_end_date, "%m%Y").date()
+        return start_date <= target_date_norm <= end_date
 
 
 class RxClassConnection(RxNavConnection):

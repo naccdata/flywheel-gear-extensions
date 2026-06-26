@@ -31,6 +31,7 @@ def create_mock_file_entry(
 ) -> FileEntry:
     """Create a mock FileEntry with the given info."""
     file_entry = Mock(spec=FileEntry)
+    file_entry.reload.return_value = file_entry
     file_entry.name = name
     file_entry.info = info or {}
     return file_entry

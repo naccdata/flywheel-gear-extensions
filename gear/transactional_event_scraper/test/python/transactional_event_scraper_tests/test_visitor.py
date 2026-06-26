@@ -29,8 +29,12 @@ def mock_context():
     dest_container.container_type = "project"
     dest_container.id = "test-project-id"
     mock_config.get_destination_container = Mock(return_value=dest_container)
+    # The optional form_configs_file input is not provided in these tests.
+    mock_config.get_input = Mock(return_value=None)
     context.config = mock_config
-    context.manifest = {"name": "transactional-event-scraper"}
+    manifest = Mock()
+    manifest.inputs.get.return_value = {"optional": True}
+    context.manifest = manifest
     context.config_json = {"job": {"id": "test-job-id"}}
     return context
 
