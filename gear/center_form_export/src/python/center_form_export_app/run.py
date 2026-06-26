@@ -14,9 +14,8 @@ from gear_execution.gear_execution import (
     GearExecutionError,
 )
 from inputs.parameter_store import ParameterStore
-from pydantic import ValidationError
 
-from center_form_export_app.main import ProjectModeConfig, run_project_mode
+from center_form_export_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -108,8 +107,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
     ) -> "CenterFormExportVisitor":
         """Creates a CenterFormExportVisitor execution visitor.
 
-        Extracts project mode configuration from the gear context,
-        validates it with ProjectModeConfig, and returns the visitor.
+        Extracts configuration from the gear context, validates required
+        fields, and returns the visitor.
 
         Args:
             context: The gear context.
@@ -122,40 +121,34 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
 
         options = context.config.opts
-        group_id = options.get("group_id", "")
-        project_name = options.get("project_name", "")
+        group_id = options.get("group_id", "").strip()
+        project_name = options.get("project_name", "").strip()
         modules_str = options.get("modules", "")
-        modules = set(modules_str.split(",")) if modules_str else set()
+        modules = {m.strip() for m in modules_str.split(",") if m.strip()}
         include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
         study_id = options.get("study_id", "adrc")
         formver_split = options.get("formver_split", False)
 
-        try:
-            config = ProjectModeConfig(
-                group_id=group_id,
-                project_name=project_name,
-                modules=modules,
-                info_paths=info_paths,
-                study_id=study_id,
-            )
-        except ValidationError as error:
-            raise GearExecutionError(
-                f"Invalid project mode configuration: {error}"
-            ) from error
+        if not group_id:
+            raise GearExecutionError("group_id must not be empty")
+        if not project_name:
+            raise GearExecutionError("project_name must not be empty")
+        if not modules:
+            raise GearExecutionError("at least one module must be specified")
 
         return CenterFormExportVisitor(
             client=client,
-            group_id=config.group_id,
-            project_name=config.project_name,
-            info_paths=config.info_paths,
-            modules=config.modules,
-            study_id=config.study_id,
+            group_id=group_id,
+            project_name=project_name,
+            info_paths=info_paths,
+            modules=modules,
+            study_id=study_id,
             formver_split=formver_split,
         )
 
     def run(self, context: GearContext) -> None:
-        """Run project mode execution.
+        """Runs the center form export.
 
         Resolves group/project, iterates subjects, gathers data, and
         writes output files.
@@ -201,7 +194,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             for module_name in self.__modules
         ]
 
-        run_project_mode(requests=requests, gatherers=gatherers)
+        run(requests=requests, gatherers=gatherers)
 
         _write_module_output(
             context=context,
