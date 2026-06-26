@@ -29,6 +29,10 @@ class Acquisition:
     def tags(self) -> List[str]:
         ...
 
+    @property
+    def files(self) -> List[FileEntry]:
+        ...
+
     def read_file(self, name: str) -> bytes:
         ...
 

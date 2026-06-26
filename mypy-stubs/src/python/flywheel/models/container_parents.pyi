@@ -11,6 +11,9 @@ class ContainerParents:
     def get(self, key: str) -> Any:
         ...
 
+    def __getitem__(self, key: Any) -> Any:
+        ...
+
     @property
     def project(self) -> str:
         ...

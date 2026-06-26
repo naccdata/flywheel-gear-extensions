@@ -35,5 +35,13 @@ class User:
         ...
 
     @property
+    def firstname(self) -> Optional[str]:
+        ...
+
+    @property
+    def lastname(self) -> Optional[str]:
+        ...
+
+    @property
     def firstlogin(self) -> Optional[str]:
         ...
