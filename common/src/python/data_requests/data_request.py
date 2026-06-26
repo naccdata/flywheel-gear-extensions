@@ -39,28 +39,102 @@ class DataRequestMatch(BaseModel):
     project_label: str
 
 
+def formver_label(formver: Any) -> str:
+    """Normalize a form version value into a filename-safe label.
+
+    Examples:
+        "1"   -> "v1"
+        "1.0" -> "v1"
+        "1.5" -> "v1.5"
+        "3.0" -> "v3"
+        ""    -> "unknown"
+        None  -> "unknown"
+
+    Args:
+      formver: the raw form version value (any type; coerced via str)
+    Returns:
+      a label suitable for use in a filename, e.g. "v3" or "unknown"
+    """
+    s = str(formver if formver is not None else "").strip()
+    if not s:
+        return "unknown"
+    if s.endswith(".0"):
+        s = s[:-2]
+    return f"v{s}"
+
+
 class ModuleDataGatherer:
-    """Defines process to gather file.info.form custom info for data
-    requests."""
+    """Defines process to gather file.info.form custom info for data requests.
+
+    When ``split_by_formver`` is True, rows are bucketed by form version
+    (using the ``formver`` field in the merged form data) and surfaced via
+    ``content_by_formver`` instead of ``content``. Each formver bucket has
+    its own ``StringCSVWriter``, which means the column set for each bucket
+    is naturally restricted to the columns that bucket's rows actually use —
+    no cross-version sparse columns.
+
+    When ``split_by_formver`` is False (default), behavior is identical to
+    the original single-CSV-per-module flow: ``content`` returns the union-
+    schema CSV string, ``content_by_formver`` is unavailable.
+    """
 
     def __init__(
         self,
         proxy: FlywheelProxy,
         module_name: str,
         info_paths: Optional[list[str]] = None,
+        split_by_formver: bool = False,
     ) -> None:
         self.__proxy = proxy
         self.__module_name = module_name
-        self.__writer = StringCSVWriter()
         self.__info_paths = info_paths if info_paths is not None else ["forms.json"]
+        self.__split_by_formver = split_by_formver
+        # Writers keyed by formver label when splitting; a single writer under
+        # the "default" label otherwise.
+        self.__writers: dict[str, StringCSVWriter] = {}
 
     @property
     def module_name(self):
         return self.__module_name
 
     @property
+    def split_by_formver(self) -> bool:
+        return self.__split_by_formver
+
+    @property
     def content(self):
-        return self.__writer.get_content()
+        """Returns the CSV content for this module (single-bucket mode).
+
+        Raises:
+          AttributeError if this gatherer was constructed with
+          split_by_formver=True; use ``content_by_formver`` instead.
+        """
+        if self.__split_by_formver:
+            raise AttributeError(
+                "content is unavailable when split_by_formver=True; "
+                "use content_by_formver instead"
+            )
+        writer = self.__writers.setdefault("default", StringCSVWriter())
+        return writer.get_content()
+
+    @property
+    def content_by_formver(self) -> dict[str, str]:
+        """Returns CSV content keyed by form-version label.
+
+        Each value is a complete CSV string whose header is restricted to
+        the columns present in that formver bucket — rows are not padded
+        across buckets.
+
+        Raises:
+          AttributeError if this gatherer was constructed with
+          split_by_formver=False; use ``content`` instead.
+        """
+        if not self.__split_by_formver:
+            raise AttributeError(
+                "content_by_formver is unavailable when "
+                "split_by_formver=False; use content instead"
+            )
+        return {label: writer.get_content() for label, writer in self.__writers.items()}
 
     def gather_file_info(self, file: FileEntry) -> None:
         """Writes file info to the writer. Uses the info paths of this object
@@ -89,7 +163,13 @@ class ModuleDataGatherer:
 
             merged_data.update(form_data)
 
-        self.__writer.write(merged_data)
+        label = (
+            formver_label(merged_data.get("formver"))
+            if self.__split_by_formver
+            else "default"
+        )
+        writer = self.__writers.setdefault(label, StringCSVWriter())
+        writer.write(merged_data)
 
     def gather_request_data(self, request: DataRequestMatch) -> None:
         """Writes the file custom info to the writer of this object for each

@@ -30,9 +30,7 @@
       "description": "A participant list CSV file",
       "base": "file",
       "type": {
-        "enum": [
-          "tabular data"
-        ]
+        "enum": ["tabular data"]
       }
     }
   },
@@ -66,6 +64,11 @@
       "description": "The study ID",
       "type": "string",
       "default": "adrc"
+    },
+    "formver_split": {
+      "description": "Split output CSVs by form version (one file per module/formver, e.g. uds-v3.csv, uds-v4.csv). Each file has a column set restricted to that exact form version; rows are not column-unioned across versions.",
+      "type": "boolean",
+      "default": false
     }
   },
   "command": "/bin/run"

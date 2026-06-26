@@ -1,26 +1,21 @@
-"""Entry script for Gather Form Data."""
+"""Entry script for Center Form Export."""
 
 import logging
 from datetime import date
-from pathlib import Path
 from typing import Optional
 
-from data_requests.data_request import (
-    DataRequestVisitor,
-    ModuleDataGatherer,
-)
+from data_requests.data_request import DataRequestMatch, ModuleDataGatherer
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
-    InputFileWrapper,
+    GearExecutionError,
 )
 from inputs.parameter_store import ParameterStore
-from outputs.error_writer import ListErrorWriter
 
-from gather_form_data_app.main import run
+from center_form_export_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -83,22 +78,22 @@ def _write_module_output(
             output_file.write(gatherer.content)
 
 
-class GatherFormDataVisitor(GearExecutionEnvironment):
-    """Visitor for the Gather Form Data gear."""
+class CenterFormExportVisitor(GearExecutionEnvironment):
+    """Visitor for the Center Form Export gear."""
 
     def __init__(
         self,
         client: ClientWrapper,
-        file_input: InputFileWrapper,
-        project_names: list[str],
+        group_id: str,
+        project_name: str,
         info_paths: list[str],
         modules: set[str],
         study_id: str,
         formver_split: bool = False,
     ):
         super().__init__(client=client)
-        self.__file_input = file_input
-        self.__project_names: list[str] = project_names
+        self.__group_id = group_id
+        self.__project_name = project_name
         self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
@@ -109,8 +104,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         cls,
         context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
-    ) -> "GatherFormDataVisitor":
-        """Creates a Gather Form Data execution visitor.
+    ) -> "CenterFormExportVisitor":
+        """Creates a CenterFormExportVisitor execution visitor.
+
+        Extracts configuration from the gear context, validates required
+        fields, and returns the visitor.
 
         Args:
             context: The gear context.
@@ -118,26 +116,31 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         Returns:
           the execution environment
         Raises:
-          GearExecutionError if any expected inputs are missing
+          GearExecutionError if configuration is invalid
         """
-
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
-        file_input = InputFileWrapper.create(input_name="input_file", context=context)
-        assert file_input, "create raises exception if missing input file"
 
         options = context.config.opts
-        project_names = options.get("project_names", "").split(",")
+        group_id = options.get("group_id", "").strip()
+        project_name = options.get("project_name", "").strip()
+        modules_str = options.get("modules", "")
+        modules = {m.strip() for m in modules_str.split(",") if m.strip()}
         include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
-        modules = set(options.get("modules", "").split(","))
-
         study_id = options.get("study_id", "adrc")
         formver_split = options.get("formver_split", False)
 
-        return GatherFormDataVisitor(
+        if not group_id:
+            raise GearExecutionError("group_id must not be empty")
+        if not project_name:
+            raise GearExecutionError("project_name must not be empty")
+        if not modules:
+            raise GearExecutionError("at least one module must be specified")
+
+        return CenterFormExportVisitor(
             client=client,
-            file_input=file_input,
-            project_names=project_names,
+            group_id=group_id,
+            project_name=project_name,
             info_paths=info_paths,
             modules=modules,
             study_id=study_id,
@@ -145,59 +148,64 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         )
 
     def run(self, context: GearContext) -> None:
-        data_gatherers: list[ModuleDataGatherer] = []
-        for module_name in self.__modules:
-            data_gatherers.append(
-                ModuleDataGatherer(
-                    proxy=self.proxy,
-                    module_name=module_name,
-                    info_paths=self.__info_paths,
-                    split_by_formver=self.__formver_split,
-                )
+        """Runs the center form export.
+
+        Resolves group/project, iterates subjects, gathers data, and
+        writes output files.
+
+        Raises:
+          GearExecutionError if the group or project cannot be found.
+        """
+        group = self.proxy.find_group(self.__group_id)
+        if not group:
+            raise GearExecutionError(f"Group not found: {self.__group_id}")
+
+        project = group.find_project(self.__project_name)
+        if not project:
+            raise GearExecutionError(
+                f"Project not found: {self.__project_name} in group {self.__group_id}"
             )
 
-        input_path = Path(self.__file_input.filepath)
-        with open(input_path, mode="r", encoding="utf-8-sig") as request_file:
-            file_id = self.__file_input.file_id
-            error_writer = ListErrorWriter(
-                container_id=file_id,
-                fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
+        subjects = list(project.project.subjects.iter())
+        if not subjects:
+            log.warning(
+                "No subjects found in project %s/%s",
+                self.__group_id,
+                self.__project_name,
             )
-            request_visitor = DataRequestVisitor(
+            return
+
+        requests = [
+            DataRequestMatch(
+                naccid=subject.label,
+                subject_id=subject.id,
+                project_label=project.label,
+            )
+            for subject in subjects
+        ]
+
+        gatherers = [
+            ModuleDataGatherer(
                 proxy=self.proxy,
-                study_id=self.__study_id,
-                project_names=self.__project_names,
-                gatherers=data_gatherers,
-                error_writer=error_writer,
+                module_name=module_name,
+                info_paths=self.__info_paths,
+                split_by_formver=self.__formver_split,
             )
+            for module_name in self.__modules
+        ]
 
-            success = run(
-                request_file=request_file,
-                request_visitor=request_visitor,
-                error_writer=error_writer,
-            )
-            if success:
-                _write_module_output(
-                    context=context,
-                    gatherers=request_visitor.gatherers,
-                    study_id=self.__study_id,
-                )
+        run(requests=requests, gatherers=gatherers)
 
-        context.metadata.add_qc_result(
-            self.__file_input.file_input,
-            name="validation",
-            state="PASS" if success else "FAIL",
-            data=error_writer.errors().model_dump(by_alias=True),
+        _write_module_output(
+            context=context,
+            gatherers=gatherers,
+            study_id=self.__study_id,
         )
-
-        gear_name = self.get_gear_name(context, "gather-form-data")
-        context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
 
 
 def main():
-    """Main method for Gather Form Data."""
-    engine = GearEngine().create_with_parameter_store()
-    engine.run(gear_type=GatherFormDataVisitor)
+    """Main method for Center Form Export."""
+    GearEngine().create_with_parameter_store().run(gear_type=CenterFormExportVisitor)
 
 
 if __name__ == "__main__":
