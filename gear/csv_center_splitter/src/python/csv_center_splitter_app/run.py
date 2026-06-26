@@ -1,10 +1,11 @@
 """Entry script for csv_center_splitter."""
 
+import csv
 import logging
-from typing import List, Optional, Set
+from typing import List, Optional
 
 from flywheel.rest import ApiException
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -20,7 +21,10 @@ from notifications.email_list import (
     get_redcap_email_list_client,
 )
 from outputs.error_writer import ListErrorWriter
-from utils.utils import parse_string_to_list
+from utils.utils import (
+    filter_include_exclude,
+    parse_string_to_list,
+)
 
 from csv_center_splitter_app.main import run
 
@@ -36,14 +40,14 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         file_input: InputFileWrapper,
         adcid_key: str,
-        target_project: str,
-        include: Set[str],
-        exclude: Set[str],
         batch_size: int,
+        target_project: Optional[str] = None,
         staging_project_id: Optional[str] = None,
         downstream_gears: Optional[List[str]] = None,
+        include: Optional[str] = None,
+        exclude: Optional[str] = None,
         delimiter: str = ",",
-        local_run: bool = False,
+        replace_duplicates: bool = False,
         email_client: Optional[EmailListClient] = None,
     ):
         super().__init__(client=client)
@@ -52,18 +56,20 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
         self.__adcid_key = adcid_key
         self.__target_project = target_project
         self.__staging_project_id = staging_project_id
-        self.__include = include
-        self.__exclude = exclude
         self.__batch_size = batch_size
         self.__downstream_gears = downstream_gears
         self.__delimiter = delimiter
-        self.__local_run = local_run
+        self.__replace_duplicates = replace_duplicates
         self.__email_client = email_client
+
+        self.__centers = filter_include_exclude(
+            [str(x) for x in self.admin_group("nacc").get_adcids()], include, exclude
+        )
 
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "CSVCenterSplitterVisitor":
         """Creates a gear execution object.
@@ -80,29 +86,22 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
 
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
 
-        target_project = context.config.get("target_project", None)
-        staging_project_id = context.config.get("staging_project_id", None)
+        options = context.config.opts
+        target_project = options.get("target_project", None)
+        staging_project_id = options.get("staging_project_id", None)
 
-        if not target_project:
-            raise GearExecutionError("No target project provided")
-        if not staging_project_id:
-            raise GearExecutionError("No staging project provided")
+        if not target_project and not staging_project_id:
+            raise GearExecutionError(
+                "One of target_project or staging_project_id must be provided"
+            )
 
-        adcid_key = context.config.get("adcid_key", None)
+        adcid_key = options.get("adcid_key", None)
         if not adcid_key:
             raise GearExecutionError("No ADCID key provided")
 
-        # for including/excluding
-        include = set(parse_string_to_list(context.config.get("include", "")))
-        exclude = set(parse_string_to_list(context.config.get("exclude", "")))
-        if include and exclude and include.intersection(exclude):
-            raise GearExecutionError("Include and exclude lists cannot overlap")
-
         # for scheduling
-        batch_size = context.config.get("batch_size", 1)
-        downstream_gears = parse_string_to_list(
-            context.config.get("downstream_gears", "")
-        )
+        batch_size = options.get("batch_size", 1)
+        downstream_gears = parse_string_to_list(options.get("downstream_gears", ""))
 
         try:
             batch_size = int(batch_size) if batch_size else None
@@ -113,9 +112,6 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             raise GearExecutionError(
                 f"Batch size must be a non-negative integer: {batch_size}"
             ) from e
-
-        delimiter = context.config.get("delimiter", ",")
-        local_run = context.config.get("local_run", False)
 
         # for emails
         redcap_email_configs_file = InputFileWrapper.create(
@@ -134,55 +130,59 @@ class CSVCenterSplitterVisitor(GearExecutionEnvironment):
             client=client,
             file_input=file_input,  # type: ignore
             adcid_key=adcid_key,
+            batch_size=batch_size,
             target_project=target_project,
             staging_project_id=staging_project_id,
-            include=include,
-            exclude=exclude,
-            batch_size=batch_size,
             downstream_gears=downstream_gears,
-            delimiter=delimiter,
-            local_run=local_run,
+            include=options.get("include", None),
+            exclude=options.get("exclude", None),
+            delimiter=options.get("delimiter", ","),
+            replace_duplicates=options.get("replace_duplicates", False),
             email_client=email_client,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the CSV Center Splitter app."""
-        # if local run, give dummy container for local file, otherwise
-        # grab from project
-        if self.__local_run:
-            file_id = "local-container"
-            fw_path = "local-run"
-        else:
-            file_id = self.__file_input.file_id
-            try:
-                file = self.proxy.get_file(file_id)
-                fw_path = self.proxy.get_lookup_path(file)
-            except ApiException as error:
-                raise GearExecutionError(
-                    f"Failed to find the input file: {error}"
-                ) from error
+        file_id = self.__file_input.file_id
+        try:
+            file = self.proxy.get_file(file_id)
+            fw_path = self.proxy.get_lookup_path(file)
+        except ApiException as error:
+            raise GearExecutionError(
+                f"Failed to find the input file: {error}"
+            ) from error
 
-        centers = {str(adcid) for adcid in self.admin_group("nacc").get_adcids()}
-        if self.__include:
-            centers = {adcid for adcid in centers if adcid in self.__include}
-        if self.__exclude:
-            centers = {adcid for adcid in centers if adcid not in self.__exclude}
-
+        dropped_rows = None
         with open(self.__file_input.filepath, mode="r", encoding="utf-8-sig") as fh:
             error_writer = ListErrorWriter(container_id=file_id, fw_path=fw_path)
 
-            run(
+            dropped_rows = run(
                 proxy=self.proxy,
                 input_file=fh,
                 input_filename=self.__file_input.filename,
                 error_writer=error_writer,
                 adcid_key=self.__adcid_key,
-                target_project=self.__target_project,
                 batch_size=self.__batch_size,
+                target_project=self.__target_project,
                 staging_project_id=self.__staging_project_id,
                 downstream_gears=self.__downstream_gears,
-                include=centers,
+                include=set(self.__centers),
                 delimiter=self.__delimiter,
+                replace_duplicates=self.__replace_duplicates,
+            )
+
+        # report out any dropped rows
+        if dropped_rows:
+            with context.open_output(
+                "dropped_rows.csv", mode="w", encoding="utf-8"
+            ) as fh:
+                writer = csv.DictWriter(fh, fieldnames=dropped_rows[0].keys())
+                writer.writeheader()
+                writer.writerows(dropped_rows)
+
+            log.warning(
+                f"Dropped {len(dropped_rows)} rows - "
+                + "see dropped_rows.csv for more details"
             )
 
         if self.__email_client:

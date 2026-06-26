@@ -8,13 +8,18 @@ from typing import Any, Dict, List, Optional, TextIO
 SimpleJSONObject = Dict[str, Optional[int | str | bool | float]]
 
 
-# pylint: disable=(too-few-public-methods)
 class CSVWriter:
     """Wrapper for DictWriter that ensures header is written."""
 
-    def __init__(self, stream: TextIO, fieldnames: List[str]) -> None:
+    def __init__(
+        self, stream: TextIO, fieldnames: List[str], extrasaction: str = "raise"
+    ) -> None:
         self.__writer = DictWriter(
-            stream, fieldnames=fieldnames, dialect="unix", quoting=QUOTE_MINIMAL
+            stream,
+            fieldnames=fieldnames,
+            dialect="unix",
+            quoting=QUOTE_MINIMAL,
+            extrasaction=extrasaction,  # type: ignore
         )
         self.__header_written = False
 
@@ -39,7 +44,6 @@ class CSVWriter:
         self.__writer.writerow(json_object)
 
 
-# pylint: disable=(too-few-public-methods)
 class JSONWriter(ABC):
     """Abstract base class for writing JSON objects."""
 
@@ -73,6 +77,35 @@ class ListJSONWriter(JSONWriter):
           List of dictionary objects
         """
         return self.__objects
+
+
+class StringCSVWriter:
+    """Accumulates list of row objects to determine fieldnames, and then writes
+    to a string on request."""
+
+    def __init__(self) -> None:
+        self.__fieldnames: set[str] = set()
+        self.__writer = ListJSONWriter()
+
+    def write(self, row: SimpleJSONObject) -> None:
+        """Writes the dictionary as a row to the CSV string.
+
+        Uses the keys of the first row as the header.
+
+        Args:
+          row: dictionary to write as CSV
+        """
+        self.__fieldnames.update(row.keys())
+        self.__writer.write(row)
+
+    def get_content(self) -> str:
+        """Returns the CSV content written as a string."""
+        stream = StringIO()
+        row_list = self.__writer.object_list()
+        writer = CSVWriter(stream=stream, fieldnames=list(sorted(self.__fieldnames)))
+        for row in row_list:
+            writer.write(row)
+        return stream.getvalue()
 
 
 def write_csv_to_stream(headers: List[str], data: List[Dict[str, Any]]) -> StringIO:

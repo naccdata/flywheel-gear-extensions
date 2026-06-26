@@ -77,3 +77,14 @@ The file must have a NACCID column.
 
 ### Configs
 Gear configs are defined in [manifest.json](../../gear/csv_subject_splitter/src/docker/manifest.json).
+
+## File Metadata and Tagging
+
+After processing, the gear updates the input CSV file with the following metadata. See the [QC Conventions](../nacc_common/qc-conventions.md) reference for details on the data models and conventions used.
+
+1. **QC Result**: A validation QC result is added to the file's `file.info.qc` metadata with:
+   - `name`: `"validation"`
+   - `state`: `"PASS"` or `"FAIL"` depending on whether splitting succeeded
+   - `data`: List of `FileError` objects with error details if any errors occurred
+
+2. **File Tag**: The manifest name (or `"csv-subject-splitter"` as fallback) is added as a simple tag to the input file, indicating the file has been processed by this gear.

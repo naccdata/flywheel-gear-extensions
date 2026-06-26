@@ -4,14 +4,14 @@ config object."""
 from typing import Optional
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 
 from inputs.context_parser import get_config
 
 
 def get_group(
     *,
-    context: GearToolkitContext,
+    context: GearContext,
     proxy: FlywheelProxy,
     key: str,
     default: Optional[str],
@@ -42,7 +42,7 @@ def get_group(
 
 
 def get_project(
-    *, context: GearToolkitContext, group: GroupAdaptor, project_key: str
+    *, context: GearContext, group: GroupAdaptor, project_key: str
 ) -> ProjectAdaptor:
     """Returns the project determined by the context config values for the
     group and project keys.
@@ -69,9 +69,7 @@ def get_project(
     return project
 
 
-def read_file(
-    *, context: GearToolkitContext, source: ProjectAdaptor, key: str
-) -> bytes:
+def read_file(*, context: GearContext, source: ProjectAdaptor, key: str) -> bytes:
     """Read the bytes read from the file from the source directory using the
     key to pull the file name from the context config.
 

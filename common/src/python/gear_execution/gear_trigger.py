@@ -3,13 +3,13 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
+from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
-from flywheel import Project
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -70,6 +70,12 @@ class CredentialGearConfigs(GearConfigs):
     apikey_path_prefix: str
 
 
+class GearInputs(BaseModel):
+    """Class to represent base gear inputs."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+
 class GearInfo(BaseModel):
     """Class to represent gear information."""
 
@@ -81,7 +87,7 @@ class GearInfo(BaseModel):
 
     @classmethod
     def load_from_file(
-        cls, configs_file_path: str, configs_class=GearConfigs
+        cls, configs_file_path: str | Path, configs_class=GearConfigs
     ) -> Optional[Any]:
         """Load GearInfo from configs file.
 
@@ -93,7 +99,9 @@ class GearInfo(BaseModel):
         """
         configs_data = {}
         try:
-            with open(configs_file_path, mode="r", encoding="utf-8-sig") as file_obj:
+            with Path(configs_file_path).open(
+                mode="r", encoding="utf-8-sig"
+            ) as file_obj:
                 configs_data = json.load(file_obj)
         except (FileNotFoundError, JSONDecodeError, TypeError) as error:
             log.error(
@@ -154,6 +162,7 @@ class BatchRunInfo(BaseModel):
     batch_size: int
     gear_name: str
     gear_configs: Dict[str, Any]
+    gear_inputs: Dict[str, Any] = {}
 
     @classmethod
     def load_from_file(cls, configs_file_path: str) -> Optional["BatchRunInfo"]:
@@ -262,6 +271,35 @@ class BatchRunInfo(BaseModel):
 
         return configs
 
+    def get_gear_inputs(
+        self,
+        center,
+        gear_input_class=GearInputs,
+    ) -> Dict[str, Any]:
+        """Get the gear inputs from batch run info gear template.
+
+        Args:
+            center: The source center project
+            gear_input_class: GearInputs class
+
+        Returns:
+            File inputs, if specified
+        """
+        if not self.gear_inputs:
+            return {}
+
+        results = {}
+        for input_file, filename in self.gear_inputs.items():
+            file = center.get_file(filename)
+            if not file:
+                raise GearExecutionError(
+                    f"Project {center.group}/{center.label} has no file {filename}"
+                )
+
+            results[input_file] = file
+
+        return results
+
 
 def trigger_gear(
     proxy: FlywheelProxy, gear_name: str, log_args: bool = True, **kwargs
@@ -307,7 +345,7 @@ def trigger_gear(
 
 def set_gear_inputs(
     *,
-    project: Project,
+    project: ProjectAdaptor,
     gear_name: str,
     locator: LocatorType,
     gear_inputs_list: List[GearInput],

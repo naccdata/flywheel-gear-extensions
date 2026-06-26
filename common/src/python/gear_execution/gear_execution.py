@@ -16,9 +16,12 @@ from flywheel.models.project import Project
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
-from flywheel_gear_toolkit import GearToolkitContext
 from fw_client.client import FWClient
+from fw_gear import GearContext
+from fw_gear.utils.sdk_helpers import get_container_from_ref
 from inputs.parameter_store import ParameterError, ParameterStore
+from keys.keys import DefaultValues
+from utils.utils import parse_string_to_list
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +79,7 @@ class ContextClient:
     context client."""
 
     @classmethod
-    def create(cls, context: GearToolkitContext) -> ClientWrapper:
+    def create(cls, context: GearContext) -> ClientWrapper:
         """Creates a ContextClient object from the context object.
 
         Args:
@@ -90,7 +93,7 @@ class ContextClient:
             raise GearExecutionError("Flywheel client required")
 
         return ClientWrapper(
-            client=context.client, dry_run=context.config.get("dry_run", False)
+            client=context.client, dry_run=context.config.opts.get("dry_run", False)
         )
 
 
@@ -101,7 +104,7 @@ class GearBotClient:
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> ClientWrapper:
         """Creates a GearBotClient wrapper object from the context and
         parameter store.
@@ -123,7 +126,7 @@ class GearBotClient:
                 "Flywheel client required to confirm gearbot access"
             ) from error
 
-        apikey_path_prefix = context.config.get("apikey_path_prefix", None)
+        apikey_path_prefix = context.config.opts.get("apikey_path_prefix", None)
         if not apikey_path_prefix:
             raise GearExecutionError("API key path prefix required")
 
@@ -145,14 +148,22 @@ class InputFileWrapper:
 
     def __init__(self, file_input: Dict[str, Any]) -> None:
         self.file_input = file_input
+        self.__file_entry: Optional[FileEntry] = None
 
-    def file_entry(self, context: GearToolkitContext) -> FileEntry:
+    def file_entry(self, context: GearContext) -> FileEntry:
+        if self.__file_entry is not None:
+            return self.__file_entry
+
         file_hierarchy = self.file_input.get("hierarchy")
         assert file_hierarchy
-        container = context.get_container_from_ref(file_hierarchy)
+        assert context.client
+        container = get_container_from_ref(context.client, file_hierarchy)
         assert isinstance(container, (Acquisition, Subject, Project))
         container = container.reload()
-        return container.get_file(self.filename)
+        file = container.get_file(self.filename)
+        self.__file_entry = file.reload()
+
+        return self.__file_entry
 
     def validate_file_extension(self, accepted_extensions: List[str]) -> Optional[str]:
         """Check whether the input file type is accepted.
@@ -192,6 +203,10 @@ class InputFileWrapper:
         return self.file_info.get("qc", {})
 
     @property
+    def uploader(self) -> Optional[str]:
+        return self.file_info.get("uploader")
+
+    @property
     def filename(self) -> str:
         """Returns the file name."""
         return self.file_input["location"]["name"]
@@ -214,7 +229,7 @@ class InputFileWrapper:
 
     @classmethod
     def create(
-        cls, input_name: str, context: GearToolkitContext
+        cls, input_name: str, context: GearContext
     ) -> Optional["InputFileWrapper"]:
         """Creates the named InputFile.
 
@@ -228,12 +243,8 @@ class InputFileWrapper:
         Raises:
           GearExecutionError if there is no input with the name
         """
-        file_input = context.get_input(input_name)
-        is_optional = (
-            context.manifest.get("inputs", {})
-            .get(input_name, {})
-            .get("optional", False)
-        )
+        file_input = context.config.get_input(input_name)
+        is_optional = context.manifest.inputs.get(input_name, {}).get("optional", False)
 
         if not file_input:
             if is_optional:
@@ -245,18 +256,26 @@ class InputFileWrapper:
 
         return InputFileWrapper(file_input=file_input)
 
-    def get_validation_objects(self) -> List[Dict[str, Any]]:
+    def get_validation_objects(
+        self, gear_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Gets the QC validation objects from the file QC info."""
         result = []
-        for gear_object in self.file_qc_info.values():
+
+        gear_objects = list(self.file_qc_info.values())
+        if gear_name:
+            gear_objects = [self.file_qc_info.get(gear_name, {})]
+
+        for gear_object in gear_objects:
             validation_object = gear_object.get("validation", {})
             if validation_object:
                 result.append(validation_object)
+
         return result
 
-    def has_qc_errors(self) -> bool:
+    def has_qc_errors(self, gear_name: Optional[str] = None) -> bool:
         """Check the QC validation objects in the file QC info for failures."""
-        validation_objects = self.get_validation_objects()
+        validation_objects = self.get_validation_objects(gear_name=gear_name)
         for validation_object in validation_objects:
             if validation_object["state"] == "FAIL":
                 return True
@@ -265,7 +284,7 @@ class InputFileWrapper:
     def get_module_name_from_file_suffix(
         self,
         separator: str = "-",
-        allowed: str = "a-z_",
+        allowed: str = DefaultValues.MODULE_PATTERN,
         extension: str = "csv",
         split: Optional[str] = "_",
     ) -> Optional[str]:
@@ -273,7 +292,7 @@ class InputFileWrapper:
 
         Args:
             separator: suffix separator, defaults to "-".
-            allowed: characters allowed in suffix, defaults to "a-z_".
+            allowed: characters allowed in suffix, defaults to "a-zA-Z1-9_".
             extension: file extension, defaults to "csv"
             split (optional): character to split the suffix, defaults to '_'.
                             (set to None if not required)
@@ -317,6 +336,32 @@ class InputFileWrapper:
         return project
 
 
+def get_submitter(file: FileEntry, proxy: FlywheelProxy) -> str:
+    """Attempts to determine the user that submitted the file.
+
+    First looks for user id as file.info.uploader, and then file.origin.id.
+    Then looks for user with ID, and returns the email.
+
+    Args:
+      file: file entry for the file
+      proxy: the proxy object
+    Returns:
+      either the user email or ID for the submitter of the file
+    """
+    user_id = file.info.get("uploader")
+    if user_id is None:
+        user_id = file.origin.id
+    user = proxy.find_user(user_id)
+    if user:
+        # lookup the user's email; if not set to the file origin id
+        submitter = user.email if user.email else user_id
+    else:
+        submitter = user_id
+        log.warning(f"Owner of the file {user_id} does not match a user on Flywheel")
+
+    return submitter
+
+
 # pylint: disable=too-few-public-methods
 class GearExecutionEnvironment(ABC):
     """Base class for gear execution environments."""
@@ -343,7 +388,7 @@ class GearExecutionEnvironment(ABC):
         return self.__client.get_proxy()
 
     @abstractmethod
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Run the gear after initialization by visit methods.
 
         Note: expects both visit_context and visit_parameter_store to be called
@@ -355,7 +400,7 @@ class GearExecutionEnvironment(ABC):
 
     @classmethod
     def create(
-        cls, context: GearToolkitContext, parameter_store: Optional[ParameterStore]
+        cls, context: GearContext, parameter_store: Optional[ParameterStore]
     ) -> "GearExecutionEnvironment":
         """Creates an execution environment object from the context and
         parameter store.
@@ -369,6 +414,124 @@ class GearExecutionEnvironment(ABC):
           the GearExecutionEnvironment initialized with the input
         """
         raise GearExecutionError("Not implemented")
+
+    def get_job_id(self, context: GearContext, gear_name: str) -> Optional[str]:
+        """Return the ID of the gear job.
+
+        Args:
+            context: GearContext to look up the Job ID
+            gear_name: Gear name
+
+        Returns:
+            str (optional): Job ID if found, else None
+        """
+        context.metadata.pull_job_info()  # type: ignore
+        if not context.metadata.job_info:  # type: ignore
+            log.warning(f"Failed to pull job info for gear {gear_name}")
+            return None
+
+        job_info = context.metadata.job_info.get(gear_name, {})  # type: ignore
+        return job_info.get("job_info", {}).get("job_id", None)
+
+    @classmethod
+    def get_gear_name(cls, context: GearContext, default: Optional[str] = None) -> str:
+        """Get gear name.
+
+        Args:
+            context: GearContext to look up gear name
+            default: default to use if gear name not found
+        Returns:
+            the gear name
+        """
+        gear_name = context.manifest.name
+        if not gear_name:
+            if not default:
+                raise GearExecutionError("gear name not defined")
+
+            return default
+
+        return gear_name
+
+    def get_provenance(self, context: GearContext) -> Dict[str, Any]:
+        """Get gear details as provenance.
+
+        Args:
+            context: GearContext to pull gear details from
+
+        Returns:
+            plain dict containing provenance details
+        """
+        gear_name = self.get_gear_name(context)
+        return {
+            "manifest": {
+                "name": gear_name,
+                "version": context.manifest.version,
+            },
+            "config": {
+                "opts": context.config.opts,
+                "destination": context.config.destination,
+            },
+            "metadata": {"job": self.get_job_id(context, gear_name)},
+        }
+
+    def get_center_ids(self, context: GearContext) -> List[str]:
+        """Get center IDs.
+
+        If used, assumes include_centers, exclude_centers, exclude_studies,
+        and/or admin_group are input configs.
+        Args:
+            context: The GearToolkitContext to grab configs from
+        Returns:
+            The list of center IDs to use for this execution
+        """
+        options = context.config.opts
+        admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
+        include_centers = options.get("include_centers", None)
+        exclude_centers = options.get("exclude_centers", None)
+        exclude_studies = options.get("exclude_studies", None)
+
+        if include_centers and (exclude_centers or exclude_studies):
+            raise GearExecutionError(
+                "Cannot support both include and exclude configs at the same time, "
+                "provide either include list or exclude list"
+            )
+
+        # if include_centers is specified, just prase the list
+        if include_centers:
+            include_centers_list = parse_string_to_list(include_centers)
+            log.info("Including centers %s", include_centers_list)
+            return include_centers_list
+
+        # otherwise, we need to grab the full center mapping and exclude
+        # the specified centers and studies
+
+        exclude_centers_list = (
+            parse_string_to_list(exclude_centers) if exclude_centers else []
+        )
+        exclude_studies_list = (
+            parse_string_to_list(exclude_studies) if exclude_studies else []
+        )
+
+        log.info("Skipping centers %s", exclude_centers_list)
+        log.info("Skipping studies %s", exclude_studies_list)
+
+        nacc_group = self.admin_group(admin_id=admin_id)
+        center_groups = nacc_group.get_center_map().group_ids()
+
+        if not center_groups:
+            raise GearExecutionError(
+                "Center information not found in "
+                f"{admin_id}/{DefaultValues.METADATA_PRJ_LBL}"
+            )
+
+        center_ids = [
+            group_id
+            for group_id in center_groups
+            if group_id not in exclude_centers_list
+            and not group_id.endswith(tuple(exclude_studies_list))
+        ]
+
+        return center_ids
 
 
 # TODO: remove type ignore when using python 3.12 or above
@@ -413,7 +576,7 @@ class GearEngine:
             gear_type: The type of the gear execution environment.
         """
         try:
-            with GearToolkitContext() as context:
+            with GearContext() as context:
                 context.init_logging()
                 context.log_config()
                 visitor = gear_type.create(
@@ -426,12 +589,12 @@ class GearEngine:
 
 
 def get_project_from_destination(
-    context: GearToolkitContext, proxy: FlywheelProxy
+    context: GearContext, proxy: FlywheelProxy
 ) -> flywheel.Project:
     """Gets parent project from destination container."""
 
     try:
-        destination = context.get_destination_container()
+        destination = context.config.get_destination_container()
     except ApiException as error:
         raise GearExecutionError(
             f"Cannot find destination container: {error}"

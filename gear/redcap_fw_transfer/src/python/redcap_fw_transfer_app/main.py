@@ -7,11 +7,10 @@ from json.decoder import JSONDecodeError
 from typing import Any, Dict, List
 
 import pandas as pd
-from dates.form_dates import DEFAULT_DATE_TIME_FORMAT
-from flywheel import FileSpec
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from redcap_api.redcap_connection import (
     REDCapConnection,
     REDCapConnectionError,
@@ -47,27 +46,28 @@ def upload_to_flywheel(
         df = df.drop(labels=extra_fields, axis=1, errors="ignore")
 
     try:
-        csv_contents = df.to_csv(index=False, doublequote=False)
+        csv_contents = df.to_csv(index=False)
     except (TypeError, ValueError) as error:
         raise GearExecutionError(
             f"Problem occurred while generating CSV file: {error}"
         ) from error
 
-    file_spec = FileSpec(name=filename, contents=csv_contents, content_type="text/csv")
+    uploaded_file = prj_adaptor.upload_file_contents(
+        filename=filename, contents=csv_contents, content_type="text/csv"
+    )
 
-    try:
-        prj_adaptor.upload_file(file_spec)
+    if uploaded_file:
         log.info(
             "Successfully uploaded file %s to %s/%s",
             filename,
             prj_adaptor.group,
             prj_adaptor.label,
         )
-    except ApiException as error:
+    else:
         raise GearExecutionError(
             "Failed to upload file "
-            f"{filename} to {prj_adaptor.group}/{prj_adaptor.label}: {error}"
-        ) from error
+            f"{filename} to {prj_adaptor.group}/{prj_adaptor.label}"
+        )
 
 
 def reset_upload_checkbox(

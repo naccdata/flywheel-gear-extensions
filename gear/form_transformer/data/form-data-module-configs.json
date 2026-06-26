@@ -4,10 +4,10 @@
         "UDS",
         "FTLD",
         "LBD",
-        "MLST",
-        "NP",
         "BDS",
-        "CLS"
+        "CLS",
+        "MLST",
+        "NP"
     ],
     "legacy_project_label": "retrospective-form",
     "module_configs": {
@@ -50,8 +50,18 @@
                 "4.0"
             ],
             "date_field": "visitdate",
-            "legacy_module": "UDS",
-            "legacy_date": "visitdate",
+            "legacy_module": {
+                "label": "UDS",
+                "date_field": "visitdate",
+                "initial_packets": [
+                    "I",
+                    "IT"
+                ],
+                "followup_packets": [
+                    "F",
+                    "T"
+                ]
+            },
             "optional_forms": {
                 "4.0": {
                     "I": [
@@ -91,7 +101,8 @@
                 "ivp",
                 "udsv4-ivp",
                 "visit-conflict"
-            ]
+            ],
+            "longitudinal": true
         },
         "LBD": {
             "hierarchy_labels": {
@@ -132,8 +143,6 @@
                 "3.1"
             ],
             "date_field": "visitdate",
-            "legacy_module": "LBD",
-            "legacy_date": "visitdate",
             "optional_forms": {
                 "3.1": {
                     "IL": [
@@ -160,7 +169,8 @@
                 "ivp",
                 "visit-conflict",
                 "supplement-module"
-            ]
+            ],
+            "longitudinal": true
         },
         "FTLD": {
             "hierarchy_labels": {
@@ -200,8 +210,6 @@
                 "3.0"
             ],
             "date_field": "visitdate",
-            "legacy_module": "FTLD",
-            "legacy_date": "visitdate",
             "optional_forms": {
                 "3.0": {
                     "IF": [
@@ -232,7 +240,8 @@
                 "ivp",
                 "visit-conflict",
                 "supplement-module"
-            ]
+            ],
+            "longitudinal": true
         },
         "MLST": {
             "hierarchy_labels": {
@@ -268,13 +277,9 @@
                 "duplicate-record",
                 "version",
                 "packet",
-                "supplement-module"
+                "clinical-forms"
             ],
-            "supplement_module": {
-                "label": "UDS",
-                "date_field": "visitdate",
-                "exact_match": false
-            }
+            "longitudinal": false
         },
         "NP": {
             "hierarchy_labels": {
@@ -312,11 +317,24 @@
                 "11.0"
             ],
             "date_field": "npformdate",
+            "legacy_module": {
+                "label": "NP",
+                "date_field": "visitdate",
+                "initial_packets": [
+                    "NP"
+                ],
+                "followup_packets": []
+            },
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
-                "packet"
-            ]
+                "packet",
+                "singleton",
+                "clinical-forms",
+                "np-mlst-restrictions",
+                "np-uds-restrictions"
+            ],
+            "longitudinal": false
         },
         "BDS": {
             "hierarchy_labels": {
@@ -347,8 +365,10 @@
             "date_field": "visitdate",
             "preprocess_checks": [
                 "duplicate-record",
-                "version"
-            ]
+                "version",
+                "singleton"
+            ],
+            "longitudinal": false
         },
         "CLS": {
             "hierarchy_labels": {
@@ -378,10 +398,17 @@
                 "3.0"
             ],
             "date_field": "visitdate",
+            "supplement_module": {
+                "label": "UDS",
+                "date_field": "visitdate",
+                "exact_match": false
+            },
             "preprocess_checks": [
                 "duplicate-record",
-                "version"
-            ]
+                "version",
+                "supplement-module"
+            ],
+            "longitudinal": false
         }
     }
 }

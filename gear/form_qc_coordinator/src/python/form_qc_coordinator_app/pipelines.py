@@ -5,11 +5,15 @@ from typing import Optional
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineType
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.subject_adaptor import ParticipantVisits, SubjectAdaptor
-from flywheel_gear_toolkit import GearToolkitContext
+from flywheel_adaptor.subject_adaptor import (
+    SubjectAdaptor,
+    SubjectError,
+)
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, MetadataKeys
+from submissions.models import ParticipantVisits
 
 from form_qc_coordinator_app.coordinator import QCCoordinator
 from form_qc_coordinator_app.visits import VisitsLookupHelper
@@ -24,7 +28,7 @@ class PipelineProcessor(ABC):
         self,
         *,
         proxy: FlywheelProxy,
-        gear_context: GearToolkitContext,
+        gear_context: GearContext,
         subject: SubjectAdaptor,
         module: str,
         visits_info: ParticipantVisits,
@@ -88,14 +92,27 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             GearExecutionError: If errors occur during QC process
         """
 
-        if self._check_all:
-            cutoff = None
-        else:
-            curr_visit = sorted(self._visits_info.visits, key=lambda d: d.visitdate)[0]
-            cutoff = curr_visit.visitdate
+        cutoff = None
+        search_operator = ">="
+
+        if not self._check_all:
+            sorted_visits = sorted(self._visits_info.visits, key=lambda d: d.visitdate)
+            cutoff = sorted_visits[0].visitdate
+
+            # If module is not longitudinal no need to evaluate all subsequent visits
+            # set search operator to only look for specified visits
+            if not self._module_configs.longitudinal:
+                search_operator = "="
+
+                if len(sorted_visits) > 1:
+                    cutoff = ",".join([f"'{d.visitdate}'" for d in sorted_visits])
+                    search_operator = DefaultValues.FW_SEARCH_OR
 
         visits_list = self._visits_lookup_helper.find_visits_for_module(
-            module=self._module, module_configs=self._module_configs, cutoff_date=cutoff
+            module=self._module,
+            module_configs=self._module_configs,
+            cutoff_date=cutoff,
+            search_op=search_operator,
         )
         if not visits_list:
             # This cannot happen,
@@ -103,7 +120,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             raise GearExecutionError(
                 "Cannot find matching visits for subject "
                 f"{self._subject.label}/{self._module} with "
-                f"{self._module_configs.date_field}>={cutoff}"
+                f"{self._module_configs.date_field}{search_operator}{cutoff}"
             )
 
         qc_coordinator = QCCoordinator(
@@ -114,6 +131,7 @@ class SubmissionPipelineProcessor(PipelineProcessor):
             qc_gear_info=self._qc_gear_info,
             proxy=self._proxy,
             gear_context=self._gear_context,
+            visits_lookup_helper=self._visits_lookup_helper,
         )
 
         qc_coordinator.run_error_checks(visits=visits_list)
@@ -150,6 +168,7 @@ class FinalizationPipelineProcessor(PipelineProcessor):
                 qc_gear_info=self._qc_gear_info,
                 proxy=self._proxy,
                 gear_context=self._gear_context,
+                visits_lookup_helper=self._visits_lookup_helper,
             )
 
             qc_coordinator.run_error_checks(visits=dep_visits)
@@ -163,6 +182,8 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             module_configs=self._module_configs,
             cutoff_date=current_visit.visitdate,
             search_op=">",
+            missing_data_strategy="none",
+            add_timestamp=True,
         )
 
         if not visits_list:
@@ -172,6 +193,13 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             )
             return
 
+        for visit in visits_list:
+            visit[MetadataKeys.TRIGGERED_TIMESTAMP] = (
+                current_visit.validated_timestamp
+                if current_visit.validated_timestamp
+                else ""
+            )
+
         qc_coordinator = QCCoordinator(
             subject=self._subject,
             module=self._module,
@@ -180,9 +208,30 @@ class FinalizationPipelineProcessor(PipelineProcessor):
             qc_gear_info=self._qc_gear_info,
             proxy=self._proxy,
             gear_context=self._gear_context,
+            visits_lookup_helper=self._visits_lookup_helper,
         )
-
         qc_coordinator.run_error_checks(visits=visits_list)
+
+    def __cleanup_last_failed_visit(self):
+        """Clean up any leftover last failed visit metadata missed by the Issue
+        Manager."""
+        try:
+            failed_visit = self._subject.get_last_failed_visit(self._module)
+        except SubjectError as error:
+            log.warning(
+                "Failed to retrieve last failed visit for "
+                f"{self._subject.label}/{self._module}: {error}"
+            )
+            return
+
+        curr_visit = self._visits_info.visits[0]
+
+        if failed_visit and (failed_visit.filename == curr_visit.filename):
+            log.info(
+                "Cleaning up last failed visit metadata for "
+                f"{self._subject.label}/{self._module}"
+            )
+            self._subject.reset_last_failed_visit(self._module)
 
     def trigger_qc_process(self):
         """Trigger the QC process for the `finalization` pipeline.
@@ -197,8 +246,13 @@ class FinalizationPipelineProcessor(PipelineProcessor):
                 f"{self._visits_info.visits}"
             )
 
+        # clean up any leftover last failed visit metadata missed by the Issue Manager
+        self.__cleanup_last_failed_visit()
+
         self.__process_dependent_modules()
-        self.__process_subsequent_visits()
+
+        if self._module_configs.longitudinal:
+            self.__process_subsequent_visits()
 
 
 def create_pipeline_processor(

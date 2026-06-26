@@ -1,9 +1,9 @@
 """Defines csv_center_splitter."""
 
+import copy
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Set, TextIO
+from typing import Any, Dict, List, Optional, Set, TextIO
 
-from flywheel import FileSpec
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from inputs.csv_reader import CSVVisitor, read_csv
@@ -14,7 +14,8 @@ from outputs.errors import (
     missing_field_error,
 )
 from outputs.outputs import write_csv_to_stream
-from projects.project_mapper import build_project_map
+from projects.project_mapper import generate_project_map
+from utils.files import check_duplicate_project_file
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         self.__error_writer: ListErrorWriter = error_writer
         self.__split_data: Dict[str, List[Dict[str, Any]]] = {}
         self.__headers: List[str] = []
+        self.__dropped_rows: List[Dict[str, Any]] = []
 
     @property
     def adcid_key(self):
@@ -57,6 +59,11 @@ class CSVVisitorCenterSplitter(CSVVisitor):
         """Return the error writer."""
         return self.__error_writer
 
+    @property
+    def dropped_rows(self):
+        """Return the dropped row."""
+        return self.__dropped_rows
+
     def visit_header(self, header: List[str]) -> bool:
         """Adds the header and verifies that the header key is in it.
 
@@ -76,9 +83,6 @@ class CSVVisitorCenterSplitter(CSVVisitor):
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Visit the dictionary for a row (per DictReader).
 
-        TODO: Should we clean up/ignore empty rows? Or just assume
-              a clean CSV? Particularly in the merged cells case.
-
         Args:
           row: The dictionary for a row from a CSV file
           line_num: The line number of the row
@@ -94,51 +98,18 @@ class CSVVisitorCenterSplitter(CSVVisitor):
             self.__error_writer.write(error)
             return False
 
+        # skip centers not explicitly included
         if adcid not in self.__include:
-            return True  # skip center not explicitly included
+            row_copy = copy.deepcopy(row)
+            row_copy["__drop_reason__"] = "ADCID not in include list"
+            self.__dropped_rows.append(row_copy)
+            return True
 
         if adcid not in self.split_data:
             self.split_data[adcid] = []
 
         self.split_data[adcid].append(row)
         return True
-
-
-def generate_project_map(
-    proxy: FlywheelProxy,
-    centers: Iterable[str],
-    target_project: str,
-    staging_project_id: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Generates the project map.
-
-    Args:
-        proxy: the proxy for the Flywheel instance
-        centers: The list of centers to map
-        target_project: The FW target project name to write results to for
-                        each ADCID
-        staging_project_id: Project ID to stage results to; will override
-                            target_project if specified
-    Returns:
-        Evaluated project mapping
-    """
-    if staging_project_id:
-        # if writing results to a staging project, manually build a project map
-        # that maps all to the specified project ID
-        project = proxy.get_project_by_id(staging_project_id)
-        if not project:
-            raise GearExecutionError(
-                f"Cannot find staging project with ID {staging_project_id}, "
-                + "possibly a permissions issue?"
-            )
-
-        return {f"adcid-{adcid}": project for adcid in centers}
-
-    # else build project map from ADCID to corresponding
-    # FW project for upload, and filter as needed
-    return build_project_map(
-        proxy=proxy, destination_label=target_project, center_filter=list(centers)
-    )
 
 
 def run(
@@ -148,13 +119,14 @@ def run(
     input_filename: str,
     error_writer: ListErrorWriter,
     adcid_key: str,
-    target_project: str,
     batch_size: int,
+    target_project: Optional[str] = None,
     staging_project_id: Optional[str] = None,
     include: Optional[Set[str]] = None,
     downstream_gears: Optional[List[str]] = None,
     delimiter: str = ",",
-):
+    replace_duplicates: bool = False,
+) -> List[Dict[str, Any]]:
     """Runs the CSV Center Splitter. Splits an input CSV by ADCID and uploads
     to each center's target project.
 
@@ -172,7 +144,14 @@ def run(
         staging_project_id: Project ID to stage results to; will override
                             target_project if specified
         include: Centers to include
+        downstream_gears: Gears to wait on before processing the
+            next batch when scheduling
         delimiter: The CSV's delimiter; defaults to ','
+        replace_duplicates: Replace a center-split file even if it's an
+            exact duplicate of an existing file
+
+    Returns:
+        The list of dropped rows, if any
     """
     # split CSV by ADCID key
     visitor = CSVVisitorCenterSplitter(
@@ -194,7 +173,7 @@ def run(
         )
         for error in error_writer.errors():
             log.error(error.message)
-        return
+        return visitor.dropped_rows
 
     # filter to centers that were actually found
     centers = [adcid for adcid in visitor.split_data]
@@ -206,14 +185,14 @@ def run(
     )
 
     if not project_map:
-        raise ValueError(f"No {target_project} projects found")
+        raise GearExecutionError(f"No {target_project} projects found")
 
     # make sure all expected projects are there before upload
     missing_projects = [
         adcid for adcid in centers if not project_map.get(f"adcid-{adcid}", None)
     ]
     if missing_projects:
-        raise ValueError(
+        raise GearExecutionError(
             f"Missing {target_project} projects for the following "
             + f"ADCIDs: {missing_projects}"
         )
@@ -237,34 +216,36 @@ def run(
             project = project_map[f"adcid-{adcid}"]
             filename = f"{adcid}_{input_filename}"
 
-            log.info(
-                f"Uploading {filename} for project {project.label} "  # type: ignore
-                + f"ADCID {adcid} with project ID {project.id}"
-            )  # type: ignore
-
             contents = write_csv_to_stream(
                 headers=visitor.headers, data=data
             ).getvalue()
-            file_spec = FileSpec(
-                name=filename,
-                contents=contents,
-                content_type="text/csv",
-                size=len(contents),
-            )
+
+            if not replace_duplicates and check_duplicate_project_file(
+                project, contents, filename
+            ):
+                log.info(f"Duplicate data, skipping upload of {filename}")
+                continue
+
+            log.info(
+                f"Uploading {filename} for {project.group}/{project.label} "  # type: ignore
+                + f"ADCID {adcid} with project ID {project.id}"
+            )  # type: ignore
 
             if proxy.dry_run:
                 log.info(f"DRY RUN: Would have uploaded {filename}")
                 continue
 
-            project.upload_file(file_spec)  # type: ignore
+            project.upload_file_contents(
+                filename=filename, contents=contents, content_type="text/csv"
+            )
             project_ids_list.append(project.id)
             log.info(f"Successfully uploaded {filename}")
 
-        if project_ids_list:
-            search_str = JobPoll.generate_search_string(
+        if project_ids_list and downstream_gears:
+            JobPoll.wait_for_batched_group(
+                proxy=proxy,
                 project_ids_list=project_ids_list,
-                gears_list=downstream_gears,
-                states_list=["running", "pending"],
+                downstream_gears=downstream_gears,
             )
 
-            JobPoll.wait_for_pipeline(proxy, search_str)
+    return visitor.dropped_rows

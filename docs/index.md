@@ -1,8 +1,18 @@
 # NACC Flywheel Extensions
 
-Home for documentation of Flywheel extensions for the Nationl Alzheimer's Coordinating Center (NACC).
+Home for documentation of Flywheel extensions for the National Alzheimer's Coordinating Center (NACC).
 
-- [Development Guide](development/index.md)
+- Development:
+  - Gears:
+    - [Gear Development Guide](development/index.md)
+    - [Gear Bot](development/gear-bot.md)
+    - [Gear Details](development/gear-details.md)
+  
+  - Packages:
+    - [nacc-common Development Guide](development/nacc-common.md)
+
+- Packages:
+  - [nacc-common](./nacc_common/index.md)
   
 - Processes:
   - Center management
@@ -16,6 +26,7 @@ Home for documentation of Flywheel extensions for the Nationl Alzheimer's Coordi
     - Enrollment pipelines
     - Form pipeline
     - SCAN metadata pipeline
+    - [Event Capture](./processes/event-capture.md)
 
 - Gears:
   1. [attribute_curator](attribute_curator/index.md)
@@ -23,23 +34,28 @@ Home for documentation of Flywheel extensions for the Nationl Alzheimer's Coordi
   3. [center_management](center_management/index.md)
   4. [csv_center_splitter](csv_center_splitter/index.md)
   5. [csv_subject_splitter](csv_subject_splitter/index.md)
-  6. [form_qc_checker](form_qc_checker/index.md)
-  7. [form_qc_coordinator](form_qc_coordinator/index.md)
-  8. [form_scheduler](form_scheduler/index.md)
-  9. [form_screening](form_screening/index.md)
-  10. form_transformer](form_transformer/index.md)
-  11. [gather_submission_status](gather_submission_status/index.md)
-  12. [identifier_lookup](identifier_lookup/index.md)
-  13. [identifier_provisioning](identifier_provisioning/index.md)
-  14. [legacy_identifier_transfer](legacy_identifier_transfer/index.md)
-  15. [legacy_sanity_check](legacy_sanity_check/index.md)
-  16. [project_management](project_management/index.md)
-  17. [pull_directory](pull_directory/index.md)
-  18. [pull_metadata](pull_metadata/index.md)
-  19. [push_template](push_template/index.md)
-  20. [redcap_error_checks_import](redcap_error_checks_import/index.md)
-  21. [redcap_fw_transfer](redcap_fw_transfer/index.md)
-  22. [redcap_project_creation](redcap_project_creation/index.md)
-  23. [redcap_project_info_management](redcap_project_info_management/index.md)
-  24. [regression_curator](regression_curator/index.md)
-  25. [user_management](user_management/index.md)
+  6. [dataset_aggregator](dataset_aggregator/index.md)
+  7. [dbt_runner](dbt_runner/index.md)
+  8. [file_distribution](file_distribution/index.md)
+  9. [form_qc_checker](form_qc_checker/index.md)
+  10. [form_qc_coordinator](form_qc_coordinator/index.md)
+  11. [form_scheduler](form_scheduler/index.md)
+  12. [form_screening](form_screening/index.md)
+  13. [form_transformer](form_transformer/index.md)
+  14. [gather_form_data](gather_form_data/index.md)
+  15. [gather_submission_status](gather_submission_status/index.md)
+  16. [identifier_lookup](identifier_lookup/index.md)
+  17. [identifier_provisioning](identifier_provisioning/index.md)
+  18. [image_identifier_lookup](image_identifier_lookup/index.md)
+  19. [legacy_identifier_transfer](legacy_identifier_transfer/index.md)
+  20. [legacy_sanity_check](legacy_sanity_check/index.md)
+  21. [participant_transfer](participant_transfer/index.md)
+  22. [project_management](project_management/index.md)
+  23. [pull_directory](pull_directory/index.md)
+  24. [pull_metadata](pull_metadata/index.md)
+  25. [push_template](push_template/index.md)
+  26. [redcap_fw_transfer](redcap_fw_transfer/index.md)
+  27. [redcap_project_creation](redcap_project_creation/index.md)
+  28. [redcap_project_info_management](redcap_project_info_management/index.md)
+  29. [transactional_event_scraper](transactional_event_scraper/index.md)
+  30. [user_management](user_management/index.md)

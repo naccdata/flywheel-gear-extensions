@@ -81,7 +81,7 @@ Each `run.py` script will have this structure.
 
 ```python
 def main():
-    with GearToolkitContext() as gear_context:
+    with GearContext() as gear_context:
         gear_context.init_logging()
         ... # get arguments from gear context (refs manifest file)
     
@@ -89,7 +89,7 @@ def main():
     run(...) # call run method from main.py
 ```
 
-The `GearToolkitContext` parses command-line arguments and sets them within the context.
+The `GearContext` parses command-line arguments and sets them within the context.
 Extra command-line arguments given when the script is run are added to the context.
 However, any checks that would be enforced by an argument parser are not available, and have to be written explicitly.
 
@@ -99,11 +99,11 @@ Most of the work is done by calling code from the `common` subdirectory.
 ## On API Keys
 
 Most gears will require an API key with the most common scenario being using the user's API key.
-In this case, `api-key` should be included in the `inputs` section of the manifest, and then the client can be pulled from the `GearToolkitContext` as
+In this case, `api-key` should be included in the `inputs` section of the manifest, and then the client can be pulled from the `GearContext` as
 
 ```python
 ...
-    with GearToolkitContext() as gear_context:
+    with GearContext() as gear_context:
         ...
         client = gear_context.client
 ...
@@ -119,7 +119,7 @@ This is done with `inputs.parameter_store.get_parameter_store()`.
 The Dockerfile sets up the Gear's working environment
 
    ```docker
-   FROM python:3.11
+   FROM python:3.12
 
    ENV BASE_DIR=/flywheel/v0
    RUN mkdir -p ${BASE_DIR}/input

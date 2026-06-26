@@ -4,7 +4,7 @@
 from csv import DictReader
 from io import StringIO
 
-from outputs.error_models import (
+from nacc_common.error_models import (
     CSVLocation,
     FileError,
     JSONLocation,

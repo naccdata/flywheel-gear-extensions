@@ -2,9 +2,22 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.3.0
+## 0.3.0
 
-* Adds notification to REDCap email list on pipeline completion
+* Adds optional configuration file `redcap_email_configs` to notify a REDCap email list on pipeline completion
+* Updates to output any dropped rows into a `dropped-rows.csv` file
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+* Moves `generate_project_map` to common code
+* Adds option to check if the uploaded center file would be a duplicate of an existing file - if so, does not replace it
+* Remove `local_run` argument
+
+## 0.2.3
+
+* Bug fixes and improvements
+
+## 0.2.2
+
+* Updates to use generalized `utils.files.get_centers_with_filters` and `JobPoll.wait_for_batched_group` methods
 * Updates to read in files with `utf-8-sig` to handle BOM encoding
 
 ## 0.2.1

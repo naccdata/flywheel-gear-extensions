@@ -1,0 +1,113 @@
+name: Release nacc-common
+
+on:
+  push:
+    tags:
+      - 'nacc-common/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release nacc-common
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.12]
+    steps:
+    - uses: actions/checkout@v5
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - uses: pantsbuild/actions/init-pants@v11
+      with:
+        gha-cache-key: v0
+        named-caches-hash: ${{ hashFiles('python-default.lock') }}
+        cache-lmdb-store: 'false'
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        TAG="${GITHUB_REF#refs/tags/nacc-common/v}"
+        echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+    - name: Verify version consistency
+      run: |
+        TOML_VERSION=$(python -c "
+        import re
+        with open('nacc-common/pyproject.toml') as f:
+            match = re.search(r'version\s*=\s*\"(.+?)\"', f.read())
+            print(match.group(1))
+        ")
+        BUILD_VERSION=$(python -c "
+        import re
+        with open('nacc-common/BUILD') as f:
+            match = re.search(r'version=\"(.+?)\"', f.read())
+            print(match.group(1))
+        ")
+        TAG_VERSION="${{ steps.version.outputs.version }}"
+
+        echo "Tag version:       $TAG_VERSION"
+        echo "pyproject version:  $TOML_VERSION"
+        echo "BUILD version:      $BUILD_VERSION"
+
+        if [ "$TAG_VERSION" != "$TOML_VERSION" ]; then
+          echo "::error::Tag version ($TAG_VERSION) does not match pyproject.toml ($TOML_VERSION)"
+          exit 1
+        fi
+        if [ "$TAG_VERSION" != "$BUILD_VERSION" ]; then
+          echo "::error::Tag version ($TAG_VERSION) does not match BUILD ($BUILD_VERSION)"
+          exit 1
+        fi
+
+    - name: Build package
+      run: pants package nacc-common:dist
+
+    - name: Verify package
+      run: |
+        pip install dist/nacc_common-${{ steps.version.outputs.version }}-py3-none-any.whl
+        python -c "import nacc_common; print('nacc_common imported successfully')"
+
+    - name: Create GitHub Release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ github.ref_name }}" \
+          dist/nacc_common-${{ steps.version.outputs.version }}-py3-none-any.whl \
+          dist/nacc_common-${{ steps.version.outputs.version }}.tar.gz \
+          --title "nacc-common v${{ steps.version.outputs.version }}" \
+          --generate-notes
+
+  compatibility:
+    name: Verify Python ${{ matrix.python-version }} compatibility
+    runs-on: ubuntu-latest
+    needs: release
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        TAG="${GITHUB_REF#refs/tags/nacc-common/v}"
+        echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+    - name: Install from release
+      run: |
+        pip install https://github.com/naccdata/flywheel-gear-extensions/releases/download/nacc-common%2Fv${{ steps.version.outputs.version }}/nacc_common-${{ steps.version.outputs.version }}-py3-none-any.whl
+
+    - name: Verify imports
+      run: |
+        python -c "import nacc_common; print('nacc_common imported successfully')"
+        python -c "from nacc_common.error_models import FileQCModel, FileError; print('error_models OK')"
+        python -c "from nacc_common.form_dates import convert_date, parse_date; print('form_dates OK')"
+        python -c "from nacc_common.pipeline import get_project; print('pipeline OK')"
+        python -c "from nacc_common.center_info import get_center_id; print('center_info OK')"

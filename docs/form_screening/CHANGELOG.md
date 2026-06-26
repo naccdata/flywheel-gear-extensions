@@ -2,8 +2,22 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.3.0
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
+## 1.2.6
+* Bug fixes and improvements
+* Rebuilt for event logging updates
+
+## 1.2.5
+* Removes whitespace from data values
+
+## 1.2.4
+* Rebuilt for reset error log content in read failure
+
 ## 1.2.3
-* Rebuild for error metadata updates
+* Rebuilt for ssm-parameter-store update
+* Rebuilt for error metadata updates
   
 ## 1.2.2
 * Remove gear failure on missing tag

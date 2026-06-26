@@ -4,14 +4,24 @@ import logging
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
-from configs.ingest_configs import ErrorLogTemplate, ModuleConfigs
+from configs.ingest_configs import ModuleConfigs
+from error_logging.error_logger import (
+    ErrorLogTemplate,
+)
+from error_logging.qc_status_log_creator import (
+    FileVisitAnnotator,
+    QCStatusLogManager,
+)
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
-from keys.keys import FieldNames, PreprocessingChecks, SysErrorCodes
-from outputs.error_logger import update_error_log_and_qc_metadata
-from outputs.error_models import FileQCModel, QCStatus, VisitKeys
+from keys.keys import PreprocessingChecks, SysErrorCodes
+from nacc_common.data_identification import (
+    DataIdentification,
+)
+from nacc_common.error_models import FileQCModel, QCStatus
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
@@ -19,7 +29,6 @@ from outputs.errors import (
     partially_failed_file_error,
     preprocess_errors,
     preprocessing_error,
-    system_error,
     unexpected_value_error,
 )
 from preprocess.preprocessor import FormPreprocessor
@@ -68,9 +77,7 @@ class CSVTransformVisitor(CSVVisitor):
         self.__errorlog_template = (
             self.__module_configs.errorlog_template
             if self.__module_configs.errorlog_template
-            else ErrorLogTemplate(
-                id_field=FieldNames.PTID, date_field=self.__date_field
-            )
+            else ErrorLogTemplate()
         )
 
         self.__existing_visits: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(
@@ -132,13 +139,14 @@ class CSVTransformVisitor(CSVVisitor):
                 found_all = False
 
         if not found_all:
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=row, date_field=self.__date_field
+            )
             self.__error_writer.write(
                 empty_field_error(
                     field=empty_fields,
                     line=line_num,
-                    visit_keys=VisitKeys.create_from(
-                        record=row, date_field=self.__date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
             self.__update_visit_error_log(input_record=row, qc_passed=False)
@@ -171,6 +179,7 @@ class CSVTransformVisitor(CSVVisitor):
             in self.__module_configs.preprocess_checks
             and self.__preprocessor.is_existing_visit(input_record=transformed_row)
         ):
+            transformed_row["linenumber"] = line_num
             self.__existing_visits[subject_lbl].append(transformed_row)
             return True
 
@@ -197,15 +206,25 @@ class CSVTransformVisitor(CSVVisitor):
             return True
 
         success = True
-        for visits in self.__existing_visits.values():
+        for subject_lbl, visits in self.__existing_visits.items():
             for visit in visits:
                 self.__error_writer.clear()
-                success = (
-                    self.__copy_downstream_gears_metadata(
-                        input_record=visit, downstream_gears=downstream_gears
-                    )
-                    and success
+                copied = self.__copy_downstream_gears_metadata(
+                    input_record=visit, downstream_gears=downstream_gears
                 )
+
+                # if failed to copy metadata add it to current batch to be reprocessed
+                if not copied:
+                    log.info(
+                        f"Adding visit {visit['linenumber']} to the current batch "
+                        f"for subject {subject_lbl}"
+                    )
+                    if visit.get("file_id"):  # remove file_id if present
+                        visit.pop("file_id")
+                    self.__add_to_current_batch(
+                        subject_lbl=subject_lbl, input_record=visit
+                    )
+                success = copied and success
 
         return success
 
@@ -252,15 +271,16 @@ class CSVTransformVisitor(CSVVisitor):
                     if visit_num not in prev_visit_nums:
                         prev_visit_nums.append(visit_num)
                     else:
+                        visit_keys = DataIdentification.from_form_record_safe(
+                            record=transformed_row, date_field=self.__date_field
+                        )
                         self.__error_writer.write(
                             preprocessing_error(
                                 field=FieldNames.VISITNUM,
                                 value=visit_num,
                                 line=line_num,
                                 error_code=SysErrorCodes.DIFF_VISITDATE,
-                                visit_keys=VisitKeys.create_from(
-                                    record=transformed_row, date_field=self.__date_field
-                                ),
+                                visit_keys=visit_keys,
                             )
                         )
                         success = False
@@ -346,15 +366,16 @@ class CSVTransformVisitor(CSVVisitor):
         if self.__module == row_module:
             return True
 
+        visit_keys = DataIdentification.from_form_record_safe(
+            record=row, date_field=self.__date_field
+        )
         self.__error_writer.write(
             unexpected_value_error(
                 field=FieldNames.MODULE,
                 value=row_module,
                 expected=self.__module,
                 line=line_num,
-                visit_keys=VisitKeys.create_from(
-                    record=row, date_field=self.__date_field
-                ),
+                visit_keys=visit_keys,
             )
         )
 
@@ -385,22 +406,41 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return None
 
-        error_log_name = self.__errorlog_template.instantiate(
-            module=self.module, record=input_record
+        # Create DataIdentification from CSV record
+        # Note: Use visitor's module (self.module), not record's module,
+        # to ensure consistent QC log filenames even when record has wrong module
+        data_id = DataIdentification.from_visit_metadata(
+            ptid=input_record.get(FieldNames.PTID),
+            date=input_record.get(self.__date_field),
+            module=self.module,  # Use visitor's module, not record's module
+            visitnum=input_record.get(FieldNames.VISITNUM),
+            packet=input_record.get(FieldNames.PACKET),
+            naccid=input_record.get(FieldNames.NACCID),
+            adcid=input_record.get(FieldNames.ADCID),
         )
-        if not error_log_name:
-            return None
+
+        # Use QCStatusLogManager to get filename
+        qc_manager = QCStatusLogManager(
+            error_log_template=self.__errorlog_template,
+            visit_annotator=FileVisitAnnotator(self.__project),
+        )
 
         if not update:
+            # When not updating, return the actual filename that exists or would be used
+            # This checks for both new and legacy formats
+            error_log_name = qc_manager.get_qc_log_filename(data_id, self.__project)
             return error_log_name
 
-        if not update_error_log_and_qc_metadata(
-            error_log_name=error_log_name,
-            destination_prj=self.__project,
+        # Update QC log (handles both new and legacy formats)
+        error_log_name = qc_manager.update_qc_log(
+            visit_keys=data_id,
+            project=self.__project,
             gear_name=self.__gear_name,
-            state="PASS" if qc_passed else "FAIL",
+            status="PASS" if qc_passed else "FAIL",
             errors=self.__error_writer.errors(),
-        ):
+        )
+
+        if not error_log_name:
             log.error(
                 "Failed to update error log for visit %s, %s",
                 input_record[FieldNames.PTID],
@@ -438,13 +478,13 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return "FAIL"
 
-        if not visit_file.info_exists:
-            log.error(f"No QC metadata in existing visit file {visit_file.name}")
+        visit_file = visit_file.reload()
+        if not visit_file.info or not visit_file.info.get("qc"):
+            log.warning(f"No QC metadata in existing visit file {visit_file.name}")
             return "FAIL"
 
-        visit_file = visit_file.reload()
         try:
-            visit_info = FileQCModel.model_validate(visit_file.info)
+            visit_info = FileQCModel.create(visit_file)
         except ValidationError as error:
             log.error(
                 f"Unexpected QC metadata in visit file {visit_file.name}: {error}"
@@ -491,9 +531,25 @@ class CSVTransformVisitor(CSVVisitor):
             log.warning("Module not specified to update visit error log")
             return False
 
-        error_log_name = self.__errorlog_template.instantiate(
-            module=self.module, record=input_record
+        # Create DataIdentification from CSV record
+        # Note: Use visitor's module (self.module), not record's module
+        data_id = DataIdentification.from_visit_metadata(
+            ptid=input_record.get(FieldNames.PTID),
+            date=input_record.get(self.__date_field),
+            module=self.module,  # Use visitor's module, not record's module
+            visitnum=input_record.get(FieldNames.VISITNUM),
+            packet=input_record.get(FieldNames.PACKET),
+            naccid=input_record.get(FieldNames.NACCID),
+            adcid=input_record.get(FieldNames.ADCID),
         )
+
+        # Use QCStatusLogManager to get the actual filename (checks both formats)
+        qc_manager = QCStatusLogManager(
+            error_log_template=self.__errorlog_template,
+            visit_annotator=FileVisitAnnotator(self.__project),
+        )
+
+        error_log_name = qc_manager.get_qc_log_filename(data_id, self.__project)
         if not error_log_name:
             return False
 
@@ -510,7 +566,7 @@ class CSVTransformVisitor(CSVVisitor):
         info = FileQCModel(qc={})
         if error_log_file.info and "qc" in error_log_file.info:
             try:
-                info = FileQCModel.model_validate(error_log_file.info)
+                info = FileQCModel.create(error_log_file)
             except ValidationError as error:
                 log.error(
                     f"error reading {self.__project}/{error_log_name} metadata: {error}"
@@ -525,12 +581,7 @@ class CSVTransformVisitor(CSVVisitor):
             )
 
             if status != "PASS":
-                self.__error_writer.write(
-                    system_error(
-                        message=("Failed to load QC metadata from existing visit file"),
-                        error_type="warning",
-                    )
-                )
+                return False
 
             gear_state = status
         else:
@@ -596,15 +647,16 @@ class CSVTransformVisitor(CSVVisitor):
                 packet,
                 visitdate,
             )
+            visit_keys = DataIdentification.from_form_record_safe(
+                record=record, date_field=self.__date_field
+            )
             self.__error_writer.write(
                 preprocessing_error(
                     field=self.__date_field,
                     value=visitdate,
                     line=line_num,
                     error_code=SysErrorCodes.DUPLICATE_VISIT,
-                    visit_keys=VisitKeys.create_from(
-                        record=record, date_field=self.__date_field
-                    ),
+                    visit_keys=visit_keys,
                 )
             )
 

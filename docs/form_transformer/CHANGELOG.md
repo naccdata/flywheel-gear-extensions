@@ -2,7 +2,41 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.4.6
+## 1.10.0
+* Prevents multiple submissions for the modules that allow only a single submission for a participant
+* Updates the visit searches to include both QC gear tags in legacy lookup
+  
+## 1.9.0
+* Rebuilt for log file naming format update
+  
+## 1.8.0
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
+## 1.7.2
+* Updates module pattern to support B1a ingest
+  
+## 1.7.1
+* Updates to support legacy ingest pipeline
+* Rebuilt for ingest config updates
+* Bug fixes and improvements
+* Rebuilt for event logging updates
+
+## 1.7.0
+* Reprocesses duplicate visit if failed to copy existing QC metadata
+
+## 1.6.0
+* Adds NP vs UDS checks
+* Rebuilt for form ingest configs update
+  
+## 1.5.1
+* Supports having study suffix in retrospective-form project label
+* Rebuilt for reset error log content in read failure
+  
+## 1.5.0
+* Rebuilt for ssm-parameter-store update
+* Adds new NP/MLST-related preprocessing checks (025, 026, and 027)
+* Adds `preprocess.preprocessor_helpers.py` which includes helper preprocessor classes
+    * Refactors how error codes are written to reduce redundancy
 * Updates error metadata to include date and naccid
   
 ## 1.4.5

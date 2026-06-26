@@ -2,10 +2,10 @@
 
 from typing import Optional, TypeVar
 
-from flywheel_gear_toolkit import GearToolkitContext  # type: ignore
+from fw_gear import GearContext  # type: ignore
 
 
-def get_api_key(gear_context: GearToolkitContext) -> Optional[str]:
+def get_api_key(gear_context: GearContext) -> Optional[str]:
     """Returns the api key from the gear context if there is one.
 
     Args:
@@ -13,7 +13,7 @@ def get_api_key(gear_context: GearToolkitContext) -> Optional[str]:
     Returns:
       the API key if exists in context, None otherwise
     """
-    api_key_dict = gear_context.get_input("api-key")
+    api_key_dict = gear_context.config.get_input("api-key")
     if not api_key_dict:
         raise ConfigParseError(message="No API Key")
 
@@ -24,7 +24,7 @@ T = TypeVar("T")
 
 
 def get_config(
-    *, gear_context: GearToolkitContext, key: str, default: Optional[T] = None
+    *, gear_context: GearContext, key: str, default: Optional[T] = None
 ) -> T:
     """Returns the value for the key in the config of the gear context.
 
@@ -37,7 +37,7 @@ def get_config(
     Raises:
       ConfigParseError if the key doesn't occur in the context
     """
-    value = gear_context.config.get(key, default)
+    value = gear_context.config.opts.get(key, default)
     if value is None:
         raise ConfigParseError(message=f"No value for {key}")
 

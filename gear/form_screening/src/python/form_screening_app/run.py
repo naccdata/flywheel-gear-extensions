@@ -5,7 +5,7 @@ import sys
 import time
 from typing import List, Optional
 
-from flywheel_gear_toolkit import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -34,6 +34,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         queue_tags: List[str],
         scheduler_gear: GearInfo,
         format_and_tag: bool,
+        gear_name: str,
     ):
         super().__init__(client=client)
 
@@ -42,11 +43,12 @@ class FormScreeningVisitor(GearExecutionEnvironment):
         self.__queue_tags = queue_tags
         self.__scheduler_gear = scheduler_gear
         self.__format_and_tag = format_and_tag
+        self.__gear_name = gear_name
 
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FormScreeningVisitor":
         """Creates a gear execution object.
@@ -68,7 +70,9 @@ class FormScreeningVisitor(GearExecutionEnvironment):
                 "Gear config input_file not specified or not found"
             )
 
-        gear_name = context.manifest.get("name", "form-screening")
+        gear_name = context.manifest.name
+        if not gear_name:
+            gear_name = "form-screening"
 
         # We save the formatted file with same name as input file
         # To prevent gear rules running into a loop check whether the file is screened
@@ -88,15 +92,13 @@ class FormScreeningVisitor(GearExecutionEnvironment):
                 )
             sys.exit(0)
 
-        config_file_path = context.get_input_path("scheduler_gear_configs_file")
+        config_file_path = context.config.get_input_path("scheduler_gear_configs_file")
 
-        accepted_modules = parse_string_to_list(
-            context.config.get("accepted_modules", None)
-        )
-        file_tags = parse_string_to_list(
-            context.config.get("file_tags", None), to_lower=False
-        )
-        format_and_tag = context.config.get("format_and_tag", None)
+        options = context.config.opts
+        accepted_modules = parse_string_to_list(options.get("accepted_modules", None))
+
+        file_tags = parse_string_to_list(options.get("file_tags", None), to_lower=False)
+        format_and_tag = options.get("format_and_tag", None)
 
         if not accepted_modules:
             raise GearExecutionError("No accepted_modules provided")
@@ -122,9 +124,10 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             queue_tags=file_tags,
             scheduler_gear=scheduler_gear,
             format_and_tag=format_and_tag,
+            gear_name=gear_name,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the Form Screening app."""
 
         error_writer = run(
@@ -135,6 +138,7 @@ class FormScreeningVisitor(GearExecutionEnvironment):
             queue_tags=self.__queue_tags,
             scheduler_gear=self.__scheduler_gear,
             format_and_tag=self.__format_and_tag,
+            gear_name=self.__gear_name,
         )
 
         if error_writer:

@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from flywheel import Session
 from flywheel.file_spec import FileSpec
 from flywheel.finder import Finder
+from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject_parents import SubjectParents
 
 
@@ -63,6 +64,9 @@ class Subject:
         """Update the info with the passed in arguments."""
         ...
 
+    def get_file(self, name: str) -> FileEntry:
+        ...
+
     def upload_file(self, file: FileSpec) -> List[Dict]:
         ...
 
@@ -70,4 +74,7 @@ class Subject:
         ...
 
     def add_tag(self, tag, **kwargs):
+        ...
+
+    def delete_tag(self, tag, **kwargs):
         ...

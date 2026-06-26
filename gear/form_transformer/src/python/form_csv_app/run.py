@@ -3,11 +3,14 @@
 import logging
 from typing import Optional
 
-from configs.ingest_configs import FormProjectConfigs
+from configs.ingest_configs import (
+    FormProjectConfigs,
+    load_form_ingest_configurations,
+)
 from datastore.forms_store import FormsStore
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from flywheel_gear_toolkit.context.context import GearToolkitContext
+from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -22,7 +25,7 @@ from outputs.error_writer import ErrorWriter, ListErrorWriter
 from preprocess.preprocessor import FormPreprocessor
 from pydantic import ValidationError
 from transform.transformer import FieldTransformations, TransformerFactory
-from utils.utils import load_form_ingest_configurations, parse_string_to_list
+from utils.utils import parse_string_to_list
 
 from form_csv_app.main import run
 
@@ -47,7 +50,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
     @classmethod
     def create(
         cls,
-        context: GearToolkitContext,
+        context: GearContext,
         parameter_store: Optional[ParameterStore] = None,
     ) -> "FormCSVtoJSONTransformer":
         """Creates a gear execution object.
@@ -86,7 +89,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             transform_input=transform_input,
         )
 
-    def run(self, context: GearToolkitContext) -> None:
+    def run(self, context: GearContext) -> None:
         """Runs the CSV to JSON Transformer app.
 
         Args:
@@ -131,10 +134,10 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 f"Failed to find the project with ID {file.parents.project}"
             )
 
-        gear_name = context.manifest.get("name", "form-transformer")
+        gear_name = self.get_gear_name(context, "form-transformer")
 
         downstream_gears = parse_string_to_list(
-            context.config.get("downstream_gears", None)
+            context.config.opts.get("downstream_gears", None)
         )
 
         prj_adaptor = ProjectAdaptor(project=project, proxy=proxy)
@@ -229,23 +232,38 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             if form_configs.legacy_project_label
             else DefaultValues.LEGACY_PRJ_LABEL
         )
-        try:
-            legacy_project = ProjectAdaptor.create(
-                proxy=ingest_project.proxy,
-                group_id=ingest_project.group,
-                project_label=legacy_label,
-            )
-        except ProjectError as error:
-            raise GearExecutionError(
-                f"Failed to retrieve legacy project: {error}"
-            ) from error
+
+        if legacy_label == "NA":
+            log.info("Retrospective project not applicable, skipping lookup")
+            legacy_project = None
+        else:
+            retrospective_prj_label = legacy_label
+            # assumes project label is in <pipeline>-<datatype>-[<study]] format
+            tokens = ingest_project.label.split("-")
+            if len(tokens) > 2:
+                retrospective_prj_label = legacy_label + "-" + "-".join(tokens[2:])
+            try:
+                legacy_project = ProjectAdaptor.create(
+                    proxy=ingest_project.proxy,
+                    group_id=ingest_project.group,
+                    project_label=retrospective_prj_label,
+                )
+                log.info(
+                    "Retrospective project: "
+                    f"{ingest_project.group}/{legacy_project.label}"
+                )
+            except ProjectError as error:
+                raise GearExecutionError(
+                    "Failed to retrieve retrospective project"
+                    f"{ingest_project.group}/{retrospective_prj_label}: {error}"
+                ) from error
 
         forms_store = FormsStore(
             ingest_project=ingest_project, legacy_project=legacy_project
         )
 
         return FormPreprocessor(
-            primary_key=form_configs.primary_key,
+            form_configs=form_configs,
             forms_store=forms_store,
             module=module,
             module_configs=form_configs.module_configs.get(module),  # type: ignore

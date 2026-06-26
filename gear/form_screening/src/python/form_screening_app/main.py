@@ -5,10 +5,9 @@ import os
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
-from flywheel import Project
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_gear_toolkit import GearToolkitContext
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from fw_gear import GearContext
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from gear_execution.gear_trigger import (
     CredentialGearConfigs,
@@ -18,7 +17,8 @@ from gear_execution.gear_trigger import (
 )
 from inputs.csv_reader import read_csv
 from jobs.job_poll import JobPoll
-from keys.keys import FieldNames, SysErrorCodes
+from keys.keys import SysErrorCodes
+from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_file_error,
@@ -39,7 +39,7 @@ class FormSchedulerGearConfigs(CredentialGearConfigs):
 
 
 def save_output(
-    context: GearToolkitContext,
+    context: GearContext,
     outfilename: str,
     contents: str,
     tags: Optional[List[str]] = None,
@@ -67,14 +67,14 @@ def save_output(
     if tags or info:
         context.metadata.update_file_metadata(
             file_=outfilename,
-            container_type=context.destination["type"],
+            container_type=context.config.destination["type"],
             tags=tags,
             info=info,
         )
 
 
 def get_scheduler_gear_inputs(
-    scheduler_gear: GearInfo, project: Project
+    scheduler_gear: GearInfo, project: ProjectAdaptor
 ) -> Dict[str, FileEntry]:
     """Get the input files for the form scheduler gear.
 
@@ -103,7 +103,7 @@ def get_scheduler_gear_inputs(
 
 
 def trigger_scheduler_gear(
-    *, proxy: FlywheelProxy, project: Project, scheduler_gear: GearInfo
+    *, proxy: FlywheelProxy, project: ProjectAdaptor, scheduler_gear: GearInfo
 ):
     """Trigger the form-scheduler gear if it's not already running on the given
     project.
@@ -135,19 +135,20 @@ def trigger_scheduler_gear(
         inputs=get_scheduler_gear_inputs(
             scheduler_gear=scheduler_gear, project=project
         ),
-        destination=project,
+        destination=project.project,
     )
 
 
 def run(
     *,
     proxy: FlywheelProxy,
-    context: GearToolkitContext,
+    context: GearContext,
     file_input: InputFileWrapper,
     accepted_modules: List[str],
     queue_tags: List[str],
     scheduler_gear: GearInfo,
     format_and_tag: bool,
+    gear_name: str,
 ) -> Optional[ListErrorWriter]:
     """Runs the form screening process. Checks that the file suffix matches any
     accepted modules, if the suffix does not match, report an error.
@@ -171,13 +172,16 @@ def run(
         scheduler_gear: GearInfo of the scheduler gear to trigger
         format_and_tag: if True format input file and add queue_tags,
                         else check whether the file is already tagged with queue_tags
+        gear_name: The gear name
 
     Returns:
         ListErrorWriter(optional): If file didn't pass screening checks
     """
 
     file = proxy.get_file(file_input.file_id)
-    project = file_input.get_parent_project(proxy=proxy, file=file)
+    project = ProjectAdaptor(
+        project=file_input.get_parent_project(proxy=proxy, file=file), proxy=proxy
+    )
 
     if not format_and_tag:
         # check whether the input file has pipeline trigger tag(s)
@@ -256,7 +260,6 @@ def run(
         error_writer.write(empty_file_error())
         return error_writer
 
-    gear_name = context.manifest.get("name", "form-screening")
     queue_tags.append(gear_name)
 
     # save the original uploader's ID in custom info (for email notification)

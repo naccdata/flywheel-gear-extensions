@@ -1,0 +1,210 @@
+"""Entry script for Dataset Aggregator."""
+
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from flywheel.rest import ApiException
+from fw_gear import GearContext
+from gear_execution.gear_execution import (
+    ClientWrapper,
+    GearBotClient,
+    GearEngine,
+    GearExecutionEnvironment,
+    GearExecutionError,
+    InputFileWrapper,
+)
+from inputs.parameter_store import ParameterStore
+from pydantic import ValidationError
+from storage.dataset import (
+    AggregateDataset,
+    FWDataset,
+    ParquetAggregateDataset,
+)
+
+from dataset_aggregator_app.duplicates_handler import (
+    DuplicatesHandler,
+)
+from dataset_aggregator_app.main import run
+
+log = logging.getLogger(__name__)
+
+
+class DatasetAggregatorVisitor(GearExecutionEnvironment):
+    """Visitor for the Dataset Aggregator gear."""
+
+    def __init__(
+        self,
+        client: ClientWrapper,
+        duplicates_handler: DuplicatesHandler,
+        target_project: str,
+        output_uri: str,
+        freeze_date: Optional[str] = None,
+    ):
+        super().__init__(client=client)
+        self.__duplicates_handler = duplicates_handler
+        self.__target_project = target_project
+        self.__output_uri = output_uri
+        self.__freeze_date = freeze_date
+
+    @classmethod
+    def create(
+        cls,
+        context: GearContext,
+        parameter_store: Optional[ParameterStore] = None,
+    ) -> "DatasetAggregatorVisitor":
+        """Creates a Dataset Aggregator execution visitor.
+
+        Args:
+            context: The gear context.
+            parameter_store: The parameter store
+        Returns:
+          the execution environment
+        Raises:
+          GearExecutionError if any expected inputs are missing
+        """
+
+        client = GearBotClient.create(context=context, parameter_store=parameter_store)
+        options = context.config.opts
+
+        target_project = options.get("target_project", None)
+        if not target_project:
+            raise GearExecutionError("target_project required")
+
+        output_uri = options.get("output_uri", None)
+        if not output_uri:
+            raise GearExecutionError("output_uri required")
+
+        duplicates_criteria_json = InputFileWrapper.create(
+            input_name="duplicates_criteria_json", context=context
+        )
+
+        if options.get("debug", False):
+            logging.basicConfig(level=logging.DEBUG)
+
+        duplicates_handler = DuplicatesHandler(
+            identifiers_mode=options.get("identifiers_mode", "prod"),
+            output_dir=context.output_dir,
+            duplicates_criteria_json=duplicates_criteria_json,
+        )
+
+        return DatasetAggregatorVisitor(
+            client=client,
+            duplicates_handler=duplicates_handler,
+            target_project=target_project,
+            output_uri=output_uri.rstrip("/"),
+            freeze_date=options.get("freeze_date", None),
+        )
+
+    def __group_datasets(self, center_ids: List[str]) -> AggregateDataset:
+        """Get datasets for each center ID by looking up which centers have the
+        specified target project and dataset metadata.
+
+        Args:
+            center_ids: List of center IDs to aggregate
+        Returns:
+            AggregateDataset, which has collected all found datasets
+        """
+        log.info(f"Looking up dataset metadata for {self.__target_project} projects...")
+        datasets: Dict[str, FWDataset] = {}
+        bucket = None
+
+        for center in center_ids:
+            try:
+                project = self.proxy.lookup(f"{center}/{self.__target_project}")
+            except ApiException:
+                log.warning(
+                    f"No {self.__target_project} project found for {center}, "
+                    + "skipping"
+                )
+                continue
+
+            try:
+                project = project.reload()
+                dataset_metadata = project.info.get("dataset", {})
+                if not dataset_metadata:
+                    log.warning(
+                        "dataset metadata not defined for "
+                        + f"{center}/{self.__target_project}"
+                    )
+                    continue
+
+                dataset = FWDataset(**dataset_metadata)
+            except (ApiException, ValidationError) as e:
+                raise GearExecutionError(
+                    "failed to parse dataset metadata for "
+                    + f"{center}/{self.__target_project}: {e}"
+                ) from e
+
+            log.info(f"found dataset metadata for {center}/{self.__target_project}")
+            if not bucket:
+                bucket = dataset.bucket
+
+            if bucket != dataset.bucket:
+                raise GearExecutionError(
+                    f"Multiple buckets found ({bucket} and {dataset.bucket}); "
+                    + "cannot aggregate"
+                )
+
+            datasets[center] = dataset
+
+        if not datasets or not bucket:
+            raise GearExecutionError(
+                f"No datasets found in centers for project {self.__target_project}"
+            )
+
+        return ParquetAggregateDataset(
+            bucket=bucket,
+            project=self.__target_project,
+            datasets=datasets,
+        )
+
+    def run(self, context: GearContext) -> None:
+        """Run the dataset aggregator."""
+        now = datetime.now()
+        etl_date = now.strftime("%Y%m%d-%H%M%S")
+        if not self.__freeze_date:
+            self.__freeze_date = now.strftime("%Y%m%d")
+
+        # make sure freeze date is correct format
+        try:
+            datetime.strptime(self.__freeze_date, "%Y%m%d")
+        except (ValueError, TypeError) as e:
+            raise GearExecutionError(
+                f"freeze_date must be in YYYYMMDD format: {e}"
+            ) from e
+
+        aggregate = self.__group_datasets(self.get_center_ids(context))
+
+        # write provenance information to file
+        provenance_file = Path(context.work_dir) / "provenance.json"
+        with provenance_file.open("w") as fh:
+            provenance = self.get_provenance(context)
+            provenance["dataset_aggregator"] = {
+                "freeze_date": self.__freeze_date,
+                "etl_date": etl_date,
+                "latest_versions": aggregate.latest_versions,
+            }
+            json.dump(provenance, fh, indent=4)
+
+        run(
+            context=context,
+            aggregate=aggregate,
+            output_uri=self.__output_uri,
+            duplicates_handler=self.__duplicates_handler,
+            provenance_file=provenance_file,
+            dry_run=self.client.dry_run,
+            etl_date=etl_date,
+            freeze_date=self.__freeze_date,
+        )
+
+
+def main():
+    """Main method for Dataset Aggregator."""
+    GearEngine.create_with_parameter_store().run(gear_type=DatasetAggregatorVisitor)
+
+
+if __name__ == "__main__":
+    main()

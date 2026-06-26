@@ -4,6 +4,7 @@
     "package_name": "{{ cookiecutter.gear_name.lower().replace(' ', '-') }}",
     "module_name": "{{ cookiecutter.gear_name.lower().replace(' ', '_').replace('-', '_') }}",
     "app_name": "{{ cookiecutter.module_name ~ \"_app\" }}",
+    "test_name": "{{ cookiecutter.module_name ~ \"_test\" }}",
     "class_name": "{{ cookiecutter.gear_name.replace(' ', '') }}",
     "image_tag": "0.0.1",
     "author": "NACC",

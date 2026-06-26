@@ -2,6 +2,42 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.6.1
+* Rebuilt for module configs update
+
+## 1.6.0
+* Rebuilt for log file naming format update
+  
+## 1.5.0
+* Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
+
+## 1.4.4
+Cleans up last failed visit metadata missed by the Issue Manager
+
+## 1.4.3
+Updates module pattern to support B1a ingest
+
+## 1.4.2
+* Updates to support legacy ingest pipeline
+* Evaluates subsequent visits only for longitudinal modules
+* Rebuilt for event logging updates
+
+## 1.4.1
+* Fixes a bug in updating the visit error log
+  
+## 1.4.0
+* Resets QC status and re-evaluates subsequent visits and modules
+  
+## 1.3.0
+* Rebuilt for form ingest configs update
+  
+## 1.2.7
+* Rebuilt for reset error log content in read failure
+  
+## 1.2.6
+* Rebuilt for ssm-parameter-store update
+* Rebuilt for new preprocessing checks in config
+
 ## 1.2.5
 * Updates error metadata to include date and naccid
   

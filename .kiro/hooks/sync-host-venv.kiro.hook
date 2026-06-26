@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Sync Host Venv Reminder",
+  "description": "Reminds you to run ./bin/create-host-venv.sh when requirements.txt is modified, so the host .venv stays in sync for IDE analysis.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "requirements.txt"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "The requirements.txt file was just modified. Remind the user to run ./bin/create-host-venv.sh to keep their host .venv in sync for IDE analysis."
+  }
+}

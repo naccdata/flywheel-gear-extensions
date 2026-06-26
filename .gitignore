@@ -137,5 +137,8 @@ dmypy.json
 # System
 .DS_Store
 
+/scratch
+
+
 # Copilot settings
 .github/instructions

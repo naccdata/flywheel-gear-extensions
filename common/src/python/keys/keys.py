@@ -3,30 +3,6 @@
 REDCapKeys = ["redcap_event_name", "redcap_repeat_instance", "redcap_repeat_instrument"]
 
 
-class FieldNames:
-    """Class to store frequently accessed field names."""
-
-    NACCID = "naccid"
-    MODULE = "module"
-    PACKET = "packet"
-    PTID = "ptid"
-    ADCID = "adcid"
-    MODE = "mode"
-    VISITNUM = "visitnum"
-    DATE_COLUMN = "visitdate"
-    FORMVER = "formver"
-    GUID = "guid"
-    OLDADCID = "oldadcid"
-    OLDPTID = "oldptid"
-    ENRLFRM_DATE = "frmdate_enrl"
-    ENRLFRM_INITL = "initials_enrl"
-    NACCIDKWN = "naccidknwn"
-    PREVENRL = "prevenrl"
-    C2C2T = "rmmodec2c2t"
-    ENRLTYPE = "enrltype"
-    GUIDAVAIL = "guidavail"
-
-
 class RuleLabels:
     """Class to store rule definition labels."""
 
@@ -45,10 +21,14 @@ class DefaultValues:
     PRIMARY_STUDY = "adrc"
     NOTFILLED = 0
     LEGACY_PRJ_LABEL = "retrospective-form"
+    ENRL_PRJ_LABEL = "ingest-enrollment"
+    FORM_PRJ_LABEL = "ingest-form"
     ENROLLMENT_MODULE = "ENROLL"
     UDS_MODULE = "UDS"
     MDS_MODULE = "MDS"
     BDS_MODULE = "BDS"
+    NP_MODULE = "NP"
+    MLST_MODULE = "MLST"
     GEARBOT_USER_ID = "nacc-flywheel-gear@uw.edu"
     NACC_GROUP_ID = "nacc"
     METADATA_PRJ_LBL = "metadata"
@@ -61,6 +41,7 @@ class DefaultValues:
     QC_JSON_DIR = "JSON"
     QC_GEAR = "form-qc-checker"
     LEGACY_QC_GEAR = "file-validator"
+    PROVISIONING_GEAR = "identifier-provisioning"
     MAX_POOL_CONNECTIONS = 50
     PROV_SUFFIX = "provisioning"
     IDENTIFIER_SUFFIX = "identifiers"
@@ -69,9 +50,19 @@ class DefaultValues:
     UDS_IT_PACKET = "IT"
     UDS_I4_PACKET = "I4"
     UDS_F_PACKET = "F"
+    UDS_T_PACKET = "T"
     SUBMISSION_PIPELINE = "submission"
     FINALIZATION_PIPELINE = "finalization"
+    DELETION_PIPELINE = "deletion"
     FINALIZED_TAG = "submission-completed"
+    MODULE_PATTERN = "a-zA-Z1-9_"
+
+
+CLINICAL_MODULES = [
+    DefaultValues.UDS_MODULE,
+    DefaultValues.MDS_MODULE,
+    DefaultValues.BDS_MODULE,
+]
 
 
 class MetadataKeys:
@@ -103,7 +94,7 @@ class SysErrorCodes:
     IVP_EXISTS = "preprocess-002"
     UDS_NOT_MATCH = "preprocess-003"
     INVALID_MODULE_PACKET = "preprocess-004"
-    UDS_NOT_EXIST = "preprocess-005"
+    CLINICAL_FORM_REQUIRED_MLST = "preprocess-005"
     DIFF_VISITDATE = "preprocess-006"
     DIFF_VISITNUM = "preprocess-007"
     LOWER_FVP_VISITNUM = "preprocess-008"
@@ -123,6 +114,19 @@ class SysErrorCodes:
     DUPLICATE_VISIT = "preprocess-022"
     LOWER_VISITNUM = "preprocess-023"
     MISSING_SUBMISSION_STATUS = "preprocess-024"
+    CLINICAL_FORM_REQUIRED_NP = "preprocess-025"
+    DEATH_DENOTED_ON_MLST = "preprocess-026"
+    NP_MLST_DOD_MISMATCH = "preprocess-027"
+    LOWER_NP_DOD = "preprocess-028"
+    NP_UDS_SEX_MISMATCH = "preprocess-029"
+    NP_UDS_DAGE_MISMATCH = "preprocess-030"
+    UDS_NOT_EXIST = "preprocess-031"
+    MULTIPLE_SUBMISSIONS = "preprocess-032"
+
+    # other errors for preprocessing issues that don't fall
+    # in above categories
+    PREPROCESSING_ERROR = "preprocess-error"
+    CLINICAL_FORM_REQUIRED = "preprocess-101"
 
 
 class PreprocessingChecks:
@@ -134,6 +138,10 @@ class PreprocessingChecks:
     IVP = "ivp"
     UDSV4_IVP = "udsv4-ivp"
     VISIT_CONFLICT = "visit-conflict"
+    CLINICAL_FORMS = "clinical-forms"
+    NP_MLST_RESTRICTIONS = "np-mlst-restrictions"
+    NP_UDS_RESTRICTIONS = "np-uds-restrictions"
+    SINGLETON = "singleton"
 
     @classmethod
     def is_check_defined(cls, check: str) -> bool:
