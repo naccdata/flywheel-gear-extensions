@@ -45,6 +45,7 @@ RESOLVED_SCOPES = [
     FormScope.CSF,
     FormScope.FTLD,
     FormScope.LBD,
+    FormScope.DS,
     FormScope.CLS,
     FormScope.COVID,
     FormScope.BDS,

@@ -3,9 +3,12 @@
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional, get_args
+from typing import Optional
 
-from data_requests.data_request import DataRequestVisitor, ModuleDataGatherer
+from data_requests.data_request import (
+    DataRequestVisitor,
+    ModuleDataGatherer,
+)
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -19,9 +22,65 @@ from outputs.error_writer import ListErrorWriter
 
 from gather_form_data_app.main import run
 
-ModuleName = str
-
 log = logging.getLogger(__name__)
+
+
+def _write_module_output(
+    context: GearContext,
+    gatherers: list[ModuleDataGatherer],
+    study_id: str,
+) -> None:
+    """Writes the data content in each gatherer to one or more output files.
+
+    For gatherers with ``split_by_formver=False`` (default), produces a single
+    CSV per module named ``{study_id}-{module}-{date}.csv``.
+
+    For gatherers with ``split_by_formver=True``, produces one CSV per
+    (module, formver) pair, named
+    ``{study_id}-{module}-{formver_label}-{date}.csv`` (e.g.
+    ``adrc-UDS-v4-2026-05-29.csv``). The formver label is normalized via
+    ``formver_label`` (e.g. "1.0" -> "v1", missing -> "unknown").
+
+    Args:
+      context: the gear context
+      gatherers: a list of ModuleDataGatherer objects
+      study_id: the study identifier used in output filenames
+    """
+    today = date.today().isoformat()
+    for gatherer in gatherers:
+        if gatherer.split_by_formver:
+            buckets = gatherer.content_by_formver
+            if not buckets:
+                log.warning(
+                    "skipping output for module %s: no data found",
+                    gatherer.module_name,
+                )
+                continue
+            for formver_label_value, content in buckets.items():
+                if not content:
+                    continue
+                output_filename = (
+                    f"{study_id}-{gatherer.module_name}-"
+                    f"{formver_label_value}-{today}.csv"
+                )
+                with context.open_output(
+                    output_filename, mode="w", encoding="utf-8"
+                ) as output_file:
+                    output_file.write(content)
+            continue
+
+        if not gatherer.content:
+            log.warning(
+                "skipping output for module %s: no data found",
+                gatherer.module_name,
+            )
+            continue
+
+        output_filename = f"{study_id}-{gatherer.module_name}-{today}.csv"
+        with context.open_output(
+            output_filename, mode="w", encoding="utf-8"
+        ) as output_file:
+            output_file.write(gatherer.content)
 
 
 class GatherFormDataVisitor(GearExecutionEnvironment):
@@ -33,8 +92,9 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         project_names: list[str],
         info_paths: list[str],
-        modules: set[ModuleName],
+        modules: set[str],
         study_id: str,
+        formver_split: bool = False,
     ):
         super().__init__(client=client)
         self.__file_input = file_input
@@ -42,6 +102,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
+        self.__formver_split = formver_split
 
     @classmethod
     def create(
@@ -68,22 +129,19 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         project_names = options.get("project_names", "").split(",")
         include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
-        modules = options.get("modules", "").split(",")
-        unexpected_modules = [
-            module for module in modules if module not in get_args(ModuleName)
-        ]
-        if unexpected_modules:
-            log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
+        modules = set(options.get("modules", "").split(","))
 
         study_id = options.get("study_id", "adrc")
+        formver_split = options.get("formver_split", False)
 
         return GatherFormDataVisitor(
             client=client,
             file_input=file_input,
             project_names=project_names,
             info_paths=info_paths,
-            modules={module for module in get_args(ModuleName) if module in modules},
+            modules=modules,
             study_id=study_id,
+            formver_split=formver_split,
         )
 
     def run(self, context: GearContext) -> None:
@@ -94,6 +152,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                     proxy=self.proxy,
                     module_name=module_name,
                     info_paths=self.__info_paths,
+                    split_by_formver=self.__formver_split,
                 )
             )
 
@@ -118,7 +177,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 error_writer=error_writer,
             )
             if success:
-                self.__write_output(context, request_visitor.gatherers)
+                _write_module_output(
+                    context=context,
+                    gatherers=request_visitor.gatherers,
+                    study_id=self.__study_id,
+                )
 
         context.metadata.add_qc_result(
             self.__file_input.file_input,
@@ -127,37 +190,14 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             data=error_writer.errors().model_dump(by_alias=True),
         )
 
-        gear_name = self.get_gear_name(context, "gather-submission-status")
+        gear_name = self.get_gear_name(context, "gather-form-data")
         context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
-
-    def __write_output(self, context: GearContext, gatherers: list[ModuleDataGatherer]):
-        """Using the gear context, writes the data content in each gatherer to
-        a file named with the study-id and the module of the gatherer.
-
-        Args:
-          context: the gear context
-          gatherers: a list of ModuleDataGatherer objects
-        """
-        today = date.today().isoformat()
-        for gatherer in gatherers:
-            if not gatherer.content:
-                log.warning(
-                    "skipping output for module %s: no data found", gatherer.module_name
-                )
-                continue
-
-            output_filename = f"{self.__study_id}-{gatherer.module_name}-{today}.csv"
-            with context.open_output(
-                output_filename, mode="w", encoding="utf-8"
-            ) as output_file:
-                # TODO: manage write errors
-                output_file.write(gatherer.content)
 
 
 def main():
     """Main method for Gather Form Data."""
-
-    GearEngine().create_with_parameter_store().run(gear_type=GatherFormDataVisitor)
+    engine = GearEngine().create_with_parameter_store()
+    engine.run(gear_type=GatherFormDataVisitor)
 
 
 if __name__ == "__main__":

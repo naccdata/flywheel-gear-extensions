@@ -1,6 +1,6 @@
 """Definitions for status reports."""
 
-from typing import Optional, get_args
+from typing import Optional
 
 from flywheel.models.file_entry import FileEntry
 
@@ -12,15 +12,13 @@ from nacc_common.qc_report import (
     extract_visit_keys,
 )
 
-ModuleName = str
-
 
 class StatusReportModel(QCReportBaseModel):
     """Data model for status reports."""
 
     adcid: int
     ptid: str
-    module: ModuleName
+    module: str
     visitdate: str
     status: Optional[QCStatus] = None
 
@@ -51,9 +49,6 @@ def status_transformer(
         or visit.date is None
     ):
         raise QCTransformerError("Cannot generate status incomplete visit details")
-
-    if visit.module not in get_args(ModuleName):
-        raise QCTransformerError(f"Unexpected module name: {visit.module}")
 
     return StatusReportModel(
         adcid=visit.adcid,

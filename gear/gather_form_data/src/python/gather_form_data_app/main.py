@@ -3,9 +3,7 @@
 import logging
 from typing import TextIO
 
-from data_requests.data_request import (
-    DataRequestVisitor,
-)
+from data_requests.data_request import DataRequestVisitor
 from inputs.csv_reader import read_csv
 from outputs.error_writer import ErrorWriter
 
