@@ -29,29 +29,12 @@
     "input_file": {
       "description": "A participant list CSV file",
       "base": "file",
-      "optional": true,
       "type": {
         "enum": ["tabular data"]
       }
     }
   },
   "config": {
-    "execution_mode": {
-      "description": "Execution mode: participant_list or project",
-      "type": "string",
-      "default": "participant_list",
-      "enum": ["participant_list", "project"]
-    },
-    "group_id": {
-      "description": "Flywheel group ID for the center (required in project mode)",
-      "type": "string",
-      "optional": true
-    },
-    "project_name": {
-      "description": "Project label to iterate (required in project mode)",
-      "type": "string",
-      "optional": true
-    },
     "dry_run": {
       "description": "Whether to do a dry run",
       "type": "boolean",
