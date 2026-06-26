@@ -39,6 +39,14 @@ The MCP config in `.kiro/settings/mcp.json` should include:
 Use: full_quality_check tool
 ```
 
+**Partial Workflows** (when you don't need all steps):
+
+```text
+Use: pants_workflow tool with workflow="fix-lint"        # Format then lint
+Use: pants_workflow tool with workflow="check-test"      # Type check then test
+Use: pants_workflow tool with workflow="fix-lint-check"  # Format, lint, type check
+```
+
 **Individual Steps**:
 
 ```text
@@ -55,9 +63,22 @@ Use: pants_package tool with scope="all"
 Use: pants_package tool with scope="directory", path="nacc-common"
 ```
 
+**Generate/Update BUILD Files** (after adding new Python files):
+
+```text
+Use: pants_tailor tool                    # Generate BUILD files for all new sources
+```
+
+**Run Arbitrary Commands in Container**:
+
+```text
+Use: container_exec tool with command="pants --version"
+Use: container_exec tool with command="bash get-pants.sh"
+```
+
 ## Intent-Based Parameters
 
-All Pants tools support these parameters:
+The individual Pants tools (`pants_fix`, `pants_lint`, `pants_check`, `pants_test`, `pants_package`) support intent-based parameters:
 
 - `scope` (optional): What to operate on
   - `'all'` - Entire codebase (default)
@@ -71,6 +92,19 @@ All Pants tools support these parameters:
 
 - `test_filter` (optional, pants_test only): Filter tests by name pattern
   - Examples: `'test_create'`, `'test_create or test_update'`, `'not test_slow'`
+
+**Note**: `full_quality_check` and `pants_workflow` only support the `target` parameter (legacy syntax), not intent-based parameters.
+
+### Migration from Legacy Target Syntax
+
+| Legacy `target` value | Intent-based equivalent |
+|---|---|
+| `"::"` | `scope="all"` |
+| `"gear/gather_form_data::"` | `scope="directory", path="gear/gather_form_data", recursive=true` |
+| `"gear/gather_form_data:"` | `scope="directory", path="gear/gather_form_data", recursive=false` |
+| `"gear/gather_form_data/src/python/run.py"` | `scope="file", path="gear/gather_form_data/src/python/run.py"` |
+
+Key differences: no `::` or `:` suffixes needed (the `recursive` flag handles this), paths are validated upfront, and error messages reference your intent rather than raw Pants target errors.
 
 ## Workflow Best Practices
 
@@ -135,6 +169,7 @@ The power automatically starts the container when needed. Manual control is rare
 Use: container_start tool     # Idempotent - safe to call multiple times
 Use: container_stop tool      # Stop container
 Use: container_rebuild tool   # Rebuild from scratch
+Use: container_exec tool with command="<cmd>"  # Run arbitrary command in container
 ```
 
 ## Understanding Error Output
@@ -243,14 +278,59 @@ Output:
 - **Sandbox paths**: Use `container_exec` to inspect sandbox contents or re-run `__run.sh` for reproduction.
 - **Coverage gaps**: Check uncovered line ranges to identify untested code paths.
 
-### Important: Do NOT retry blindly
+### When structured detail IS present
 
-When a Pants tool fails, the structured error response already contains sufficient detail to diagnose the issue. Do NOT:
-- Re-run the same command hoping for more output
+Read the error output and act on it directly. Do NOT:
+- Re-run the same command hoping for different output
 - Fall back to `container_exec` to re-run the command manually
-- Try to narrow scope file-by-file to find errors
+- Use `2>&1 | tail` tricks via `container_exec` — the power already captures both streams
+- Pass `--no-local-cache` — cached results aren't the issue when output is missing
 
-Instead, read the structured error response and act on it directly.
+### When structured detail is NOT captured (fallback errors)
+
+Sometimes the parser cannot extract structured detail and you see:
+
+```text
+Type Checking Failed (no structured detail captured)
+Raw output:
+✕ mypy failed.
+```
+
+In this case, narrow the scope to get detail:
+
+1. Separate source from tests:
+   - `pants_check` with `scope="directory"`, `path="<module>/src/python"`
+   - `pants_check` with `scope="directory"`, `path="<module>/test/python"`
+2. Whichever fails, narrow further to individual files if needed
+3. Most common root cause after refactoring: test files importing removed/renamed symbols
+
+### Efficient error resolution
+
+1. Run `full_quality_check` first to get the full picture
+2. Fix issues by category — fix all type errors before re-running, not one at a time
+3. Re-run only what failed — if lint passed but check failed, use `pants_workflow` with `workflow="check-test"` for the retry, not `full_quality_check` again
+4. Always update imports and test references before running checks after renaming/removing code
+
+## Anti-Patterns to Avoid
+
+- **Don't fall back to `container_exec` or manual scripts when a power tool fails** — if a power tool returns an error (container won't start, Pants not found, unexpected crash), STOP and report the error to the user. Do not attempt workarounds with raw commands. When the power isn't working correctly, executing spec tasks with manual fallbacks creates compounding complexity.
+- **Don't use `container_exec` with raw pants commands** when a dedicated tool exists — use `pants_check`, `pants_lint`, etc. instead
+- **Don't retry the same failing command more than once** — if it fails with the same output twice, STOP and report the situation to the user
+- **Don't use legacy `target` syntax** in individual Pants tools — prefer intent-based params for better error messages and path validation
+- **Don't run `full_quality_check` repeatedly** — if only one step fails, re-run just that step or use `pants_workflow` for the remaining steps
+
+## Critical Rule: Stop on Power Errors
+
+**If a power tool fails due to infrastructure issues (container errors, Pants not installed, MCP connection problems, or unexpected crashes), STOP execution immediately and report the error to the user.** Do NOT:
+
+- Fall back to `./bin/exec-in-devcontainer.sh` or other manual scripts
+- Try to use `container_exec` to run Pants commands directly
+- Attempt to diagnose or fix container/infrastructure problems autonomously
+- Continue executing spec tasks with degraded tooling
+
+This rule exists because manual workarounds during spec task execution lead to cascading failures that are harder to debug than the original issue. Let the user fix the infrastructure problem first, then resume.
+
+**This rule does NOT apply to code-level failures** (type errors, test failures, lint issues). Those are expected development feedback — read the error output and fix the code.
 
 ## Troubleshooting
 
@@ -284,9 +364,9 @@ Instead, read the structured error response and act on it directly.
 - Use: pants_fix tool with scope="all" to auto-fix formatting
 - Re-run the failing command
 
-## Manual Scripts Fallback
+## Manual Scripts (Reference Only)
 
-If the power is unavailable, use scripts in `bin/`:
+The `bin/` scripts exist for human use when the power is unavailable. **Agents should NOT fall back to these scripts when power tools fail.** Instead, stop and report the error.
 
 - `./bin/start-devcontainer.sh` - Start container
 - `./bin/exec-in-devcontainer.sh <command>` - Execute command
