@@ -136,7 +136,7 @@ def test_visitor_coordination_success_case():
 
     # Check that all QC log calls used PASS status (no errors in shared error writer)
     for call in mock_qc_creator.update_qc_log.call_args_list:
-        args, kwargs = call
+        _args, kwargs = call
         assert kwargs["status"] == "PASS", (
             "QC status should be PASS for successful identifier lookup"
         )
@@ -254,7 +254,7 @@ def test_visitor_coordination_failure_case():
 
     # Check that all QC log calls used FAIL status (errors in shared error writer)
     for call in mock_qc_creator.update_qc_log.call_args_list:
-        args, kwargs = call
+        _args, kwargs = call
         assert kwargs["status"] == "FAIL", (
             "QC status should be FAIL for failed identifier lookup"
         )

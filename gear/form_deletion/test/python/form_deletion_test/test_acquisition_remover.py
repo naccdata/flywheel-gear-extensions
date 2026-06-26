@@ -182,7 +182,7 @@ class TestCleanupAcquisitions:
         self, form_configs, uds_module_configs, deleted_items, delete_request
     ):
         """Missing acquisition file is not an error — returns True."""
-        mock_subject, mock_session, mock_acquisition = make_mock_hierarchy(
+        mock_subject, mock_session, _mock_acquisition = make_mock_hierarchy(
             acq_file=None
         )
         mock_subject.sessions.return_value = [mock_session]
@@ -204,7 +204,7 @@ class TestCleanupAcquisitions:
     ):
         """Happy path: acquisition deleted and tracked in deleted_items."""
         acq_file = make_mock_acq_file()
-        mock_subject, mock_session, mock_acquisition = make_mock_hierarchy(
+        mock_subject, _mock_session, mock_acquisition = make_mock_hierarchy(
             acq_file=acq_file, empty_session_after_delete=True
         )
 
