@@ -29,7 +29,7 @@ class REDCapImageFormCreatorVisitor(GearExecutionEnvironment):
         dry_run: bool,
         client: ClientWrapper,
         parameter_store: ParameterStore,
-        parameter_path: str
+        parameter_path: str,
     ):
         super().__init__(client=client)
         self.__dry_run = dry_run

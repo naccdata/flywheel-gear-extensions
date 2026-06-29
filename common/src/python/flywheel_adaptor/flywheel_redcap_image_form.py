@@ -10,8 +10,10 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
-class FlywheelREDCapImageForm():
-    """Class for collecting and storing Flywheel data for the REDCap image form"""
+
+class FlywheelREDCapImageForm:
+    """Class for collecting and storing Flywheel data for the REDCap image
+    form."""
 
     def __init__(self, session: SessionOutput, proxy: FlywheelProxy):
         self.__image_form = {}
@@ -94,15 +96,14 @@ class FlywheelREDCapImageForm():
         "ptid",
         "naccid",
         "scandt",
-        "scanstart"
+        "scanstart",
     )
 
     def __find_flywheel_origin_user_id(
-            self,
-            flywheel_obj,
-            proxy: FlywheelProxy
+        self, flywheel_obj, proxy: FlywheelProxy
     ) -> Optional[str]:
-        """Treats cases for finding the user_id associated with a Flywheel object
+        """Treats cases for finding the user_id associated with a Flywheel
+        object.
 
         Args:
             flywheel_obj: target Flywheel object
@@ -111,7 +112,6 @@ class FlywheelREDCapImageForm():
         Returns:
             string for user_id, if found; otherwise None
         """
-
         match flywheel_obj.origin["type"]:
             case "user":
                 return flywheel_obj.origin["id"]
@@ -127,14 +127,10 @@ class FlywheelREDCapImageForm():
                 return None
 
     def __set_or_agree(
-            self,
-            conflicts: dict,
-            key_to_set: str,
-            val_to_set: str,
-            info_context: str
-        ) -> None:
-        """Sets the given key to the given value, tracking if there is a conflicting
-        value already present.
+        self, conflicts: dict, key_to_set: str, val_to_set: str, info_context: str
+    ) -> None:
+        """Sets the given key to the given value, tracking if there is a
+        conflicting value already present.
 
         Args:
             conflicts: dict with keys of variables and values of conflict context(s)
@@ -142,24 +138,25 @@ class FlywheelREDCapImageForm():
             val_to_set: value to associate with the key
             info_context: informational string describing the context of the source
         """
-
         if key_to_set not in self:
             self[key_to_set] = val_to_set
         elif self[key_to_set] != val_to_set:
-            conflict_str = f'; Expected "{self[key_to_set]}" not "{val_to_set}" ' \
-                    + f'for {key_to_set} from {info_context}'
+            conflict_str = (
+                f'; Expected "{self[key_to_set]}" not "{val_to_set}" '
+                + f"for {key_to_set} from {info_context}"
+            )
             if key_to_set in conflicts:
-                conflicts[key_to_set] = conflicts[key_to_set] + '; ' + conflict_str
+                conflicts[key_to_set] = conflicts[key_to_set] + "; " + conflict_str
             else:
                 conflicts[key_to_set] = conflict_str
 
     def __inspect_acquisition(
-            self,
-            fw_mri_series: list,
-            conflicts: dict,
-            acq: AcquisitionListOutput,
-            proxy: FlywheelProxy
-        ) -> None:
+        self,
+        fw_mri_series: list,
+        conflicts: dict,
+        acq: AcquisitionListOutput,
+        proxy: FlywheelProxy,
+    ) -> None:
         """Inspects the given acquisition to extract information for the form.
 
         Args:
@@ -168,23 +165,19 @@ class FlywheelREDCapImageForm():
             acq: target Flywheel acquisition
             proxy: the proxy for the Flywheel instance
         """
-
         log.info(f"  Found acquisition: {acq.label}")
         for file in acq.files:
-            file = file.reload() # needed to populate file.info
+            file = file.reload()  # needed to populate file.info
             user_id = self.__find_flywheel_origin_user_id(file, proxy)
             if user_id is not None:
                 self.__set_or_agree(
-                    conflicts,
-                    "uploader_email",
-                    user_id,
-                    f"origin['id'] in {file.name}"
+                    conflicts, "uploader_email", user_id, f"origin['id'] in {file.name}"
                 )
             self.__set_or_agree(
                 conflicts,
                 "imagetype",
                 self.__imagetype_from_modality[file.modality],
-                f"file.modality in {file.name}"
+                f"file.modality in {file.name}",
             )
             if "StudyDate" in file.info["header"]["dicom"]:
                 studydt = file.info["header"]["dicom"]["StudyDate"]
@@ -193,7 +186,7 @@ class FlywheelREDCapImageForm():
                     conflicts,
                     "scandt",
                     studydt,
-                    f"file.info['header']['dicom']['StudyDate'] in {file.name}"
+                    f"file.info['header']['dicom']['StudyDate'] in {file.name}",
                 )
             if file.modality == "PT":
                 for pet_var, pet_tag in self.__pet_tag_for_variable.items():
@@ -202,7 +195,7 @@ class FlywheelREDCapImageForm():
                             conflicts,
                             pet_var,
                             file.info["header"]["dicom"][pet_tag],
-                            f"file.info['header']['dicom']['{pet_var}'] in {file.name}"
+                            f"file.info['header']['dicom']['{pet_var}'] in {file.name}",
                         )
             elif file.modality == "MR":
                 # file.classification options: Features, Intent, and Measurement
@@ -216,20 +209,17 @@ class FlywheelREDCapImageForm():
                 )
 
     def __inspect_acquisitions(
-            self,
-            session: SessionOutput,
-            proxy: FlywheelProxy
+        self, session: SessionOutput, proxy: FlywheelProxy
     ) -> None:
-        """Inspects the acquisitions in the given session
-        to extract information for the form.
+        """Inspects the acquisitions in the given session to extract
+        information for the form.
 
         Args:
             session: the target Flywheel session
             proxy: the proxy for the Flywheel instance
         """
-
         fw_mri_series = []
-        conflicts = {} # keys are REDCap variables and values are conflict context(s)
+        conflicts = {}  # keys are REDCap variables and values are conflict context(s)
         for acq in session.acquisitions():
             self.__inspect_acquisition(fw_mri_series, conflicts, acq, proxy)
         for key, reason in conflicts.items():
@@ -241,18 +231,15 @@ class FlywheelREDCapImageForm():
             self["fw_mri_series"] = ";".join(fw_mri_series)
 
     def __construct_session_info_for_redcap(
-            self,
-            session: SessionOutput,
-            proxy: FlywheelProxy
+        self, session: SessionOutput, proxy: FlywheelProxy
     ) -> None:
-        """Collects all session information for the REDCap form; does not find or
-        define record_id because record_id needs special treatment
+        """Collects all session information for the REDCap form; does not find
+        or define record_id because record_id needs special treatment.
 
         Args:
             session: the target Flywheel session
             proxy: the proxy for the Flywheel instance
         """
-
         fw_proj = proxy.get_container_by_id(session.project)
 
         if "pipeline_adcid" in fw_proj.info:
@@ -277,11 +264,13 @@ class FlywheelREDCapImageForm():
             log.warning("Expected entry for naccid in subject.info")
         if session.timestamp:
             self["scanstart"] = session.timestamp.strftime("%H:%M:%S")
-        self.update({
-            "fw_session_label": session.label,
-            "fwid": session.id,
-            "ptid": session.subject.label,
-        })
+        self.update(
+            {
+                "fw_session_label": session.label,
+                "fwid": session.id,
+                "ptid": session.subject.label,
+            }
+        )
 
         self.__inspect_acquisitions(session, proxy)
         if "uploader_email" in self:
