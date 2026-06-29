@@ -98,7 +98,6 @@ class REDCapImageFormCreatorVisitor(GearExecutionEnvironment):
 
 def main():
     """Main method for REDCap Image Form Creator."""
-
     GearEngine.create_with_parameter_store().run(
         gear_type=REDCapImageFormCreatorVisitor
     )

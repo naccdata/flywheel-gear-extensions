@@ -3,7 +3,7 @@ import sys
 from typing import ClassVar, Optional
 
 from flywheel.models.acquisition_list_output import AcquisitionListOutput
-from flywheel.models.session_output import SessionOutput
+from flywheel.models.container_output import ContainerOutput
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
@@ -15,8 +15,8 @@ class FlywheelREDCapImageForm:
     """Class for collecting and storing Flywheel data for the REDCap image
     form."""
 
-    def __init__(self, session: SessionOutput, proxy: FlywheelProxy):
-        self.__image_form = {}
+    def __init__(self, session: ContainerOutput, proxy: FlywheelProxy):
+        self.__image_form: dict[str, str] = {}
         self.__construct_session_info_for_redcap(session, proxy)
 
     def __getitem__(self, key):
@@ -60,9 +60,6 @@ class FlywheelREDCapImageForm:
 
     def pop(self, *args):
         return self.__image_form.pop(*args)
-
-    def __cmp__(self, dict_):
-        return self.__cmp__(self.__image_form, dict_)
 
     def __contains__(self, item):
         return item in self.__image_form
@@ -127,7 +124,11 @@ class FlywheelREDCapImageForm:
                 return None
 
     def __set_or_agree(
-        self, conflicts: dict, key_to_set: str, val_to_set: str, info_context: str
+        self,
+        conflicts: dict[str, str],
+        key_to_set: str,
+        val_to_set: str,
+        info_context: str,
     ) -> None:
         """Sets the given key to the given value, tracking if there is a
         conflicting value already present.
@@ -152,7 +153,7 @@ class FlywheelREDCapImageForm:
 
     def __inspect_acquisition(
         self,
-        fw_mri_series: list,
+        fw_mri_series: list[str],
         conflicts: dict,
         acq: AcquisitionListOutput,
         proxy: FlywheelProxy,
@@ -209,7 +210,7 @@ class FlywheelREDCapImageForm:
                 )
 
     def __inspect_acquisitions(
-        self, session: SessionOutput, proxy: FlywheelProxy
+        self, session: ContainerOutput, proxy: FlywheelProxy
     ) -> None:
         """Inspects the acquisitions in the given session to extract
         information for the form.
@@ -231,7 +232,7 @@ class FlywheelREDCapImageForm:
             self["fw_mri_series"] = ";".join(fw_mri_series)
 
     def __construct_session_info_for_redcap(
-        self, session: SessionOutput, proxy: FlywheelProxy
+        self, session: ContainerOutput, proxy: FlywheelProxy
     ) -> None:
         """Collects all session information for the REDCap form; does not find
         or define record_id because record_id needs special treatment.
