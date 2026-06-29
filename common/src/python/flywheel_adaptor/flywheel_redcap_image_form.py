@@ -146,12 +146,12 @@ class FlywheelREDCapImageForm():
         if key_to_set not in self:
             self[key_to_set] = val_to_set
         elif self[key_to_set] != val_to_set:
-            confl_str = f'; Expected "{self[key_to_set]}" not "{val_to_set}" ' \
+            conflict_str = f'; Expected "{self[key_to_set]}" not "{val_to_set}" ' \
                     + f'for {key_to_set} from {info_context}'
             if key_to_set in conflicts:
-                conflicts[key_to_set] = conflicts[key_to_set] + '; ' + confl_str
+                conflicts[key_to_set] = conflicts[key_to_set] + '; ' + conflict_str
             else:
-                conflicts[key_to_set] = confl_str
+                conflicts[key_to_set] = conflict_str
 
     def __inspect_acquisition(
             self,

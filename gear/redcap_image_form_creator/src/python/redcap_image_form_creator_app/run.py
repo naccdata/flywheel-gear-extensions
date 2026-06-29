@@ -15,6 +15,7 @@ from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterStore
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_parameter_store import REDCapParameters
+
 from redcap_image_form_creator_app.main import run
 
 log = logging.getLogger(__name__)
@@ -28,14 +29,12 @@ class REDCapImageFormCreatorVisitor(GearExecutionEnvironment):
         dry_run: bool,
         client: ClientWrapper,
         parameter_store: ParameterStore,
-        parameter_path: str,  # ,
-        # edc_project_pid: int,
+        parameter_path: str
     ):
         super().__init__(client=client)
         self.__dry_run = dry_run
         self.__param_store = parameter_store
         self.__parameter_path = parameter_path
-        # self.__edc_project_pid = edc_project_pid
 
     @classmethod
     def create(
@@ -56,10 +55,6 @@ class REDCapImageFormCreatorVisitor(GearExecutionEnvironment):
         try:
             dry_run: bool = get_config(gear_context=context, key="dry_run")
             parameter_path: str = get_config(gear_context=context, key="parameter_path")
-            # edc_project_pid: int = get_config(
-            #    gear_context=context,
-            #    key='edc_project_pid'
-            # )
         except ConfigParseError as error:
             raise GearExecutionError(
                 f"Incomplete configuration: {error.message}"
@@ -72,12 +67,9 @@ class REDCapImageFormCreatorVisitor(GearExecutionEnvironment):
             client=client,
             parameter_store=parameter_store,
             parameter_path=parameter_path,
-            # edc_project_pid=edc_project_pid,
         )
 
     def run(self, context: GearContext) -> None:
-        # if context.config.job.get('id') is not None:
-        #    session_id = context.job.get('id')
         if context.config.destination["type"] == "session":
             session_id = context.config.destination["id"]
         elif context.config.destination["type"] == "acquisition":

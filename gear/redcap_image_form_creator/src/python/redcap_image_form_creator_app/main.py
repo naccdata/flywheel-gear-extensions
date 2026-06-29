@@ -20,8 +20,9 @@ log = logging.getLogger(__name__)
 pass_tag = "redcap-image-form-creator-PASS"
 fail_tag = "redcap-image-form-creator-FAIL"
 
+
 def tag_pass(session: ContainerOutput) -> None:
-    """Handles the gear's tagging when it has completed successfully
+    """Handles the gear's tagging when it has completed successfully.
 
     Args:
         session: target Flywheel session
@@ -52,10 +53,9 @@ def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> NoReturn:
             session.add_tag(fail_tag)
     raise GearExecutionError(msg)
 
-def get_record_id_suffix(
-        session: ContainerOutput,
-        proxy: FlywheelProxy) -> int:
-    """Determines the lowest suffix (>=1) that is greater than all others
+
+def get_record_id_suffix(session: ContainerOutput, proxy: FlywheelProxy) -> int:
+    """Determines the lowest suffix (>=1) that is greater than all others.
 
     Args:
         session: target Flywheel session
@@ -76,9 +76,7 @@ def get_record_id_suffix(
 
         # session's custom info not populating if
         # grabbed directly from fw_project.sessions()
-        ses = proxy.get_container_by_id(
-            proj_ses.id
-        )
+        ses = proxy.get_container_by_id(proj_ses.id)
         ses.reload()
         if "record_id" in ses.info:
             existing_record_id = ses.info["record_id"]
@@ -93,14 +91,11 @@ def get_record_id_suffix(
 
 
 def compose_record_id(
-    dry_run: bool,
-    adcid: int,
-    session: ContainerOutput,
-    proxy: FlywheelProxy
+    dry_run: bool, adcid: int, session: ContainerOutput, proxy: FlywheelProxy
 ) -> str:
-    """Composes the REDCap record_id in the format IMGSS_XXXXXX, where
-    SS is the site code (adcid) and the 6-digit suffix XXXXXX is different
-    than the others within the Flywheel project.
+    """Composes the REDCap record_id in the format IMGSS_XXXXXX, where SS is
+    the site code (adcid) and the 6-digit suffix XXXXXX is different than the
+    others within the Flywheel project.
 
     Args:
         dry_run: flag for dry run (data collected but no modifications)
@@ -123,31 +118,33 @@ def compose_record_id(
         session = proxy.get_container_by_id(session.id)
     return composed_id
 
+
 MAX_NEW_RECORD_ATTEMPTS = 4
 MAX_PAUSES_FOR_OTHER_SESSION = 3
 
+
 def ensure_record_id_is_unique(
-        dry_run: bool,
-        session: ContainerOutput,
-        proxy: FlywheelProxy,
-        adcid: int,
-        record_id: str
+    dry_run: bool,
+    session: ContainerOutput,
+    proxy: FlywheelProxy,
+    adcid: int,
+    record_id: str,
 ) -> bool:
-    """Ensures record_id is unique if not a dry run; tries to resolve
-    possible collisions from simultaneous new sessions by waiting for
-    other sessions to yield the record_id or by changing its own record_id.
+    """Ensures record_id is unique if not a dry run; tries to resolve possible
+    collisions from simultaneous new sessions by waiting for other sessions to
+    yield the record_id or by changing its own record_id.
 
-    Args:
-        dry_run: flag for dry run (data collected but no modifications)
-        session: target Flywheel session
-        proxy: FlywheelProxy to check for uniqueness of record_id on Flywheel
-        adcid: integer that identifies the ADC
-        record_id: given initial record_id, but could be modified if not a dry \
-run
+        Args:
+            dry_run: flag for dry run (data collected but no modifications)
+            session: target Flywheel session
+            proxy: FlywheelProxy to check for uniqueness of record_id on Flywheel
+            adcid: integer that identifies the ADC
+            record_id: given initial record_id, but could be modified if not a dry
+    run
 
-    Returns:
-        boolean indicating whether the record_id could be confirmed to be uniqu\
-e
+        Returns:
+            boolean indicating whether the record_id could be confirmed to be
+            unique
     """
 
     able_to_confirm_record_id = False
@@ -195,11 +192,9 @@ e
                         break
     return able_to_confirm_record_id
 
+
 def generate_unique_record_id(
-    dry_run: bool,
-    session: ContainerOutput,
-    proxy: FlywheelProxy,
-    adcid: int
+    dry_run: bool, session: ContainerOutput, proxy: FlywheelProxy, adcid: int
 ) -> Optional[str]:
     """Generates a unique REDCap record_id for the session.
 
@@ -279,6 +274,7 @@ def import_new_record_for_session(
     else:
         tag_fail(dry_run, session, "Unable to generate unique new record_id")
 
+
 def run(
     *,
     dry_run: bool,
@@ -325,9 +321,7 @@ def run(
             missed_some_key = True
     if missed_some_key:
         tag_fail(
-            dry_run,
-            session,
-            f"Missing information for {session.label} ({session.id})"
+            dry_run, session, f"Missing information for {session.label} ({session.id})"
         )
 
     import_new_record_for_session(
