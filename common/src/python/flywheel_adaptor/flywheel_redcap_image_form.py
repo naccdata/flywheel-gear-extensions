@@ -76,7 +76,7 @@ class FlywheelREDCapImageForm:
 
     # keys are REDCap image form variables
     # values are DICOM tag names
-    pet_tag_for_variable: ClassVar[dict] = {
+    __pet_tag_for_variable: ClassVar[dict] = {
         "tracer_dose_assay": "RadionuclideTotalDose",
         "tracer_inj_time": "RadiopharmaceuticalStartDateTime",
         "emission_start_time": "AcquisitionTime",
@@ -219,8 +219,10 @@ class FlywheelREDCapImageForm:
             session: the target Flywheel session
             proxy: the proxy for the Flywheel instance
         """
-        fw_mri_series = []
-        conflicts = {}  # keys are REDCap variables and values are conflict context(s)
+        fw_mri_series: list[str] = []
+        conflicts: dict[
+            str, str
+        ] = {}  # keys are REDCap variables and values are conflict context(s)
         for acq in session.acquisitions():
             self.__inspect_acquisition(fw_mri_series, conflicts, acq, proxy)
         for key, reason in conflicts.items():
