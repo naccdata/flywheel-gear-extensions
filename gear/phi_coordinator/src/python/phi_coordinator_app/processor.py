@@ -147,8 +147,8 @@ class PHITaskProcessor:
     def __is_checked(value: object) -> bool:
         """Interprets a form checkbox value as checked (True) or not.
 
-        Flywheel form responses serialize a checked box as the boolean True;
-        common string encodings are accepted defensively.
+        Flywheel form responses serialize a checked box as the boolean
+        True; common string encodings are accepted defensively.
         """
         if isinstance(value, bool):
             return value

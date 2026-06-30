@@ -134,7 +134,6 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
 
 def main():
     """Main method for PHI Coordinator."""
-
     GearEngine().run(gear_type=PHICoordinatorVisitor)
 
 
