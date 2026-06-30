@@ -2,8 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.4.0
 
+* Removes hardcoded module name restriction — any module name is now accepted without filtering or warnings
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
 ## 1.3.0
