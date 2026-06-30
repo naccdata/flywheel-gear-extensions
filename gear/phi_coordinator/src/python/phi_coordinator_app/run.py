@@ -34,6 +34,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
         fw_client: FWClient,
         phi_protocol_label: str,
         answer_key: str,
+        ack_key: str,
         found_tag: str,
         confirmed_tag: str,
         not_found_tag: str,
@@ -47,6 +48,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
             fw_client: FWClient for the reader-task endpoints the SDK lacks
             phi_protocol_label: label of PHI reader-task protocols to process
             answer_key: response_data key holding the yes/no answer
+            ack_key: response_data key for the deletion-acknowledgment checkbox
             found_tag: tag for PHI awaiting review; removed once resolved
             confirmed_tag: tag added when the reviewer confirms PHI
             not_found_tag: tag added when the reviewer reports no PHI
@@ -57,6 +59,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
         self.__fw_client = fw_client
         self.__phi_protocol_label = phi_protocol_label
         self.__answer_key = answer_key
+        self.__ack_key = ack_key
         self.__found_tag = found_tag
         self.__confirmed_tag = confirmed_tag
         self.__not_found_tag = not_found_tag
@@ -97,6 +100,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
                 "phi_protocol_label", "default_image_pii_detector_protocol"
             ),
             answer_key=opts.get("answer_key", "phi_radio"),
+            ack_key=opts.get("ack_key", "delete_ack"),
             found_tag=opts.get("found_tag", "PHI-Found"),
             confirmed_tag=opts.get("confirmed_tag", "PHI-Confirmed"),
             not_found_tag=opts.get("not_found_tag", "PHI-Not-Found"),
@@ -113,6 +117,7 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
             reader_tasks=reader_tasks,
             phi_protocol_label=self.__phi_protocol_label,
             answer_key=self.__answer_key,
+            ack_key=self.__ack_key,
             found_tag=self.__found_tag,
             confirmed_tag=self.__confirmed_tag,
             not_found_tag=self.__not_found_tag,
@@ -129,7 +134,6 @@ class PHICoordinatorVisitor(GearExecutionEnvironment):
 
 def main():
     """Main method for PHI Coordinator."""
-
     GearEngine().run(gear_type=PHICoordinatorVisitor)
 
 
