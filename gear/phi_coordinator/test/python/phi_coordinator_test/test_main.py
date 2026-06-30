@@ -15,6 +15,7 @@ def _run(proxy: Mock, reader_tasks: Mock, dry_run: bool = False) -> bool:
         reader_tasks=reader_tasks,
         phi_protocol_label="default_image_pii_detector_protocol",
         answer_key="phi_radio",
+        ack_key="delete_ack",
         found_tag="PHI-Found",
         confirmed_tag="PHI-Confirmed",
         not_found_tag="PHI-Not-Found",

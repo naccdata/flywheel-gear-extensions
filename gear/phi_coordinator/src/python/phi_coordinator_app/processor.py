@@ -40,6 +40,7 @@ class PHITaskProcessor:
         proxy: FlywheelProxy,
         reader_tasks: ReaderTaskClient,
         answer_key: str,
+        ack_key: str,
         found_tag: str,
         confirmed_tag: str,
         not_found_tag: str,
@@ -53,6 +54,9 @@ class PHITaskProcessor:
             proxy: Flywheel proxy used to fetch and tag files
             reader_tasks: client for reader-task and form-response calls
             answer_key: response_data key holding the yes/no answer
+            ack_key: response_data key for the deletion-acknowledgment
+                checkbox that must be checked before a 'yes' is confirmed;
+                empty disables the requirement
             found_tag: tag for PHI awaiting review; removed once resolved
             confirmed_tag: tag added when the reviewer confirms PHI
             not_found_tag: tag added when the reviewer reports no PHI
@@ -63,6 +67,7 @@ class PHITaskProcessor:
         self.__proxy = proxy
         self.__reader_tasks = reader_tasks
         self.__answer_key = answer_key
+        self.__ack_key = ack_key
         self.__found_tag = found_tag
         self.__confirmed_tag = confirmed_tag
         self.__not_found_tag = not_found_tag
@@ -87,9 +92,25 @@ class PHITaskProcessor:
             return Outcome.SKIPPED
 
         if answer not in ("yes", "no"):
-            return self.__handle_missing(task, latest)
+            return self.__reset_or_skip(
+                task,
+                latest,
+                reason=(f"is Complete but has no usable '{self.__answer_key}' answer"),
+            )
 
         confirmed = answer == "yes"
+        # Confirming PHI deletes the image downstream, so the reviewer must
+        # check the acknowledgment before we apply the confirmed tag.
+        if confirmed and self.__ack_key and not self.__acknowledged(latest):
+            return self.__reset_or_skip(
+                task,
+                latest,
+                reason=(
+                    f"confirms PHI but the '{self.__ack_key}' "
+                    "acknowledgment is unchecked"
+                ),
+            )
+
         desired = self.__confirmed_tag if confirmed else self.__not_found_tag
         opposite = self.__not_found_tag if confirmed else self.__confirmed_tag
 
@@ -116,6 +137,25 @@ class PHITaskProcessor:
             return value.strip().lower()
         return None
 
+    def __acknowledged(self, response: FormResponseModel | None) -> bool:
+        """Returns whether the deletion-acknowledgment checkbox is checked."""
+        if response is None:
+            return False
+        return self.__is_checked(response.response_data.get(self.__ack_key))
+
+    @staticmethod
+    def __is_checked(value: object) -> bool:
+        """Interprets a form checkbox value as checked (True) or not.
+
+        Flywheel form responses serialize a checked box as the boolean True;
+        common string encodings are accepted defensively.
+        """
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in ("true", "yes", "on", "1")
+        return False
+
     @staticmethod
     def __file_id(task: ReaderTaskModel) -> str | None:
         """Returns the id of the file the task reviewed, or None."""
@@ -125,28 +165,41 @@ class PHITaskProcessor:
             return task.parents.file
         return None
 
-    def __handle_missing(
-        self, task: ReaderTaskModel, response: FormResponseModel | None
+    def __reset_or_skip(
+        self,
+        task: ReaderTaskModel,
+        response: FormResponseModel | None,
+        *,
+        reason: str,
     ) -> Outcome:
-        """Resets the task to Todo and clears its response, or skips it."""
+        """Resets the task to Todo and clears its response, or skips it.
+
+        Used when a completed task cannot be applied as submitted: it has no
+        usable answer, or it confirms PHI without the required acknowledgment.
+
+        Args:
+            task: the completed task that cannot be applied
+            response: the task's latest response, cleared when resetting
+            reason: short phrase describing why, included in the log message
+        Returns:
+            SKIPPED when resets are disabled, otherwise RESET
+        """
         if not self.__reset_on_missing_data:
-            log.warning(
-                "Task %s is Complete but has no usable '%s' answer; skipping",
-                task.task_id,
-                self.__answer_key,
-            )
+            log.warning("Task %s %s; skipping", task.task_id, reason)
             return Outcome.SKIPPED
 
         if self.__dry_run:
             log.info(
-                "Dry run: would reset task %s to Todo and clear its response",
+                "Dry run: would reset task %s to Todo and clear its response (%s)",
                 task.task_id,
+                reason,
             )
             return Outcome.RESET
 
         log.info(
-            "Task %s has no usable answer; resetting to Todo and clearing response",
+            "Task %s %s; resetting to Todo and clearing response",
             task.task_id,
+            reason,
         )
         self.__reader_tasks.set_task_status(task.id, _TODO_STATUS)
         if response is not None:
