@@ -4,7 +4,7 @@
 //
 // --- BEGIN PANTS LOCKFILE METADATA: DO NOT EDIT OR REMOVE ---
 // {
-//   "version": 4,
+//   "version": 8,
 //   "valid_for_interpreter_constraints": [
 //     "CPython==3.12.*"
 //   ],
@@ -18,8 +18,8 @@
 //     "fw-utils>=3",
 //     "hypothesis>=6.0.0",
 //     "moto[s3,ses,ssm]==5.1.14",
-//     "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.4/nacc_attribute_deriver-2.3.4-py3-none-any.whl",
-//     "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.4/nacc_form_validator-0.6.4-py3-none-any.whl",
+//     "nacc_attribute_deriver @ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.4/nacc_attribute_deriver-2.3.4-py3-none-any.whl",
+//     "nacc_form_validator @ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.4/nacc_form_validator-0.6.4-py3-none-any.whl",
 //     "natsort",
 //     "pandas-stubs>=2.0.3",
 //     "pandas>=2.1.1",
@@ -33,7 +33,7 @@
 //     "pyyaml>=6.0.1",
 //     "ratelimit-types>=0.0.1",
 //     "ratelimit>=2.2.1",
-//     "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.3.0/redcap_api-0.3.0-py3-none-any.whl",
+//     "redcap_api @ https://github.com/naccdata/redcap-api/releases/download/v0.3.0/redcap_api-0.3.0-py3-none-any.whl",
 //     "requests-oauthlib>=2.0.0",
 //     "requests>=2.18.4",
 //     "setuptools>=68.3.0",
@@ -50,7 +50,13 @@
 //   "only_binary": [],
 //   "no_binary": [],
 //   "excludes": [],
-//   "overrides": []
+//   "overrides": [],
+//   "sources": [],
+//   "lock_style": "universal",
+//   "complete_platforms": [],
+//   "uploaded_prior_to": null,
+//   "lockfile_format": "pex",
+//   "resolve": "python-default"
 // }
 // --- END PANTS LOCKFILE METADATA ---
 
@@ -3370,6 +3376,7 @@
           "version": "1.0.4"
         }
       ],
+      "marker": null,
       "platform_tag": null
     }
   ],
@@ -3377,7 +3384,7 @@
   "only_wheels": [],
   "overridden": [],
   "path_mappings": {},
-  "pex_version": "2.55.2",
+  "pex_version": "2.95.1",
   "pip_version": "24.2",
   "prefer_older_binary": false,
   "requirements": [
@@ -3390,8 +3397,8 @@
     "fw-utils>=3",
     "hypothesis>=6.0.0",
     "moto[s3,ses,ssm]==5.1.14",
-    "nacc_attribute_deriver@ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.4/nacc_attribute_deriver-2.3.4-py3-none-any.whl",
-    "nacc_form_validator@ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.4/nacc_form_validator-0.6.4-py3-none-any.whl",
+    "nacc_attribute_deriver @ https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.4/nacc_attribute_deriver-2.3.4-py3-none-any.whl",
+    "nacc_form_validator @ https://github.com/naccdata/nacc-form-validator/releases/download/v0.6.4/nacc_form_validator-0.6.4-py3-none-any.whl",
     "natsort",
     "pandas-stubs>=2.0.3",
     "pandas>=2.1.1",
@@ -3405,7 +3412,7 @@
     "pyyaml>=6.0.1",
     "ratelimit-types>=0.0.1",
     "ratelimit>=2.2.1",
-    "redcap_api@ https://github.com/naccdata/redcap-api/releases/download/v0.3.0/redcap_api-0.3.0-py3-none-any.whl",
+    "redcap_api @ https://github.com/naccdata/redcap-api/releases/download/v0.3.0/redcap_api-0.3.0-py3-none-any.whl",
     "requests-oauthlib>=2.0.0",
     "requests>=2.18.4",
     "setuptools>=68.3.0",
