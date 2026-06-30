@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class Job:
 
     @property
@@ -12,5 +15,8 @@ class Job:
     def retried(self) -> str:
         ...
 
-    def reload(self) -> Job:
+    def __getitem__(self, key: str) -> Any:
+        ...
+
+    def reload(self) -> "Job":
         ...
