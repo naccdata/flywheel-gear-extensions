@@ -12,7 +12,7 @@
 //     "boto3-stubs[boto3]",
 //     "boto3>=1.28.53",
 //     "botocore",
-//     "flywheel-sdk>=20.0.0",
+//     "flywheel-sdk==22.0.0",
 //     "fw-client>=0.7.0",
 //     "fw-gear>=0.3.5",
 //     "fw-utils>=3",
@@ -154,42 +154,42 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "f409f931e836f2f24e168e8f93901010cb8055c7f2ddcfcfbd72b25f8c4e306c",
-              "url": "https://files.pythonhosted.org/packages/e2/48/c740abb7ba90d89ef63cf766c8e07d72e6422b3cf68aa4dccf0a83efed93/boto3-1.43.37-py3-none-any.whl"
+              "hash": "edffb4a8f49c0a61e8f4aa4104cc2da3c362de8042fc0819216d5e5ce5d38380",
+              "url": "https://files.pythonhosted.org/packages/0a/60/e0e3baeb394e084c5136a46b8e944ba87a26bb1f67f7b3064eb035bb7e77/boto3-1.43.38-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "cf7e75963229b337d1b0e37c46de6f3c2c2290d186157729c8e7afb12909bfc0",
-              "url": "https://files.pythonhosted.org/packages/fa/8b/281ca08c796322a36a639b76c714dc4c4323cab4563a492e6a923aa5f15d/boto3-1.43.37.tar.gz"
+              "hash": "a8d1e175a87a743e755237d884d7e5f4606e61e5602e9823469a1a630e379b3c",
+              "url": "https://files.pythonhosted.org/packages/eb/ee/97798453d8e9dba0c60458870b07c78ac685fc21cdddd8eb3e20190249c6/boto3-1.43.38.tar.gz"
             }
           ],
           "project_name": "boto3",
           "requires_dists": [
-            "botocore<1.44.0,>=1.43.37",
+            "botocore<1.44.0,>=1.43.38",
             "botocore[crt]<2.0a0,>=1.21.0; extra == \"crt\"",
             "jmespath<2.0.0,>=0.7.1",
             "s3transfer<0.20.0,>=0.19.0"
           ],
           "requires_python": ">=3.10",
-          "version": "1.43.37"
+          "version": "1.43.38"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "cb6884fe31cf4e2f7ac8c7bbbe66674de42a54b3df02f446987ebf901e937b04",
-              "url": "https://files.pythonhosted.org/packages/89/94/88a55e6c5d8235f8aea03ab8413481112ba01895009a49916ee293bfd76f/boto3_stubs-1.43.37-py3-none-any.whl"
+              "hash": "5d9c21e2b52d0c4077ee377f686fc965395a2d02534e1e3de0c7cb9c2f0ad6d4",
+              "url": "https://files.pythonhosted.org/packages/44/ba/2c9c7153ebd3ada100f111bf7a2f16b1627ba94450a9c6edf9e6e26c5845/boto3_stubs-1.43.38-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "16be6e8b37a05b69fef222cac66049c27621afeeb3969bc8eee04c71d67faed5",
-              "url": "https://files.pythonhosted.org/packages/f4/0e/9dd53e707f46e699578b28e0cfbed2cad5eb2d6d1678d3c4a9c9500fdf49/boto3_stubs-1.43.37.tar.gz"
+              "hash": "55701008fa910d60aa2a593aa307d121c85a91a892cb24182bcf8ec41f29a9f5",
+              "url": "https://files.pythonhosted.org/packages/89/8d/2b249f56bc7a5e90bf1d5f23b6f089fd762f65d7ad032b32e93e69eb1242/boto3_stubs-1.43.38.tar.gz"
             }
           ],
           "project_name": "boto3-stubs",
           "requires_dists": [
             "boto3-stubs-full<1.44.0,>=1.43.0; extra == \"full\"",
-            "boto3==1.43.37; extra == \"boto3\"",
+            "boto3==1.43.38; extra == \"boto3\"",
             "botocore-stubs",
             "mypy-boto3-accessanalyzer<1.44.0,>=1.43.0; extra == \"accessanalyzer\"",
             "mypy-boto3-accessanalyzer<1.44.0,>=1.43.0; extra == \"all\"",
@@ -578,10 +578,6 @@
             "mypy-boto3-iot<1.44.0,>=1.43.0; extra == \"iot\"",
             "mypy-boto3-iotdeviceadvisor<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-iotdeviceadvisor<1.44.0,>=1.43.0; extra == \"iotdeviceadvisor\"",
-            "mypy-boto3-iotevents-data<1.44.0,>=1.43.0; extra == \"all\"",
-            "mypy-boto3-iotevents-data<1.44.0,>=1.43.0; extra == \"iotevents-data\"",
-            "mypy-boto3-iotevents<1.44.0,>=1.43.0; extra == \"all\"",
-            "mypy-boto3-iotevents<1.44.0,>=1.43.0; extra == \"iotevents\"",
             "mypy-boto3-iotfleetwise<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-iotfleetwise<1.44.0,>=1.43.0; extra == \"iotfleetwise\"",
             "mypy-boto3-iotsecuretunneling<1.44.0,>=1.43.0; extra == \"all\"",
@@ -773,8 +769,6 @@
             "mypy-boto3-osis<1.44.0,>=1.43.0; extra == \"osis\"",
             "mypy-boto3-outposts<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-outposts<1.44.0,>=1.43.0; extra == \"outposts\"",
-            "mypy-boto3-panorama<1.44.0,>=1.43.0; extra == \"all\"",
-            "mypy-boto3-panorama<1.44.0,>=1.43.0; extra == \"panorama\"",
             "mypy-boto3-partnercentral-account<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-partnercentral-account<1.44.0,>=1.43.0; extra == \"partnercentral-account\"",
             "mypy-boto3-partnercentral-benefits<1.44.0,>=1.43.0; extra == \"all\"",
@@ -947,8 +941,6 @@
             "mypy-boto3-signin<1.44.0,>=1.43.0; extra == \"signin\"",
             "mypy-boto3-simpledbv2<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-simpledbv2<1.44.0,>=1.43.0; extra == \"simpledbv2\"",
-            "mypy-boto3-simspaceweaver<1.44.0,>=1.43.0; extra == \"all\"",
-            "mypy-boto3-simspaceweaver<1.44.0,>=1.43.0; extra == \"simspaceweaver\"",
             "mypy-boto3-snow-device-management<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-snow-device-management<1.44.0,>=1.43.0; extra == \"snow-device-management\"",
             "mypy-boto3-snowball<1.44.0,>=1.43.0; extra == \"all\"",
@@ -990,6 +982,8 @@
             "mypy-boto3-support-app<1.44.0,>=1.43.0; extra == \"support-app\"",
             "mypy-boto3-support<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-support<1.44.0,>=1.43.0; extra == \"support\"",
+            "mypy-boto3-supportauthz<1.44.0,>=1.43.0; extra == \"all\"",
+            "mypy-boto3-supportauthz<1.44.0,>=1.43.0; extra == \"supportauthz\"",
             "mypy-boto3-sustainability<1.44.0,>=1.43.0; extra == \"all\"",
             "mypy-boto3-sustainability<1.44.0,>=1.43.0; extra == \"sustainability\"",
             "mypy-boto3-swf<1.44.0,>=1.43.0; extra == \"all\"",
@@ -1056,19 +1050,19 @@
             "typing-extensions>=4.1.0; python_version < \"3.12\""
           ],
           "requires_python": ">=3.9",
-          "version": "1.43.37"
+          "version": "1.43.38"
         },
         {
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "8b7e8408aa7eca7dca9ae9824fb7677daf64d40ed675366ed7b9248470d08757",
-              "url": "https://files.pythonhosted.org/packages/bf/64/49313b38d675f4004fb736d2a4293b72504eac5380fc21b6e4a8660824ad/botocore-1.43.37-py3-none-any.whl"
+              "hash": "54c1c41aff82422d2b88a8a7d782fde8ae1299a45f088d00011d85c4bc44b0cc",
+              "url": "https://files.pythonhosted.org/packages/22/b4/fdff7920b3776b37f8b42d4e6eabb141974fa88f9fb1aae5c2224bdaf635/botocore-1.43.38-py3-none-any.whl"
             },
             {
               "algorithm": "sha256",
-              "hash": "46a7982815579cfe8c7851036b1f51237e35e7937456341df55bc5c36a316145",
-              "url": "https://files.pythonhosted.org/packages/c4/a8/3409b5df7e6a562be82e409ba5a976e7ac3df8d5567552c23d44b367a40b/botocore-1.43.37.tar.gz"
+              "hash": "70fbd5c74f5742f5975ddcc61e6afb5174cb80577c2ccc17c6898ad3a49b51f3",
+              "url": "https://files.pythonhosted.org/packages/73/6c/815f49f0c582396b1a4c37df554ffab6bb420abd5a96d5329183a97022de/botocore-1.43.38.tar.gz"
             }
           ],
           "project_name": "botocore",
@@ -1079,7 +1073,7 @@
             "urllib3!=2.2.0,<3,>=1.25.4"
           ],
           "requires_python": ">=3.10",
-          "version": "1.43.37"
+          "version": "1.43.38"
         },
         {
           "artifacts": [
@@ -1442,8 +1436,8 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "733d7cf9b831ab9edb2a3fbd643d7d40ebce9824a476da3a4c0918b33d007937",
-              "url": "https://files.pythonhosted.org/packages/4f/3c/be30bd8c797f887e1a004829e21b7addd4e9c21c843711cd0ebe8adfa644/flywheel_sdk-22.1.0-py3-none-any.whl"
+              "hash": "77ffe2550546c57a70edcb4514f7e4c7bfbc722d1b9ea9342f8d7a1d67e64ee0",
+              "url": "https://files.pythonhosted.org/packages/a7/e9/550f4435d95cba3d5a07b83faf2ac5dbe6db8522f4817991362dc5bf9e03/flywheel_sdk-22.0.0-py3-none-any.whl"
             }
           ],
           "project_name": "flywheel-sdk",
@@ -1459,7 +1453,7 @@
             "urllib3<3.0,>=2.5"
           ],
           "requires_python": ">=3.10",
-          "version": "22.1.0"
+          "version": "22.0.0"
         },
         {
           "artifacts": [
@@ -3391,7 +3385,7 @@
     "boto3-stubs[boto3]",
     "boto3>=1.28.53",
     "botocore",
-    "flywheel-sdk>=20.0.0",
+    "flywheel-sdk==22.0.0",
     "fw-client>=0.7.0",
     "fw-gear>=0.3.5",
     "fw-utils>=3",

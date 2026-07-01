@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.2
+
+- Pins flywheel-sdk to 22.0.0 to fix deserialization crash caused by missing `Avatars` model in SDK 22.1.0+
+
 ## v0.0.1
 
 Initial release.
