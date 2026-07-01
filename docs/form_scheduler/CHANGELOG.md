@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.2
+* Pins flywheel-sdk to 22.0.0 to fix deserialization crash caused by missing `Avatars` model in SDK 22.1.0+
+
 ## 1.4.1
 * Fixes pass-qc event logging: reloads QC status log file before reading metadata to avoid stale/empty info from Flywheel SDK
 * Resolves module-specific date field (e.g. `npformdate` for NP) when extracting visit metadata from forms.json
