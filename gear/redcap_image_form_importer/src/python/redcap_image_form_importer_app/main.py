@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 pass_tag = "redcap-image-form-importer-PASS"
 fail_tag = "redcap-image-form-importer-FAIL"
 
+
 def tag_pass(session: ContainerOutput) -> None:
     """Handles the gear's tagging when it has completed successfully.
 
@@ -26,6 +27,7 @@ def tag_pass(session: ContainerOutput) -> None:
         session.delete_tag(fail_tag)
     if pass_tag not in session.tags:
         session.add_tag(pass_tag)
+
 
 def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> None:
     """Handles gear-related tagging upon failure and raises an error.
@@ -45,6 +47,7 @@ def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> None:
             session.add_tag(fail_tag)
     raise GearExecutionError(msg)
 
+
 # Names of REDCap variables that are common across session types
 all_types_variables_to_import: list[str] = [
     "uploader_role",
@@ -62,7 +65,7 @@ all_types_variables_to_import: list[str] = [
     "fundsourcex",
     "part_motion",
     "pass_criteria",
-    "general_complete"
+    "general_complete",
 ]
 
 # Names of REDCap variables that are specific to PET sessions
@@ -74,7 +77,7 @@ pet_variables_to_import: list[str] = [
     "tracer_inj_time",
     "emission_start_time",
     "residual_dose_time",
-    "pet_comments"
+    "pet_comments",
 ]
 
 # Names of REDCap variables that are specific to MRI sessions
@@ -82,13 +85,13 @@ mri_variables_to_import: list[str] = [
     "mri_sedate",
     "mri_eyesopen",
     "mri_comments",
-    "session_confirm"
+    "session_confirm",
 ]
 
+
 def format_variables_for_session(
-        redcap_variables_to_import: list,
-        redcap_record: dict
-    ) -> str:
+    redcap_variables_to_import: list, redcap_record: dict
+) -> str:
     """Generates a formatted string for the specified variables that are
     available in the REDCap record.
 
@@ -108,12 +111,13 @@ def format_variables_for_session(
             log.info(f"  {var}: <missing>")
     return string_to_return
 
+
 def verify_import_permitted(
-        dry_run: bool,
-        session: ContainerOutput,
-        redcap_record: dict,
-        redcap_variable: str,
-        value_to_indicate_permitted
+    dry_run: bool,
+    session: ContainerOutput,
+    redcap_record: dict,
+    redcap_variable: str,
+    value_to_indicate_permitted,
 ) -> None:
     """Checks that the given variable has a value that permits continuing with
     import.
@@ -132,21 +136,19 @@ def verify_import_permitted(
         tag_fail(
             dry_run,
             session,
-            f"Expected {redcap_variable} in REDCap record {redcap_record['record_id']}"
+            f"Expected {redcap_variable} in REDCap record {redcap_record['record_id']}",
         )
     if redcap_record[redcap_variable] != str(value_to_indicate_permitted):
         tag_fail(
             dry_run,
             session,
             f"Expected {redcap_variable} to be '{value_to_indicate_permitted}' "
-            f"but got '{redcap_record[redcap_variable]}'"
+            f"but got '{redcap_record[redcap_variable]}'",
         )
 
+
 def import_content_from_redcap_to_flywheel(
-        dry_run: bool,
-        redcap_record: dict,
-        session: ContainerOutput,
-        output_dir: str
+    dry_run: bool, redcap_record: dict, session: ContainerOutput, output_dir: str
 ) -> None:
     """Imports the given record from REDCap into the corresponding session in
     Flywheel.
@@ -158,23 +160,22 @@ def import_content_from_redcap_to_flywheel(
         output_dir: directory to write output submission form to
     """
     content_to_import = format_variables_for_session(
-        all_types_variables_to_import,
-        redcap_record
+        all_types_variables_to_import, redcap_record
     )
 
-    if redcap_record["imagetype"] == 1: # PET
+    if redcap_record["imagetype"] == 1:  # PET
         content_to_import += format_variables_for_session(
-            pet_variables_to_import,
-            redcap_record
+            pet_variables_to_import, redcap_record
         )
-    elif redcap_record["imagetype"] == 2: # MRI
+    elif redcap_record["imagetype"] == 2:  # MRI
         content_to_import += format_variables_for_session(
-            mri_variables_to_import,
-            redcap_record
+            mri_variables_to_import, redcap_record
         )
 
-    log.info(f"Content to import for {session.label}_image-submission-form.json:\n"
-             f"{content_to_import}")
+    log.info(
+        f"Content to import for {session.label}_image-submission-form.json:\n"
+        f"{content_to_import}"
+    )
     if dry_run:
         log.info("Dry run -- skipping import and tagging of session")
     else:
@@ -194,12 +195,15 @@ def import_content_from_redcap_to_flywheel(
             output_json.write(content_to_import)
         tag_pass(session)
 
-def run(*,
-        dry_run: bool,
-        session_id: str,
-        output_dir: str,
-        redcap_con: REDCapConnection,
-        proxy: FlywheelProxy):
+
+def run(
+    *,
+    dry_run: bool,
+    session_id: str,
+    output_dir: str,
+    redcap_con: REDCapConnection,
+    proxy: FlywheelProxy,
+):
     """Runs the REDCap Image Form Importer process, collecting the available
     information from REDCap to be imported into the Flywheel session.
 
@@ -229,8 +233,8 @@ def run(*,
         tag_fail(
             dry_run,
             session,
-            f"Missing record_id in session {session.subject.label}::{session.label} " \
-                f"({session.id})"
+            f"Missing record_id in session {session.subject.label}::{session.label} "
+            f"({session.id})",
         )
     record_id = session.info["record_id"]
 
@@ -239,13 +243,13 @@ def run(*,
         f"Connected to REDCapProject with pid {redcap_proj.pid} "
         f"and title {redcap_proj.title}"
     )
-    redcap_record = redcap_proj.export_records(record_ids = [record_id])
+    redcap_record = redcap_proj.export_records(record_ids=[record_id])
     if len(redcap_record) != 1:
         tag_fail(
             dry_run,
             session,
             f"Expected exactly one record for {record_id}, "
-            f"but got {len(redcap_record)}"
+            f"but got {len(redcap_record)}",
         )
     redcap_record = redcap_record[0]
 
@@ -262,7 +266,7 @@ def run(*,
                 dry_run,
                 session,
                 f"Mismatch for {var}: FW gives '{fw_record[var]}' "
-                f"but REDCap gives '{redcap_record[var]}'"
+                f"but REDCap gives '{redcap_record[var]}'",
             )
 
     import_content_from_redcap_to_flywheel(dry_run, redcap_record, session, output_dir)

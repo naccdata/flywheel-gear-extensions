@@ -27,12 +27,12 @@ class REDCapimageformimporterVisitor(GearExecutionEnvironment):
     """Visitor for the REDCap image form importer gear."""
 
     def __init__(
-            self,
-            dry_run: bool,
-            client: ClientWrapper,
-            parameter_store: ParameterStore,
-            parameter_path: str
-        ):
+        self,
+        dry_run: bool,
+        client: ClientWrapper,
+        parameter_store: ParameterStore,
+        parameter_path: str,
+    ):
         super().__init__(client=client)
         self.__dry_run = dry_run
         self.__param_store = parameter_store
@@ -40,10 +40,8 @@ class REDCapimageformimporterVisitor(GearExecutionEnvironment):
 
     @classmethod
     def create(
-        cls,
-        context: GearContext,
-        parameter_store: Optional[ParameterStore] = None
-    ) -> 'REDCapimageformimporterVisitor':
+        cls, context: GearContext, parameter_store: Optional[ParameterStore] = None
+    ) -> "REDCapimageformimporterVisitor":
         """Creates a REDCap image form importer execution visitor.
 
         Args:
@@ -57,14 +55,8 @@ class REDCapimageformimporterVisitor(GearExecutionEnvironment):
         assert parameter_store, "Parameter store expected"
 
         try:
-            dry_run: bool = get_config(
-                gear_context=context,
-                key='dry_run'
-            )
-            parameter_path: str = get_config(
-                gear_context=context,
-                key='parameter_path'
-            )
+            dry_run: bool = get_config(gear_context=context, key="dry_run")
+            parameter_path: str = get_config(gear_context=context, key="parameter_path")
         except ConfigParseError as error:
             raise GearExecutionError(
                 f"Incomplete configuration: {error.message}"
@@ -103,13 +95,15 @@ class REDCapimageformimporterVisitor(GearExecutionEnvironment):
             session_id=session_id,
             redcap_con=redcap_con,
             proxy=self.proxy,
-            output_dir=str(context.output_dir)
+            output_dir=str(context.output_dir),
         )
 
 
 def main():
     """Main method for REDCap image form importer."""
-    GearEngine().create_with_parameter_store().run(gear_type=REDCapimageformimporterVisitor)
+    GearEngine().create_with_parameter_store().run(
+        gear_type=REDCapimageformimporterVisitor
+    )
 
 
 if __name__ == "__main__":
