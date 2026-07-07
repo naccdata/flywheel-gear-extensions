@@ -1,3 +1,13 @@
+"""Data identification models for the NACC Data Platform.
+
+Provides composable models to identify data artifacts: participants, visits,
+and datatype-specific metadata (forms, images). The DataIdentification class
+uses a flattening serializer for backward compatibility with legacy schemas.
+
+For architecture details and extensibility guide, see:
+    docs/processes/data-identification.md
+"""
+
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
