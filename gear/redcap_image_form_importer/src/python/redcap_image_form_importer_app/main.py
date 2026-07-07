@@ -255,6 +255,10 @@ def run(
             f"but got {len(redcap_record_list)}",
         )
     redcap_record = redcap_record_list[0]
+    if isinstance(redcap_record, str):
+        tag_fail(
+            dry_run, session, f"Expected dict from REDCap but got '{redcap_record}'"
+        )
 
     # 2 for pass
     verify_import_permitted(dry_run, session, redcap_record, "pass_criteria", 2)
@@ -263,7 +267,7 @@ def run(
     verify_import_permitted(dry_run, session, redcap_record, "general_complete", 2)
 
     fw_record = FlywheelREDCapImageForm(session, proxy)
-    fw_record_dict = {}
+    fw_record_dict: dict[str, str] = {}
     fw_record_dict.update(fw_record)
     for var in fw_record.all_types_variables_to_check:
         if str(fw_record_dict[var]) != redcap_record[var]:
