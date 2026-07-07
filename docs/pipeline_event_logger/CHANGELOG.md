@@ -1,5 +1,10 @@
 # Pipeline Event Logger Changelog
 
+## 0.1.1
+
+* Fix VisitEvent serialization: `modality` field is now included in serialized dicom events
+* Rebuilt with forward-compatible event field passthrough
+
 ## 0.1.0
 
 - Initial release
