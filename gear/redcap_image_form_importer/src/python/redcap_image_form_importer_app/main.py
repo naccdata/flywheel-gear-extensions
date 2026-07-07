@@ -259,6 +259,9 @@ def run(
         tag_fail(
             dry_run, session, f"Expected dict from REDCap but got '{redcap_record}'"
         )
+    assert isinstance(redcap_record, dict), (
+        "variable redcap_record from REDCap must be a dict"
+    )
 
     # 2 for pass
     verify_import_permitted(dry_run, session, redcap_record, "pass_criteria", 2)
