@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/phi_coordinator/src/python/phi_coordinator_app:bin",
     ],
-    image_tags=["0.0.4", "latest"],
+    image_tags=["0.0.5", "latest"],
 )

@@ -266,17 +266,32 @@ def test_yes_without_ack_skips_when_reset_disabled(
     reader_tasks.add_task_tag.assert_not_called()
 
 
-def test_ack_accepts_string_true(proxy: Mock, reader_tasks: Mock) -> None:
+def test_ack_accepts_selectboxes_list(proxy: Mock, reader_tasks: Mock) -> None:
     file = make_file([FOUND])
     proxy.get_file.return_value = file
     reader_tasks.get_responses.return_value = [
-        make_response({"phi_radio": "yes", "delete_ack": "true"})
+        make_response({"phi_radio": "yes", "delete_ack": ["understood"]})
     ]
 
     outcome = make_processor(proxy, reader_tasks).resolve(make_task([FOUND]))
 
     assert outcome is Outcome.CONFIRMED
     file.add_tag.assert_called_once_with(CONFIRMED)
+    file.delete_tag.assert_called_once_with(FOUND)
+
+
+def test_empty_selectboxes_list_resets(proxy: Mock, reader_tasks: Mock) -> None:
+    reader_tasks.get_responses.return_value = [
+        make_response({"phi_radio": "yes", "delete_ack": []})
+    ]
+
+    outcome = make_processor(proxy, reader_tasks, reset=True).resolve(
+        make_task([FOUND])
+    )
+
+    assert outcome is Outcome.RESET
+    proxy.get_file.assert_not_called()
+    reader_tasks.clear_response.assert_called_once_with("r1")
 
 
 def test_empty_ack_key_disables_requirement(proxy: Mock, reader_tasks: Mock) -> None:
