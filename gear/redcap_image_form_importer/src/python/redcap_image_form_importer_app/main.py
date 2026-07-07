@@ -90,7 +90,7 @@ mri_variables_to_import: list[str] = [
 
 
 def format_variables_for_session(
-    redcap_variables_to_import: list, redcap_record: dict
+    redcap_variables_to_import: list, redcap_record: dict[str, str]
 ) -> str:
     """Generates a formatted string for the specified variables that are
     available in the REDCap record.
@@ -115,7 +115,7 @@ def format_variables_for_session(
 def verify_import_permitted(
     dry_run: bool,
     session: ContainerOutput,
-    redcap_record: dict,
+    redcap_record: dict[str, str],
     redcap_variable: str,
     value_to_indicate_permitted,
 ) -> None:
@@ -148,7 +148,10 @@ def verify_import_permitted(
 
 
 def import_content_from_redcap_to_flywheel(
-    dry_run: bool, redcap_record: dict, session: ContainerOutput, output_dir: str
+    dry_run: bool,
+    redcap_record: dict[str, str],
+    session: ContainerOutput,
+    output_dir: str,
 ) -> None:
     """Imports the given record from REDCap into the corresponding session in
     Flywheel.
@@ -243,15 +246,15 @@ def run(
         f"Connected to REDCapProject with pid {redcap_proj.pid} "
         f"and title {redcap_proj.title}"
     )
-    redcap_record = redcap_proj.export_records(record_ids=[record_id])
-    if len(redcap_record) != 1:
+    redcap_record_list = redcap_proj.export_records(record_ids=[record_id])
+    if len(redcap_record_list) != 1:
         tag_fail(
             dry_run,
             session,
             f"Expected exactly one record for {record_id}, "
-            f"but got {len(redcap_record)}",
+            f"but got {len(redcap_record_list)}",
         )
-    redcap_record = redcap_record[0]
+    redcap_record = redcap_record_list[0]
 
     # 2 for pass
     verify_import_permitted(dry_run, session, redcap_record, "pass_criteria", 2)
@@ -260,12 +263,14 @@ def run(
     verify_import_permitted(dry_run, session, redcap_record, "general_complete", 2)
 
     fw_record = FlywheelREDCapImageForm(session, proxy)
+    fw_record_dict = {}
+    fw_record_dict.update(fw_record)
     for var in fw_record.all_types_variables_to_check:
-        if str(fw_record[var]) != redcap_record[var]:
+        if str(fw_record_dict[var]) != redcap_record[var]:
             tag_fail(
                 dry_run,
                 session,
-                f"Mismatch for {var}: FW gives '{fw_record[var]}' "
+                f"Mismatch for {var}: FW gives '{fw_record_dict[var]}' "
                 f"but REDCap gives '{redcap_record[var]}'",
             )
 
