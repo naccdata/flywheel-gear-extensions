@@ -20,6 +20,7 @@ def run(
     reader_tasks: ReaderTaskClient,
     phi_protocol_label: str,
     answer_key: str,
+    ack_key: str,
     found_tag: str,
     confirmed_tag: str,
     not_found_tag: str,
@@ -34,6 +35,8 @@ def run(
         reader_tasks: client for reader tasks and form responses
         phi_protocol_label: label identifying the PHI reader-task protocols
         answer_key: key in the form response_data holding the yes/no answer
+        ack_key: key in the form response_data for the deletion-acknowledgment
+            checkbox that must be checked before a 'yes' answer is confirmed
         found_tag: tag marking unresolved PHI detection (removed once resolved)
         confirmed_tag: tag added when the reviewer confirms PHI
         not_found_tag: tag added when the reviewer reports no PHI
@@ -61,6 +64,7 @@ def run(
         proxy=proxy,
         reader_tasks=reader_tasks,
         answer_key=answer_key,
+        ack_key=ack_key,
         found_tag=found_tag,
         confirmed_tag=confirmed_tag,
         not_found_tag=not_found_tag,

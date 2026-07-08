@@ -12,11 +12,11 @@ class VisitEventCapture:
 
     <transaction-log-bucket>
     ├── prod
-    │   ├── log-submit-20240115-100000-42-ingest-form-alpha-110001-2024-01-15.json
-    │   ├── log-pass-qc-20240115-102000-42-ingest-form-alpha-110001-2024-01-15.json
-    │   └── log-not-pass-qc-20240116-143000-43-ingest-dicom-beta-220002-2024-01-16.json
+    │   ├── log-submit-20240115-100000-42-ingest-form-110001-2024-01-15.json
+    │   ├── log-pass-qc-20240115-102000-42-ingest-form-110001-2024-01-15.json
+    │   └── log-not-pass-qc-20240116-143000-43-ingest-dicom-220002-2024-01-16.json
     └── dev
-        └── log-submit-20240115-100000-42-ingest-form-alpha-110001-2024-01-15.json
+        └── log-submit-20240115-100000-42-ingest-form-110001-2024-01-15.json
 
     Filename format: log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visit_date}.json
     """

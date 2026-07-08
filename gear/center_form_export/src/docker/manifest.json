@@ -2,7 +2,7 @@
   "name": "center-form-export",
   "label": "Center Form Export",
   "description": "Exports form data for all subjects in a Flywheel group/project without a participant list",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "NACC",
   "maintainer": "NACC <nacchelp@uw.edu>",
   "cite": "",
@@ -15,7 +15,7 @@
   "custom": {
     "gear-builder": {
       "category": "utility",
-      "image": "naccdata/center-form-export:0.0.1"
+      "image": "naccdata/center-form-export:0.0.2"
     },
     "flywheel": {
       "suite": "Utility",

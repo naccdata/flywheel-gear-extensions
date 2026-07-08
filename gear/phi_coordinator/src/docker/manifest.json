@@ -2,7 +2,7 @@
     "name": "phi-coordinator",
     "label": "PHI Coordinator",
     "description": "Finalizes PHI review tags by reading completed reader-task form responses.",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/phi-coordinator:0.0.3"
+            "image": "naccdata/phi-coordinator:0.0.4"
         },
         "flywheel": {
             "suite": "NACC Data Gears",
@@ -42,6 +42,11 @@
             "description": "Key in the form response_data holding the yes/no answer",
             "type": "string",
             "default": "phi_radio"
+        },
+        "ack_key": {
+            "description": "Key in the form response_data for the deletion-acknowledgment checkbox that must be checked before a 'yes' answer is confirmed; empty disables the requirement",
+            "type": "string",
+            "default": "delete_ack"
         },
         "found_tag": {
             "description": "Tag marking a file with detected PHI awaiting review; removed once resolved",
