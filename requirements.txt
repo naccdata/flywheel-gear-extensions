@@ -1,7 +1,7 @@
 boto3>=1.28.53
 boto3-stubs[boto3]
 botocore
-flywheel-sdk==22.0.0 
+flywheel-sdk>=22.2.2
 fw-client>=0.7.0
 fw-gear>=0.3.5
 fw-utils>=3
