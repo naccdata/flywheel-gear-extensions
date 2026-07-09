@@ -147,8 +147,9 @@ class PHITaskProcessor:
     def __is_checked(value: object) -> bool:
         """Interprets a form acknowledgment value as checked (True) or not.
 
-        The reader form's selectboxes widget serializes checked options as
-        a list of their values; a plain checkbox serializes as a boolean.
+        The reader form's selectboxes widget serializes checked options
+        as a list of their values; a plain checkbox serializes as a
+        boolean.
         """
         if isinstance(value, list):
             return any(bool(item) for item in value)
