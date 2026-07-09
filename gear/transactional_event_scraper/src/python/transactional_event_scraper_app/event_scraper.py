@@ -15,9 +15,11 @@ Phase 2: Process JSON files to create and match QC events
     - Enriches matched submit events with packet information
     - Captures enriched submit events and PASS QC events to S3
 
-Phase 3: Report unmatched submit events
-    - Logs warnings for any submit events that couldn't be matched
-    - Indicates potential data loss or missing JSON files
+Phase 3: Push remaining unmatched submit events
+    - Captures any submit events that couldn't be matched
+    - These events lack packet enrichment but are still valid
+    - Mirrors live pipeline behavior where submit events are
+      independent of QC/JSON file availability
 
 The EventScraper uses dependency injection to coordinate two specialized
 processors (SubmitEventProcessor and QCEventProcessor) and a shared
@@ -27,6 +29,7 @@ UnmatchedSubmitEvents collection for efficient event matching.
 import logging
 from typing import Optional
 
+from configs.ingest_configs import FormProjectConfigs
 from event_capture.event_capture import VisitEventCapture
 from event_capture.event_generator import EventGenerator
 from event_capture.event_processor import QCEventProcessor, SubmitEventProcessor
@@ -75,6 +78,7 @@ class EventScraper:
         event_capture: Optional[VisitEventCapture] = None,
         dry_run: bool = False,
         date_filter: Optional[DateRange] = None,
+        form_configs: Optional[FormProjectConfigs] = None,
     ) -> None:
         """Initialize the EventScraper.
 
@@ -86,11 +90,14 @@ class EventScraper:
             event_capture: Optional event capture for storing events (None for dry-run)
             dry_run: Whether to perform a dry run without capturing events
             date_filter: Optional date range for filtering files
+            form_configs: optional form module configs used to resolve the
+                module-specific date field for visit extraction
         """
         self._project = project
         self._event_capture = event_capture
         self._dry_run = dry_run
         self._date_filter = date_filter
+        self._form_configs = form_configs
 
         # Shared components
         self._event_generator = EventGenerator(project)
@@ -111,6 +118,7 @@ class EventScraper:
             event_capture=event_capture,
             dry_run=dry_run,
             date_filter=date_filter,
+            form_configs=form_configs,
         )
 
     def scrape_events(self) -> None:
@@ -127,10 +135,11 @@ class EventScraper:
             - Enriches and captures matched events
             - Logs warnings for unmatched QC events
 
-        Phase 3: Report unmatched submit events
-            - Logs warning if any submit events remain unmatched
-            - Provides sample of unmatched events for investigation
-            - Indicates potential data loss or missing JSON files
+        Phase 3: Push remaining unmatched submit events
+            - Captures any submit events that couldn't be matched
+            - These events lack packet enrichment but are still valid
+            - Mirrors live pipeline behavior where submit events are
+              independent of QC/JSON file availability
 
         The workflow is designed to be resilient to individual file
         processing failures - errors are logged but don't stop the
@@ -150,20 +159,24 @@ class EventScraper:
         log.info("Phase 2: Processing JSON files and matching events")
         self._qc_processor.process_json_files()
 
-        # Phase 3: Report unmatched submit events
+        # Phase 3: Push unmatched submit events without enrichment
         remaining = self._unmatched_events.get_remaining()
         if remaining:
-            log.warning(
-                f"Processing complete with {len(remaining)} unmatched submit "
-                f"events (no corresponding JSON/QC data found)"
+            log.info(
+                f"Phase 3: Pushing {len(remaining)} unmatched submit events "
+                f"(without packet enrichment)"
             )
-            # Log sample of unmatched events for investigation
-            for event in remaining[:5]:  # Log first 5
-                log.warning(
-                    f"  Unmatched: ptid={event.ptid}, date={event.visit_date}, "
-                    f"module={event.module}"
-                )
-            if len(remaining) > 5:
-                log.warning(f"  ... and {len(remaining) - 5} more")
+            for event in remaining:
+                if self._dry_run:
+                    log.info(
+                        f"[DRY RUN] Would push unenriched submit event: "
+                        f"{event.ptid} {event.visit_date} {event.module}"
+                    )
+                elif self._event_capture:
+                    self._event_capture.capture_event(event)
+                    log.info(
+                        f"Pushed unenriched submit event: {event.ptid} "
+                        f"{event.visit_date} {event.module}"
+                    )
         else:
             log.info("Processing complete: all submit events matched and enriched")

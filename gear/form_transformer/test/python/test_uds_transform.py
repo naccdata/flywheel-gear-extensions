@@ -242,7 +242,7 @@ class TestUDSTransform:
 
     def test_already_exists(self):
         """Test that the subject already exists - this is allowed"""
-        visitor, project, form_store = create_uds_visitor()
+        visitor, _project, form_store = create_uds_visitor()
         record = create_record({})
         form_store.add_subject(
             subject_lbl=record["naccid"],
@@ -360,7 +360,7 @@ class TestUDSTransform:
 
     def test_non_numeric_visitnum(self):
         """Tests non-numeric visit numbers."""
-        visitor, project, _ = create_uds_visitor()
+        visitor, _project, _ = create_uds_visitor()
         record = create_record(
             {
                 "ptid": "new-ptid1",

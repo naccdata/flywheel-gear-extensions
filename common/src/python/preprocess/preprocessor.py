@@ -546,6 +546,38 @@ class FormPreprocessor:
 
         return True
 
+    def __check_duplicate_legacy_record(self, pp_context: PreprocessingContext) -> bool:
+        """Check for a legacy record with the same visit date.
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            bool: False, if a conflicting record found
+        """
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        subject_lbl = pp_context.subject_lbl
+        input_record = pp_context.input_record
+        date_field = self.__module_configs.date_field
+
+        date_matches = self.__forms_store.query_form_data(
+            subject_lbl=subject_lbl,
+            module=self.__module,
+            legacy=True,
+            search_col=date_field,
+            search_val=input_record[date_field],
+            search_op="=",
+        )
+
+        if date_matches:
+            self.__error_handler.write_date_error(
+                pp_context=pp_context, error_code=SysErrorCodes.DUPLICATE_LEGACY_VISIT
+            )
+            return False
+
+        return True
+
     def _check_udsv4_initial_visit(self, pp_context: PreprocessingContext) -> bool:
         """Validate UDSv4 I4 packet requirements.
 
@@ -662,9 +694,13 @@ class FormPreprocessor:
         Returns:
             bool: False if conflict found
         """
-        return self.__check_visitdate_visitnum(
-            pp_context
-        ) and self.__check_visitnum_visitdate(pp_context)
+
+        if FieldNames.VISITNUM in self.__module_configs.required_fields:
+            return self.__check_visitdate_visitnum(
+                pp_context
+            ) and self.__check_visitnum_visitdate(pp_context)
+
+        return self.__check_duplicate_legacy_record(pp_context)
 
     def _check_supplement_module(self, pp_context: PreprocessingContext) -> bool:
         """Check whether a matching supplement module found.

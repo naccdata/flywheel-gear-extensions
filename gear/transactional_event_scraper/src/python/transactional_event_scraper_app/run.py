@@ -3,6 +3,10 @@
 import logging
 from typing import Optional
 
+from configs.ingest_configs import (
+    FormProjectConfigs,
+    load_form_ingest_configurations,
+)
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from fw_gear import GearContext
@@ -12,8 +16,10 @@ from gear_execution.gear_execution import (
     GearEngine,
     GearExecutionEnvironment,
     GearExecutionError,
+    InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
 
 from transactional_event_scraper_app.config import (
@@ -34,6 +40,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
         config: TransactionalEventScraperConfig,
         project: ProjectAdaptor,
         event_capture: Optional[VisitEventCapture] = None,
+        form_configs: Optional[FormProjectConfigs] = None,
     ):
         """Initialize the visitor.
 
@@ -42,11 +49,14 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
             config: The gear configuration
             project: The project adaptor
             event_capture: Optional event capture for storing events (None for dry-run)
+            form_configs: optional form module configs used to resolve the
+                module-specific date field for visit extraction
         """
         super().__init__(client=client)
         self.__config = config
         self.__project = project
         self.__event_capture = event_capture
+        self.__form_configs = form_configs
 
     @classmethod
     def create(
@@ -96,6 +106,23 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
 
         project = ProjectAdaptor(project=fw_project, proxy=proxy)
 
+        # Optional: form module configs, used to resolve the module-specific
+        # date field when extracting visit metadata.
+        form_configs_input = InputFileWrapper.create(
+            input_name="form_configs_file", context=context
+        )
+        form_configs = None
+        if form_configs_input:
+            try:
+                form_configs = load_form_ingest_configurations(
+                    form_configs_input.filepath
+                )
+            except ValidationError as error:
+                raise GearExecutionError(
+                    "Error reading form configurations file "
+                    f"{form_configs_input.filename}: {error}"
+                ) from error
+
         # Initialize visit event capture if not in dry-run mode
         event_capture = None
         if not config.dry_run:
@@ -116,6 +143,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
             config=config,
             project=project,
             event_capture=event_capture,
+            form_configs=form_configs,
         )
 
     def run(self, context: GearContext) -> None:
@@ -151,6 +179,7 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
             event_capture=self.__event_capture,
             dry_run=self.__config.dry_run,
             date_filter=date_filter,
+            form_configs=self.__form_configs,
         )
 
         # Run the scraper

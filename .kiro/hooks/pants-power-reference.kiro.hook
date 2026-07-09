@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Load Pants Power Reference",
+  "description": "When a pants power tool is about to be invoked, reminds the agent to load the detailed kiro-pants-power-reference steering file for error handling, workflow patterns, and parameter guidance.",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      ".*pants.*",
+      ".*container.*",
+      ".*full_quality_check.*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are about to use a kiro-pants-power tool. If you have not already loaded the detailed reference in this session, use the disclose_context tool to activate the kiro-pants-power-reference.md steering file before proceeding. If you have already loaded it, proceed with the tool call."
+  }
+}

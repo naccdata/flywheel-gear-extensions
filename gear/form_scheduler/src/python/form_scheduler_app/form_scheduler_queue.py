@@ -14,7 +14,12 @@ from collections import defaultdict
 from json.decoder import JSONDecodeError
 from typing import Callable, Dict, List, Optional, Tuple
 
-from configs.ingest_configs import Pipeline, PipelineConfigs, PipelineType
+from configs.ingest_configs import (
+    FormProjectConfigs,
+    Pipeline,
+    PipelineConfigs,
+    PipelineType,
+)
 from data.dataview import ColumnModel, make_builder
 from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
@@ -463,6 +468,7 @@ class FormSchedulerQueue:
         project: ProjectAdaptor,
         pipeline_configs: PipelineConfigs,
         event_capture: VisitEventCapture,
+        form_configs: Optional[FormProjectConfigs] = None,
         email_client: Optional[EmailClient] = None,
         portal_url: Optional[URLParameter] = None,
     ) -> None:
@@ -473,6 +479,8 @@ class FormSchedulerQueue:
             project: Flywheel project container
             pipeline_configs: form pipeline configurations
             event_capture: VisitEventCapture for capturing visit events
+            form_configs: optional form module configs used to resolve the
+                module-specific date field for visit extraction
             email_client: EmailClient to send emails from
             portal_url: The portal URL
         """
@@ -480,6 +488,7 @@ class FormSchedulerQueue:
         self.__project = project
         self.__pipeline_configs = pipeline_configs
         self.__event_capture = event_capture
+        self.__form_configs = form_configs
         self.__email_client = email_client
         self.__portal_url = portal_url
         self.__pipeline_queues: Dict[str, PipelineQueue] = {}
@@ -574,7 +583,10 @@ class FormSchedulerQueue:
             pipeline_name: Name of the pipeline
         """
         try:
-            event_accumulator = EventAccumulator(event_capture=self.__event_capture)
+            event_accumulator = EventAccumulator(
+                event_capture=self.__event_capture,
+                form_configs=self.__form_configs,
+            )
 
             if pipeline_name == DefaultValues.DELETION_PIPELINE:
                 event_accumulator.capture_delete_event(

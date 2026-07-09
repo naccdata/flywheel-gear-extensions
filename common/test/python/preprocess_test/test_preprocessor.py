@@ -154,7 +154,7 @@ class TestFormPreprocessor:
     def test_check_optional_forms_status_none(self, np_module_configs, np_pp_context):
         """Tests the _check_optional_forms_status check when there are no
         optional forms."""
-        processor, error_writer, _ = self.__setup_processor(
+        processor, _error_writer, _ = self.__setup_processor(
             DefaultValues.NP_MODULE, np_module_configs
         )
         assert processor._check_optional_forms_status(np_pp_context)
@@ -410,7 +410,7 @@ class TestFormPreprocessor:
 
     def test_is_existing_visit(self, uds_module_configs, uds_pp_context):
         """Tests the is_existing_visit method."""
-        processor, error_writer, forms_store = self.__setup_processor(
+        processor, _error_writer, forms_store = self.__setup_processor(
             DefaultValues.UDS_MODULE, uds_module_configs
         )
 

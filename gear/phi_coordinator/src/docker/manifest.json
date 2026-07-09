@@ -1,0 +1,78 @@
+{
+    "name": "phi-coordinator",
+    "label": "PHI Coordinator",
+    "description": "Finalizes PHI review tags by reading completed reader-task form responses.",
+    "version": "0.0.4",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/phi-coordinator:0.0.4"
+        },
+        "flywheel": {
+            "suite": "NACC Data Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Log intended changes without applying them",
+            "type": "boolean",
+            "default": false
+        },
+        "phi_protocol_label": {
+            "description": "Label of the reader-task protocols whose completed tasks to process",
+            "type": "string",
+            "default": "default_image_pii_detector_protocol"
+        },
+        "answer_key": {
+            "description": "Key in the form response_data holding the yes/no answer",
+            "type": "string",
+            "default": "phi_radio"
+        },
+        "ack_key": {
+            "description": "Key in the form response_data for the deletion-acknowledgment checkbox that must be checked before a 'yes' answer is confirmed; empty disables the requirement",
+            "type": "string",
+            "default": "delete_ack"
+        },
+        "found_tag": {
+            "description": "Tag marking a file with detected PHI awaiting review; removed once resolved",
+            "type": "string",
+            "default": "PHI-Found"
+        },
+        "confirmed_tag": {
+            "description": "Tag added to the file when the reviewer confirms PHI is present",
+            "type": "string",
+            "default": "PHI-Confirmed"
+        },
+        "not_found_tag": {
+            "description": "Tag added to the file when the reviewer reports no PHI",
+            "type": "string",
+            "default": "PHI-Not-Found"
+        },
+        "coordinated_tag": {
+            "description": "Marker tag added to a reader task once processed, excluding it from future runs",
+            "type": "string",
+            "default": "phi-coordinator"
+        },
+        "reset_on_missing_data": {
+            "description": "If a completed task has no usable answer, reset it to Todo and clear its response",
+            "type": "boolean",
+            "default": true
+        }
+    },
+    "command": "/bin/run"
+}

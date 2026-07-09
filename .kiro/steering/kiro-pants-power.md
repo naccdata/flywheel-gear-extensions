@@ -1,186 +1,32 @@
 ---
 inclusion: auto
-description: Guidance for using the kiro-pants-power to automate Pants build system and devcontainer operations
+description: Core rules for using the kiro-pants-power (detailed reference loaded on-demand via hook)
 ---
 
-# Kiro Pants Power Usage
+# Kiro Pants Power — Core Rules
 
-## Overview
+## Workspace Folder
 
-The `kiro-pants-power` automates Pants build system and devcontainer operations for this repository. Use power tools instead of manual scripts whenever possible.
+**All power tools require `workspace_folder` as a required parameter.** For this project:
 
-The power now supports intent-based parameters for simpler usage without needing to understand Pants target syntax.
-
-## MCP Configuration
-
-The power discovers the workspace folder from the `WORKSPACE_FOLDER` environment variable, which uses Kiro's `${workspaceFolder}` variable substitution to automatically resolve to the current workspace root.
-
-The MCP config in `.kiro/settings/mcp.json` should include:
-
-```json
-{
-  "command": "uvx",
-  "args": [
-    "--from", "git+https://github.com/naccdata/kiro-pants-power",
-    "pants-devcontainer-power"
-  ],
-  "env": {
-    "WORKSPACE_FOLDER": "${workspaceFolder}"
-  }
-}
+```
+workspace_folder="/Users/bjkeller/Documents/workspace/naccdata/flywheel-gear-extensions"
 ```
 
-If task agents encounter working directory errors, verify `WORKSPACE_FOLDER` is set in the MCP config `env` object.
+## Essential Rules
 
-## Quick Reference
+1. **Use power tools, not manual scripts** — use `pants_fix`, `pants_lint`, `pants_check`, `pants_test`, `pants_package`, `pants_tailor`, `full_quality_check`, `pants_workflow`, and container tools instead of `./bin/` scripts.
 
-### Most Common Operations
+2. **Stop on infrastructure errors** — if a power tool fails due to container/MCP/infrastructure issues, STOP and report to the user. Do NOT fall back to manual scripts or `container_exec` with raw pants commands.
 
-**Complete Quality Check** (recommended before commits):
+3. **Don't retry identical failures** — if a tool fails with the same output twice, stop and report.
 
-```text
-Use: full_quality_check tool
-```
+4. **Prefer intent-based parameters** over legacy `target` syntax for individual Pants tools (better error messages, path validation).
 
-**Individual Steps**:
+5. **Don't use `container_exec` with raw pants commands** when a dedicated tool exists.
 
-```text
-Use: pants_fix tool with scope="all"      # Format all code (always run first)
-Use: pants_lint tool with scope="all"     # Check linting
-Use: pants_check tool with scope="all"    # Type checking
-Use: pants_test tool with scope="all"     # Run all tests
-```
+6. **Code-level failures are normal** — type errors, test failures, lint issues are development feedback. Read the output and fix the code.
 
-**Build Packages**:
+## Detailed Reference
 
-```text
-Use: pants_package tool with scope="all"
-Use: pants_package tool with scope="directory", path="nacc-common"
-```
-
-## Intent-Based Parameters
-
-All Pants tools support these parameters:
-
-- `scope` (optional): What to operate on
-  - `'all'` - Entire codebase (default)
-  - `'directory'` - Specific directory
-  - `'file'` - Single file
-
-- `path` (required for 'directory' and 'file'): Directory or file path
-  - Examples: `'common/src/python'`, `'gear/user_management/src/python/main.py'`
-
-- `recursive` (optional, default: true): Include subdirectories (directory scope only)
-
-- `test_filter` (optional, pants_test only): Filter tests by name pattern
-  - Examples: `'test_create'`, `'test_create or test_update'`, `'not test_slow'`
-
-## Workflow Best Practices
-
-### Before Committing Code
-
-Always run the complete quality check:
-
-```text
-Use: full_quality_check tool
-```
-
-This runs: fix → lint → check → test in sequence and stops on first failure.
-
-### During Development
-
-Focus on specific areas you're changing:
-
-```text
-Use: pants_test tool with scope="directory", path="common/test/python"
-Use: pants_fix tool with scope="directory", path="gear/form_qc_checker/src/python"
-```
-
-### Run Specific Tests
-
-Filter tests by name without needing to know exact file paths:
-
-```text
-Use: pants_test tool with scope="all", test_filter="test_create"
-Use: pants_test tool with scope="directory", path="common/test/python", test_filter="not test_slow"
-```
-
-### When Tests Fail
-
-Run tests for specific module to isolate issues:
-
-```text
-Use: pants_test tool with scope="file", path="common/test/python/test_identifier.py"
-Use: pants_test tool with scope="directory", path="common/test/python/identifiers"
-```
-
-### When Seeing Weird Errors
-
-Clear Pants cache to resolve stale state:
-
-```text
-Use: pants_clear_cache tool
-```
-
-### After Dependency Changes
-
-Rebuild the devcontainer:
-
-```text
-Use: container_rebuild tool
-```
-
-## Container Management
-
-The power automatically starts the container when needed. Manual control is rarely required, but available:
-
-```text
-Use: container_start tool     # Idempotent - safe to call multiple times
-Use: container_stop tool      # Stop container
-Use: container_rebuild tool   # Rebuild from scratch
-```
-
-## Troubleshooting
-
-### "Container not running" errors
-
-- Power should auto-start container
-- If it fails, check Docker Desktop is running
-- Try: container_start tool explicitly
-
-### "Pants not found" errors
-
-- Pants needs to be installed in container
-- Run: `devcontainer exec --workspace-folder . bash get-pants.sh`
-- Or use: container_exec tool with command="bash get-pants.sh"
-
-### Stale cache or "file not found" errors
-
-- Use: pants_clear_cache tool
-- Then retry the failing command
-
-### Working directory or path resolution errors
-
-- Verify `WORKSPACE_FOLDER` is set in the MCP config `env` object with value `"${workspaceFolder}"`
-- Reconnect the MCP server after config changes
-
-### Test or lint failures
-
-- Review error output carefully
-- Fix reported issues
-- Use: pants_fix tool with scope="all" to auto-fix formatting
-- Re-run the failing command
-
-## Manual Scripts Fallback
-
-If the power is unavailable, use scripts in `bin/`:
-
-- `./bin/start-devcontainer.sh` - Start container
-- `./bin/exec-in-devcontainer.sh <command>` - Execute command
-- `./bin/terminal.sh` - Open interactive shell
-
-## Additional Resources
-
-- Power documentation: Activate the power to see full documentation
-- Pants documentation: <https://www.pantsbuild.org>
-- DevContainer CLI: <https://github.com/devcontainers/cli>
+The full reference (error output formats, workflow examples, troubleshooting, parameter details) is in the `kiro-pants-power-reference` steering file. It is loaded automatically via hook when pants power tools are invoked.

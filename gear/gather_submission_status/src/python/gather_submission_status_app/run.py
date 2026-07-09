@@ -3,7 +3,7 @@
 import logging
 from csv import DictWriter
 from pathlib import Path
-from typing import List, Optional, get_args
+from typing import List, Optional
 
 from data_requests.status_request import StatusRequestClusteringVisitor
 from fw_gear import GearContext
@@ -30,7 +30,7 @@ from nacc_common.visit_submission_status import (
 )
 from outputs.error_writer import ListErrorWriter
 
-from gather_submission_status_app.main import ModuleName, run
+from gather_submission_status_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         file_input: InputFileWrapper,
         output_filename: str,
         project_names: List[str],
-        modules: set[ModuleName],
+        modules: set[str],
         study_id: str,
         file_visitor_builder: FileQCReportVisitorBuilder,
         fieldnames: List[str],
@@ -85,12 +85,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         output_filename = options.get("output_file", "submission-status.csv")
         admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = options.get("project_names", "").split(",")
-        modules = options.get("modules", "").split(",")
-        unexpected_modules = [
-            module for module in modules if module not in get_args(ModuleName)
-        ]
-        if unexpected_modules:
-            log.warning("ignoring unexpected modules: %s", ",".join(unexpected_modules))
+        modules = set(options.get("modules", "").split(","))
 
         study_id = options.get("study_id", "adrc")
 
@@ -113,7 +108,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             output_filename=output_filename,
             admin_id=admin_id,
             project_names=project_names,
-            modules={module for module in get_args(ModuleName) if module in modules},
+            modules=modules,
             study_id=study_id,
             file_visitor_builder=file_visitor_builder,
             fieldnames=fieldnames,

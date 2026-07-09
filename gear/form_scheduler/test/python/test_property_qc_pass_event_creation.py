@@ -28,6 +28,7 @@ def json_file_strategy(draw):
     forms_json = draw(shared_json_strategy())
 
     file_entry = Mock(spec=FileEntry)
+    file_entry.reload.return_value = file_entry
     file_entry.name = (
         f"{forms_json['ptid']}"
         f"_{forms_json['visitdate']}"
@@ -158,6 +159,7 @@ def test_qc_pass_event_structure():
 
     # Create test JSON file
     json_file = Mock(spec=FileEntry)
+    json_file.reload.return_value = json_file
     json_file.name = "test001_2024-01-15_uds.json"
     json_file.info = {
         "forms": {
@@ -233,6 +235,7 @@ def test_multiple_json_files_mixed_qc_status():
         [QC_STATUS_PASS, "FAIL", QC_STATUS_PASS, "IN REVIEW"]
     ):
         json_file = Mock(spec=FileEntry)
+        json_file.reload.return_value = json_file
         json_file.name = f"test{i:03d}_2024-01-15_uds.json"
         json_file.info = {
             "forms": {

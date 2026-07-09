@@ -1,0 +1,66 @@
+{
+  "name": "center-form-export",
+  "label": "Center Form Export",
+  "description": "Exports form data for all subjects in a Flywheel group/project without a participant list",
+  "version": "0.0.2",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "https://naccdata.github.io/flywheel-gear-extensions/center_form_export/",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/center_form_export",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/center-form-export:0.0.2"
+    },
+    "flywheel": {
+      "suite": "Utility",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
+    }
+  },
+  "config": {
+    "group_id": {
+      "description": "Flywheel group ID for the center",
+      "type": "string"
+    },
+    "project_name": {
+      "description": "Project label to iterate",
+      "type": "string"
+    },
+    "modules": {
+      "description": "Comma-separated list of form modules to include",
+      "type": "string",
+      "default": "UDS,FTLD,LBD"
+    },
+    "study_id": {
+      "description": "The study ID",
+      "type": "string",
+      "default": "adrc"
+    },
+    "include_derived": {
+      "description": "Whether to include derived variables",
+      "type": "boolean",
+      "default": false
+    },
+    "formver_split": {
+      "description": "Split output CSVs by form version (one file per module/formver pair)",
+      "type": "boolean",
+      "default": false
+    },
+    "apikey_path_prefix": {
+      "description": "The instance specific AWS parameter path prefix for apikey",
+      "type": "string",
+      "default": "/prod/flywheel/gearbot"
+    }
+  },
+  "command": "/bin/run"
+}
