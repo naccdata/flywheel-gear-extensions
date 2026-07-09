@@ -145,15 +145,16 @@ class PHITaskProcessor:
 
     @staticmethod
     def __is_checked(value: object) -> bool:
-        """Interprets a form checkbox value as checked (True) or not.
+        """Interprets a form acknowledgment value as checked (True) or not.
 
-        Flywheel form responses serialize a checked box as the boolean
-        True; common string encodings are accepted defensively.
+        The reader form's selectboxes widget serializes checked options
+        as a list of their values; a plain checkbox serializes as a
+        boolean.
         """
+        if isinstance(value, list):
+            return any(bool(item) for item in value)
         if isinstance(value, bool):
             return value
-        if isinstance(value, str):
-            return value.strip().lower() in ("true", "yes", "on", "1")
         return False
 
     @staticmethod
