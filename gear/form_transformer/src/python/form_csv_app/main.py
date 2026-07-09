@@ -263,6 +263,7 @@ class CSVTransformVisitor(CSVVisitor):
                     self.__module_configs.preprocess_checks
                     and PreprocessingChecks.VISIT_CONFLICT
                     in self.__module_configs.preprocess_checks
+                    and FieldNames.VISITNUM in self.__module_configs.required_fields
                 ):
                     is_ivp = (
                         transformed_row[FieldNames.PACKET]
