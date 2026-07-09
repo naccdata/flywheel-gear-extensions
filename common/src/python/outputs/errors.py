@@ -135,6 +135,10 @@ preprocess_errors = {
         "Multiple submissions not allowed for {0} module, "
         "delete the existing submissions for this participant with dates {1} and retry"
     ),
+    SysErrorCodes.DUPLICATE_LEGACY_VISIT: (
+        "Duplicate record with the same visit date exists in the legacy submissions "
+        "for this participant/module"
+    ),
 }
 
 

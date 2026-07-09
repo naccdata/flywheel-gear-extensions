@@ -277,6 +277,7 @@
                 "duplicate-record",
                 "version",
                 "packet",
+                "visit-conflict",
                 "clinical-forms"
             ],
             "longitudinal": false
@@ -406,6 +407,7 @@
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
+                "visit-conflict",
                 "supplement-module"
             ],
             "longitudinal": false
