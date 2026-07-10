@@ -4,12 +4,13 @@ from configs.ingest_configs import FormReleaseDates
 from keys.keys import SysErrorCodes
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
+from test_mocks.mock_configs import uds_ingest_configs
 from transform.transformer import (
     DateTransformer,
-    FieldTransformations,
-    ReleaseDateFilter,
+    ReleaseDateTransformation,
+    TransformationSchema,
     VersionMap,
-    VersionMapFilter,
+    VersionMapTransformation,
 )
 
 
@@ -29,9 +30,9 @@ class TestVersionMap:
     # TODO: should not having the fieldname as a key be an error?
 
 
-class TestFieldFilter:
+class TestVersionMapTransformation:
     def test_empty_fields(self):
-        field_filter = VersionMapFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -41,12 +42,12 @@ class TestFieldFilter:
             "dummy": "alpha-raw",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
 
         assert record == input_record
 
     def test_drop_fields(self):
-        field_filter = VersionMapFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -62,12 +63,13 @@ class TestFieldFilter:
             "b2": "",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
         assert record
-        assert [k for k in record if k in input_record and k not in ["b1", "b2"]]
+        assert "b1" not in record and "b2" not in record
+        assert set(record.keys()) == {"dummy", "common1", "common2", "a1", "a2"}
 
     def test_drop_fields_nofill_true(self):
-        field_filter = VersionMapFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -82,12 +84,12 @@ class TestFieldFilter:
             "b1": "b1-val",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
 
         assert not record
 
     def test_diff_fields_nofill_false(self):
-        field_filter = VersionMapFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -102,7 +104,7 @@ class TestFieldFilter:
             "b1": "b1-val",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
 
         assert record
         assert [k for k in record if k in input_record and k != "b1"]
@@ -133,12 +135,12 @@ class TestDateTransformer:
         assert not record
 
 
-class TestReleaseDateFilter:
+class TestReleaseDateTransformation:
     RELEASE_DATES = FormReleaseDates({"I": {"d1c": "2026-05-01"}})
 
     @staticmethod
-    def __filter() -> ReleaseDateFilter:
-        return ReleaseDateFilter(
+    def __filter() -> ReleaseDateTransformation:
+        return ReleaseDateTransformation(
             form_name="d1c",
             fields=["d1c1", "d1c2"],
             header_fields=["frmdated1c"],
@@ -150,12 +152,14 @@ class TestReleaseDateFilter:
         return ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
 
     def __apply(self, release_filter, input_record, error_writer=None):
+        module_configs = uds_ingest_configs().model_copy(
+            update={"release_dates": self.RELEASE_DATES}
+        )
         return release_filter.apply(
             input_record,
             error_writer or self.__error_writer(),
             1,
-            "visitdate",
-            self.RELEASE_DATES,
+            module_configs,
         )
 
     def test_before_release_not_submitted_empty(self):
@@ -222,7 +226,7 @@ class TestReleaseDateFilter:
 
         fields dropped, no error.
         """
-        release_filter = ReleaseDateFilter(
+        release_filter = ReleaseDateTransformation(
             form_name="d1c",
             fields=["d1c1", "d1c2"],
             nofill=False,
@@ -333,39 +337,60 @@ class TestReleaseDateFilter:
             "moded1c": "0",
             "d1c1": "some-value",
         }
+        module_configs = uds_ingest_configs().model_copy(
+            update={
+                "release_dates": FormReleaseDates({"I": {"otherform": "2026-05-01"}})
+            }
+        )
         record = release_filter.apply(
             input_record,
             self.__error_writer(),
             1,
-            "visitdate",
-            FormReleaseDates({"I": {"otherform": "2026-05-01"}}),
+            module_configs,
         )
         assert record == input_record
 
 
-class TestFieldTransformations:
-    def test_mixed_filter_union(self):
-        """A module list containing both filter types parses to the correct
-        concrete subclasses."""
+class TestTransformationSchema:
+    def test_grouped_transformations(self):
+        """A module with both categories parses to the correct concrete
+        transformation subclasses in each category list."""
         schema = {
-            "UDS": [
-                {
-                    "version_map": {
-                        "fieldname": "packet",
-                        "value_map": {"F": "IVP"},
-                        "default": "FVP",
-                    },
-                    "fields": {"FVP": ["newinf"], "IVP": ["birthmo"]},
-                },
-                {
-                    "form_name": "d1c",
-                    "fields": ["d1c1"],
-                    "header_fields": ["frmdated1c"],
-                },
-            ]
+            "UDS": {
+                "field_transformations": [
+                    {
+                        "transform_type": "version_map",
+                        "version_map": {
+                            "fieldname": "packet",
+                            "value_map": {"F": "IVP"},
+                            "default": "FVP",
+                        },
+                        "fields": {"FVP": ["newinf"], "IVP": ["birthmo"]},
+                    }
+                ],
+                "form_transformations": [
+                    {
+                        "transform_type": "release_date",
+                        "form_name": "d1c",
+                        "fields": ["d1c1"],
+                        "header_fields": ["frmdated1c"],
+                    }
+                ],
+            }
         }
-        transformations = FieldTransformations.model_validate_json(json.dumps(schema))
-        filters = transformations.get("UDS")
-        assert len(filters) == 2
-        assert isinstance(filters[0], VersionMapFilter)
-        assert isinstance(filters[1], ReleaseDateFilter)
+        transformations = TransformationSchema.model_validate_json(json.dumps(schema))
+        module_transforms = transformations.get("UDS")
+        assert module_transforms
+        assert len(module_transforms.field_transformations) == 1
+        assert len(module_transforms.form_transformations) == 1
+        assert isinstance(
+            module_transforms.field_transformations[0], VersionMapTransformation
+        )
+        assert isinstance(
+            module_transforms.form_transformations[0], ReleaseDateTransformation
+        )
+
+    def test_unknown_module_returns_none(self):
+        """get() returns None for a module with no transformations."""
+        transformations = TransformationSchema()
+        assert transformations.get("UDS") is None

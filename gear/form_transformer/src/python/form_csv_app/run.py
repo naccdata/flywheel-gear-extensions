@@ -24,7 +24,7 @@ from keys.keys import DefaultValues
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from preprocess.preprocessor import FormPreprocessor
 from pydantic import ValidationError
-from transform.transformer import FieldTransformations, TransformerFactory
+from transform.transformer import TransformationSchema, TransformerFactory
 from utils.utils import parse_string_to_list
 
 from form_csv_app.main import run
@@ -183,7 +183,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         """Loads the transformation file and creates a transformer factory.
 
         If the input is None, returns a factory for empty transformations.
-        Otherwise, loads the file as a FileTransformations object and creates
+        Otherwise, loads the file as a TransformationSchema object and creates
         a factory using those.
 
         Args:
@@ -193,14 +193,14 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
           the TransformerFactory for the input
         """
         if not transformer_input:
-            return TransformerFactory(FieldTransformations())
+            return TransformerFactory(TransformationSchema())
 
         with open(
             transformer_input.filepath, mode="r", encoding="utf-8-sig"
         ) as json_file:
             try:
                 return TransformerFactory(
-                    FieldTransformations.model_validate_json(json_file.read())
+                    TransformationSchema.model_validate_json(json_file.read())
                 )
             except ValidationError as error:
                 raise GearExecutionError(
