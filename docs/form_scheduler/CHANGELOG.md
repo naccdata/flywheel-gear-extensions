@@ -3,7 +3,6 @@
 All notable changes to this gear are documented in this file.
 
 ## 1.4.3
-
 * Rebuilt for VisitEvent serialization fix (forward-compatible field passthrough)
 
 ## 1.4.2

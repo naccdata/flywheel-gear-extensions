@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.5
+* Rebuilt for module configs update
+  
 ## 1.0.4
 * Cleans up PTID - strip spaces and leading zeros.
   

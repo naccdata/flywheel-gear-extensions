@@ -161,7 +161,10 @@ class CSVTransformVisitor(CSVVisitor):
         # Set transformer for the module
         if not self.__transformer:
             self.__transformer = self.__transformer_factory.create(
-                self.__module, self.__date_field, self.__error_writer
+                self.__module,
+                self.__date_field,
+                self.__error_writer,
+                self.__module_configs.release_dates,
             )
 
         transformed_row = self.__transformer.transform(row, line_num)
@@ -260,6 +263,7 @@ class CSVTransformVisitor(CSVVisitor):
                     self.__module_configs.preprocess_checks
                     and PreprocessingChecks.VISIT_CONFLICT
                     in self.__module_configs.preprocess_checks
+                    and FieldNames.VISITNUM in self.__module_configs.required_fields
                 ):
                     is_ivp = (
                         transformed_row[FieldNames.PACKET]

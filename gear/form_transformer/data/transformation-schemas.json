@@ -13,6 +13,18 @@
                 "C2T": []
             },
             "nofill": true
+        },
+        {
+            "form_name": "d1c",
+            "retain_modes": ["1"],
+            "header_fields": [
+                "frmdated1c",
+                "initialsd1c",
+                "langd1c",
+                "d1cnot"
+            ],
+            "fields": [],
+            "nofill": true
         }
     ],
     "LBD": [
