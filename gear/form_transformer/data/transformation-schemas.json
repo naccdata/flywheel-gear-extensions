@@ -1,46 +1,55 @@
 {
-    "UDS": [
-        {
-            "version_map": {
-                "fieldname": "rmmodec2c2t",
-                "value_map": {
-                    "1": "C2"
+    "UDS": {
+        "field_transformations": [
+            {
+                "transform_type": "version_map",
+                "version_map": {
+                    "fieldname": "rmmodec2c2t",
+                    "value_map": {
+                        "1": "C2"
+                    },
+                    "default": "C2T"
                 },
-                "default": "C2T"
-            },
-            "fields": {
-                "C2": [],
-                "C2T": []
-            },
-            "nofill": true
-        },
-        {
-            "form_name": "d1c",
-            "retain_modes": ["1"],
-            "header_fields": [
-                "frmdated1c",
-                "initialsd1c",
-                "langd1c",
-                "d1cnot"
-            ],
-            "fields": [],
-            "nofill": true
-        }
-    ],
-    "LBD": [
-        {
-            "version_map": {
-                "fieldname": "formver",
-                "value_map": {
-                    "3.1": "v3.0"
+                "fields": {
+                    "C2": [],
+                    "C2T": []
                 },
-                "default": "v3.1"
-            },
-            "fields": {
-                "v3.0": [],
-                "v3.1": []
-            },
-            "nofill": true
-        }
-    ]
+                "nofill": true
+            }
+        ],
+        "form_transformations": [
+            {
+                "transform_type": "release_date",
+                "form_name": "d1c",
+                "retain_modes": ["1"],
+                "header_fields": [
+                    "frmdated1c",
+                    "initialsd1c",
+                    "langd1c",
+                    "d1cnot"
+                ],
+                "fields": [],
+                "nofill": true
+            }
+        ]
+    },
+    "LBD": {
+        "field_transformations": [
+            {
+                "transform_type": "version_map",
+                "version_map": {
+                    "fieldname": "formver",
+                    "value_map": {
+                        "3.1": "v3.0"
+                    },
+                    "default": "v3.1"
+                },
+                "fields": {
+                    "v3.0": [],
+                    "v3.1": []
+                },
+                "nofill": true
+            }
+        ]
+    }
 }

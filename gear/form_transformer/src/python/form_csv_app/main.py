@@ -162,9 +162,8 @@ class CSVTransformVisitor(CSVVisitor):
         if not self.__transformer:
             self.__transformer = self.__transformer_factory.create(
                 self.__module,
-                self.__date_field,
                 self.__error_writer,
-                self.__module_configs.release_dates,
+                self.__module_configs,
             )
 
         transformed_row = self.__transformer.transform(row, line_num)

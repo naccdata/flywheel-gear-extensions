@@ -45,7 +45,7 @@
       }
     },
     "transform_file": {
-      "description": "A JSON file with transform data",
+      "description": "A JSON file mapping each module to its transformations",
       "base": "file",
       "optional": true,
       "type": {
