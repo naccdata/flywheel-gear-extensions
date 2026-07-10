@@ -65,7 +65,8 @@ class TestVersionMapTransformation:
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
         record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
         assert record
-        assert [k for k in record if k in input_record and k not in ["b1", "b2"]]
+        assert "b1" not in record and "b2" not in record
+        assert set(record.keys()) == {"dummy", "common1", "common2", "a1", "a2"}
 
     def test_drop_fields_nofill_true(self):
         field_filter = VersionMapTransformation(
