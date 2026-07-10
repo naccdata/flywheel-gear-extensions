@@ -264,12 +264,13 @@ class CSVTransformVisitor(CSVVisitor):
                     in self.__module_configs.preprocess_checks
                     and FieldNames.VISITNUM in self.__module_configs.required_fields
                 ):
-                    is_ivp = (
-                        transformed_row[FieldNames.PACKET]
-                        in self.__module_configs.initial_packets
-                    )
-                    visit_num = transformed_row[FieldNames.VISITNUM]
+                    if FieldNames.PACKET in self.__module_configs.required_fields:
+                        is_ivp = (
+                            transformed_row[FieldNames.PACKET]
+                            in self.__module_configs.initial_packets
+                        )
 
+                    visit_num = transformed_row[FieldNames.VISITNUM]
                     # check the validity of visit numbers within current batch
                     if visit_num not in prev_visit_nums:
                         prev_visit_nums.append(visit_num)
