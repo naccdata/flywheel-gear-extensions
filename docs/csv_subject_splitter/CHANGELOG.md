@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.8
+
+* Adds option to templating normalize date fields before using as a label
+
 ## 1.0.7
 
 * Adds the parent's first creation and last modified date to the `provenance` metadata

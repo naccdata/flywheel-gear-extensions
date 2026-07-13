@@ -1,25 +1,10 @@
 """Utility functions for converting datetime values."""
 
-import re
 from datetime import datetime
+from typing import List
 
 import pytz
-
-
-def datetime_from_form_date(date_string: str) -> datetime:
-    """Converts date string to datetime based on format.
-
-    Expects either `%Y-%m-%d` or `%m/%d/%Y`.
-
-    Args:
-      date_string: the date string
-    Returns:
-      the date as datetime
-    """
-    if re.match(r"\d{4}-\d{2}-\d{2}", date_string):
-        return datetime.strptime(date_string, "%Y-%m-%d")
-
-    return datetime.strptime(date_string, "%m/%d/%Y")
+from nacc_common.form_dates import DATE_FORMATS, parse_date
 
 
 def get_localized_timestamp(datetime_obj: datetime) -> datetime:
@@ -37,3 +22,21 @@ def get_localized_timestamp(datetime_obj: datetime) -> datetime:
     # TODO: Could add a "get site timezone" function, using site location
     timezone = pytz.utc
     return timezone.localize(datetime_obj)
+
+
+def normalize_date(
+    date_string: str,
+    target_format: str = "%Y-%m-%d",
+    input_formats: List[str] = DATE_FORMATS,
+) -> str:
+    """Normalize date to the specified format.
+
+    Args:
+        date_string: The raw date string
+        target_format: The target format
+        input_formats: List of allowed input formats for the raw date string
+    Returns:
+        The date string normalized to the target format
+    """
+    datetime_obj = parse_date(date_string=date_string, formats=input_formats)
+    return datetime_obj.strftime(target_format)

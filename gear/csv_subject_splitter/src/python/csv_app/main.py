@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, List, Set, TextIO
 
+from dates.dates import normalize_date
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from nacc_common.field_names import FieldNames
@@ -25,12 +26,14 @@ class CSVSplitVisitor(CSVVisitor):
         *,
         provenance: FileProvenance,
         req_fields: Set[str],
+        normalize_dates: Set[str],
         project: ProjectAdaptor,
         uploader: JSONUploader,
         error_writer: ErrorWriter,
     ) -> None:
         self.__provenance = provenance
         self.__req_fields = req_fields
+        self.__normalize_dates = normalize_dates
         self.__project = project
         self.__uploader = uploader
         self.__error_writer = error_writer
@@ -71,10 +74,18 @@ class CSVSplitVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(empty_fields, line_num))
             return False
 
+        # normalize as needed
+        normalized_row = {}
+        for k, v in row.items():
+            if k in self.__normalize_dates:
+                normalized_row[k] = normalize_date(v, "%Y-%m-%d")
+            else:
+                normalized_row[k] = v
+
         file = None
         try:
             file = self.__uploader.upload_record(
-                subject_label=row[FieldNames.NACCID], record=row
+                subject_label=normalized_row[FieldNames.NACCID], record=normalized_row
             )
         except UploaderError as error:
             log.error("Error (line: %s): %s", line_num, str(error))
@@ -106,6 +117,7 @@ def run(
     error_writer: ErrorWriter,
     preserve_case: bool,
     req_fields: Set[str],
+    normalize_dates: Set[str],
 ) -> bool:
     """Reads records from the input file and creates a JSON file for each.
     Uploads the JSON file to the respective acquisition in Flywheel.
@@ -119,6 +131,7 @@ def run(
         preserve_case: Whether or not to preserve header case
         req_fields: Required fields (e.g. an error is reported if empty)
             NACCID is always required/added to this set
+        normalize_dates: Set of dates to normalize
     Returns:
         bool: True if upload successful
     """
@@ -130,6 +143,7 @@ def run(
         visitor=CSVSplitVisitor(
             provenance=provenance,
             req_fields=req_fields,
+            normalize_dates=normalize_dates,
             project=destination,
             uploader=uploader,
             error_writer=error_writer,
