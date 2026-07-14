@@ -2,7 +2,7 @@
     "name": "redcap-image-form-importer",
     "label": "REDCap Image Form Importer",
     "description": "Import image form data from REDCap back into Flywheel",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/redcap-image-form-importer:0.0.4"
+            "image": "naccdata/redcap-image-form-importer:0.0.5"
         },
         "flywheel": {
             "suite": "Utility",

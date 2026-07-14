@@ -182,10 +182,6 @@ def import_content_from_redcap_to_flywheel(
     if dry_run:
         log.info("Dry run -- skipping import and tagging of session")
     else:
-        out_json_name = (
-            f"{output_dir}/{redcap_record['naccid']}"
-            f"_{redcap_record['scandt']}_{session.label}_image-submission-form.json"
-        )
         out_json_name = output_dir + "/"
         for file_name_key in ["naccid", "scandt"]:
             if redcap_record.get(file_name_key) is not None:
