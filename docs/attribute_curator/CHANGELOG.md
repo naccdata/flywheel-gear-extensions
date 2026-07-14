@@ -2,8 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.3.10
 
+* Updates `nacc-attribute-deriver` to `2.3.5` - allows legacy NCRAD biomarker rounds to automatically pass embargo
 * Deletes `uds-participant` tag from subjects who had all their UDS visits deleted
 
 ## 1.3.7 - 1.3.9
