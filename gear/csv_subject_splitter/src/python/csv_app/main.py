@@ -16,6 +16,7 @@ from outputs.errors import (
 )
 from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader, UploaderError
+from utils.snakecase import snakecase
 
 log = logging.getLogger(__name__)
 
@@ -164,6 +165,12 @@ def run(
         bool: True if upload successful
     """
     req_fields.add(FieldNames.NACCID)
+
+    # make sure preserve_case applies to the required fields
+    # and normalized dates as well
+    if not preserve_case:
+        req_fields = [snakecase(x.strip()) for x in req_fields]
+        normalize_dates = [snakecase(x.strip()) for x in normalize_dates]
 
     result = read_csv(
         input_file=input_file,
