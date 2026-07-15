@@ -3,16 +3,20 @@
 import logging
 from typing import Any, Dict, List, Set, TextIO
 
+from dates.dates import normalize_date
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from nacc_common.field_names import FieldNames
+from nacc_common.form_dates import DateFormatException
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
+    date_parse_error,
     empty_field_error,
     missing_field_error,
 )
 from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader, UploaderError
+from utils.snakecase import snakecase
 
 log = logging.getLogger(__name__)
 
@@ -25,12 +29,14 @@ class CSVSplitVisitor(CSVVisitor):
         *,
         provenance: FileProvenance,
         req_fields: Set[str],
+        normalize_dates: Set[str],
         project: ProjectAdaptor,
         uploader: JSONUploader,
         error_writer: ErrorWriter,
     ) -> None:
         self.__provenance = provenance
         self.__req_fields = req_fields
+        self.__normalize_dates = normalize_dates
         self.__project = project
         self.__uploader = uploader
         self.__error_writer = error_writer
@@ -52,6 +58,36 @@ class CSVSplitVisitor(CSVVisitor):
 
         return True
 
+    def __normalize_row(
+        self, row: Dict[str, Any], line_num: int
+    ) -> Dict[str, Any] | None:
+        """Normalize date fields in the row.
+
+        Args:
+          row: the dictionary for a row from a CSV file
+          line_num: line number in the CSV file
+
+        Returns:
+          The row with normalized dates, or None if a date could not be parsed
+        """
+        normalized_row = {}
+        for k, v in row.items():
+            if k in self.__normalize_dates:
+                if not v or not v.strip():
+                    # empty values pass through (caught by req_fields if required)
+                    normalized_row[k] = v
+                else:
+                    try:
+                        normalized_row[k] = normalize_date(v, "%Y-%m-%d")
+                    except DateFormatException:
+                        self.__error_writer.write(
+                            date_parse_error(field=k, value=v, line=line_num)
+                        )
+                        return None
+            else:
+                normalized_row[k] = v
+        return normalized_row
+
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Assigns the row data to the subject by NACCID.
 
@@ -71,10 +107,14 @@ class CSVSplitVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(empty_fields, line_num))
             return False
 
+        normalized_row = self.__normalize_row(row, line_num)
+        if normalized_row is None:
+            return False
+
         file = None
         try:
             file = self.__uploader.upload_record(
-                subject_label=row[FieldNames.NACCID], record=row
+                subject_label=normalized_row[FieldNames.NACCID], record=normalized_row
             )
         except UploaderError as error:
             log.error("Error (line: %s): %s", line_num, str(error))
@@ -106,6 +146,7 @@ def run(
     error_writer: ErrorWriter,
     preserve_case: bool,
     req_fields: Set[str],
+    normalize_dates: Set[str],
 ) -> bool:
     """Reads records from the input file and creates a JSON file for each.
     Uploads the JSON file to the respective acquisition in Flywheel.
@@ -119,10 +160,17 @@ def run(
         preserve_case: Whether or not to preserve header case
         req_fields: Required fields (e.g. an error is reported if empty)
             NACCID is always required/added to this set
+        normalize_dates: Set of dates to normalize
     Returns:
         bool: True if upload successful
     """
     req_fields.add(FieldNames.NACCID)
+
+    # make sure preserve_case applies to the required fields
+    # and normalized dates as well
+    if not preserve_case:
+        req_fields = set([snakecase(x.strip()) for x in req_fields])
+        normalize_dates = set([snakecase(x.strip()) for x in normalize_dates])
 
     result = read_csv(
         input_file=input_file,
@@ -130,6 +178,7 @@ def run(
         visitor=CSVSplitVisitor(
             provenance=provenance,
             req_fields=req_fields,
+            normalize_dates=normalize_dates,
             project=destination,
             uploader=uploader,
             error_writer=error_writer,

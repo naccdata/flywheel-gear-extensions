@@ -2,7 +2,7 @@
   "name": "csv-subject-splitter",
   "label": "CSV Subject Splitter",
   "description": "Converts rows of CSV file to subject JSON files based on NACCID",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "author": "NACC",
   "maintainer": "NACC <nacchelp@uw.edu>",
   "cite": "",
@@ -15,7 +15,7 @@
   "custom": {
     "gear-builder": {
       "category": "utility",
-      "image": "naccdata/csv-subject-splitter:1.0.7"
+      "image": "naccdata/csv-subject-splitter:1.0.8"
     },
     "flywheel": {
       "suite": "Curation",
@@ -54,6 +54,11 @@
     },
     "required_fields": {
       "description": "Comma-deliminated list of required fields",
+      "type": "string",
+      "default": ""
+    },
+    "normalize_dates": {
+      "description": "Comma-deliminated list of fields to normalize to YYYY-MM-DD format - these normalizations will also be applied to any hierarchy labels that use these fields.",
       "type": "string",
       "default": ""
     }

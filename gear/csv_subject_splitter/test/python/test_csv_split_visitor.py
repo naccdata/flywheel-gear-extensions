@@ -75,6 +75,18 @@ def visit_data_stream(valid_visit_table):
 
 
 @pytest.fixture(scope="function")
+def visit_data_stream_malformed_date(valid_visit_table):
+    """Create mock data stream."""
+    data = valid_visit_table
+    data[0].append("date-field")
+    data[1].append("1/1/2025")
+
+    stream = StringIO()
+    write_to_stream(data, stream)
+    yield stream
+
+
+@pytest.fixture(scope="function")
 def visit_data_stream_duplicates(valid_visit_table):
     """Create mock data stream with duplicates."""
     data = valid_visit_table
@@ -113,6 +125,10 @@ class MockFile(FileEntry):
 
     def update_info(self, info: Dict[str, Any]) -> None:
         self.__info.update(info)
+
+    @property
+    def record(self):
+        return self.__record
 
 
 class MockUploader(JSONUploader):
@@ -177,6 +193,7 @@ class TestCSVSplitVisitor:
         visitor = CSVSplitVisitor(
             provenance=provenance,
             req_fields={"naccid"},
+            normalize_dates={"date-field"},
             uploader=MockUploader() if uploader is None else uploader,
             project=MockProject(),
             error_writer=error_writer,
@@ -231,3 +248,78 @@ class TestCSVSplitVisitor:
         assert no_errors, "expect no errors"
         assert empty(err_stream), "expect error stream to be empty"
         assert len(uploader.records) == 1
+
+    def test_normalize_dates(self, visit_data_stream_malformed_date):
+        """Test normalizing dates to YYYY-MM-DD format."""
+        uploader = MockUploader()
+        visitor, err_stream, error_writer = self.__create_dummy_visitor(
+            uploader=uploader
+        )
+
+        no_errors = read_csv(
+            input_file=visit_data_stream_malformed_date,
+            error_writer=error_writer,
+            visitor=visitor,
+        )
+
+        assert no_errors, "expect no errors"
+        assert empty(err_stream), "expect error stream to be empty"
+        assert len(uploader.records) == 1
+        assert uploader.records["NACC000000"][0].record == {
+            "date-field": "2025-01-01",
+            "dummy-var": "888",
+            "formver": "4",
+            "module": "UDS",
+            "naccid": "NACC000000",
+            "visitnum": "1",
+        }
+
+    def test_normalize_dates_unparseable(self):
+        """Test that an unparseable date value causes a row error."""
+        data = [
+            ["module", "formver", "naccid", "visitnum", "date-field"],
+            ["UDS", "4", "NACC000000", "1", "not-a-date"],
+        ]
+        stream = StringIO()
+        write_to_stream(data, stream)
+
+        uploader = MockUploader()
+        visitor, err_stream, error_writer = self.__create_dummy_visitor(
+            uploader=uploader
+        )
+
+        no_errors = read_csv(
+            input_file=stream,
+            error_writer=error_writer,
+            visitor=visitor,
+        )
+
+        assert not no_errors, "expect error for unparseable date"
+        assert not empty(err_stream), "expect error message in output"
+        assert len(uploader.records) == 0, "row should not be uploaded"
+
+    def test_normalize_dates_empty_not_required(self):
+        """Test that an empty date value passes through when field is not
+        required."""
+        data = [
+            ["module", "formver", "naccid", "visitnum", "date-field"],
+            ["UDS", "4", "NACC000000", "1", ""],
+        ]
+        stream = StringIO()
+        write_to_stream(data, stream)
+
+        uploader = MockUploader()
+        visitor, err_stream, error_writer = self.__create_dummy_visitor(
+            uploader=uploader
+        )
+
+        no_errors = read_csv(
+            input_file=stream,
+            error_writer=error_writer,
+            visitor=visitor,
+        )
+
+        assert no_errors, "expect no errors for empty non-required date"
+        assert empty(err_stream), "expect error stream to be empty"
+        assert len(uploader.records) == 1
+        assert uploader.records["NACC000000"][0].record["date-field"] == ""
