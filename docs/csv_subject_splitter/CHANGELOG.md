@@ -4,7 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.0.8
 
-* Adds `normalize_dates` option to normalize date fields in the record
+* Adds `normalize_dates` option to normalize date fields in the record. Reports an error and and skips the row if a specified date value cannot be normalized
 * Ensure `preserve_case` also applies to header options `required_fields` and `normalize_dates`
 * Fix version history bug
 
