@@ -6,7 +6,7 @@ Feature: pull-directory-date-range
 from datetime import datetime, timedelta
 
 import pytest
-from directory_app.config import TimeWindowConfig
+from directory_app.config import REDCAP_SERVER_TIMEZONE, TimeWindowConfig
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
@@ -59,10 +59,10 @@ class TestNonNegativeValidation:
 class TestDateRangeComputation:
     """Property 2: Date range computation correctness.
 
-    For any positive preceding_hours value and any reference datetime now,
-    TimeWindowConfig(threshold=value).get_date_range(now) returns a tuple
-    (begin, end) where begin equals (now - timedelta(hours=value)).strftime(...)
-    and end equals now.strftime(...). When preceding_hours is 0, returns None.
+    For any positive preceding_hours value and any reference UTC datetime,
+    TimeWindowConfig(threshold=value).get_date_range_begin(now) returns
+    a string equal to (now - timedelta(hours=value)).strftime(...).
+    When preceding_hours is 0, returns None.
 
     Feature: pull-directory-date-range, Property 2
     Validates: Requirements 3.1, 3.2, 5.3
@@ -78,26 +78,24 @@ class TestDateRangeComputation:
         now=st.datetimes(
             min_value=datetime(1900, 1, 1),
             max_value=datetime(2200, 1, 1),
+            timezones=st.just(REDCAP_SERVER_TIMEZONE),
         ),
     )
     @settings(max_examples=200)
-    def test_date_range_computation_correctness(
+    def test_date_range_begin_computation_correctness(
         self,
         value: float,
         now: datetime,
     ) -> None:
-        """Positive preceding_hours returns correct date range tuple.
+        """Positive preceding_hours returns correct begin timestamp.
 
         **Validates: Requirements 3.1, 3.2, 5.3**
         """
         config = TimeWindowConfig(threshold=value)
-        result = config.get_date_range(now=now)
+        result = config.get_date_range_begin(now=now)
         assert result is not None
-        begin_str, end_str = result
         expected_begin = (now - timedelta(hours=value)).strftime("%Y-%m-%d %H:%M:%S")
-        expected_end = now.strftime("%Y-%m-%d %H:%M:%S")
-        assert begin_str == expected_begin
-        assert end_str == expected_end
+        assert result == expected_begin
 
     def test_zero_preceding_hours_returns_none(self) -> None:
         """threshold=0 returns None (no date filtering).
@@ -105,4 +103,21 @@ class TestDateRangeComputation:
         **Validates: Requirements 3.2, 5.3**
         """
         config = TimeWindowConfig(threshold=0)
-        assert config.get_date_range() is None
+        assert config.get_date_range_begin() is None
+
+    def test_default_uses_redcap_server_timezone(self) -> None:
+        """When no 'now' is provided, the method uses REDCap server timezone.
+
+        **Validates: Requirement 3.1**
+        """
+        config = TimeWindowConfig(threshold=1.0)
+        result = config.get_date_range_begin()
+        assert result is not None
+        # Verify the result is close to one hour before current Pacific time
+        expected = (datetime.now(REDCAP_SERVER_TIMEZONE) - timedelta(hours=1)).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        # Allow 2 seconds of tolerance for test execution time
+        result_dt = datetime.strptime(result, "%Y-%m-%d %H:%M:%S")
+        expected_dt = datetime.strptime(expected, "%Y-%m-%d %H:%M:%S")
+        assert abs((result_dt - expected_dt).total_seconds()) < 2
