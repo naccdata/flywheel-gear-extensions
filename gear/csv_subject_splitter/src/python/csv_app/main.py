@@ -7,8 +7,10 @@ from dates.dates import normalize_date
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from nacc_common.field_names import FieldNames
+from nacc_common.form_dates import DateFormatException
 from outputs.error_writer import ErrorWriter
 from outputs.errors import (
+    date_parse_error,
     empty_field_error,
     missing_field_error,
 )
@@ -55,6 +57,36 @@ class CSVSplitVisitor(CSVVisitor):
 
         return True
 
+    def __normalize_row(
+        self, row: Dict[str, Any], line_num: int
+    ) -> Dict[str, Any] | None:
+        """Normalize date fields in the row.
+
+        Args:
+          row: the dictionary for a row from a CSV file
+          line_num: line number in the CSV file
+
+        Returns:
+          The row with normalized dates, or None if a date could not be parsed
+        """
+        normalized_row = {}
+        for k, v in row.items():
+            if k in self.__normalize_dates:
+                if not v or not v.strip():
+                    # empty values pass through (caught by req_fields if required)
+                    normalized_row[k] = v
+                else:
+                    try:
+                        normalized_row[k] = normalize_date(v, "%Y-%m-%d")
+                    except DateFormatException:
+                        self.__error_writer.write(
+                            date_parse_error(field=k, value=v, line=line_num)
+                        )
+                        return None
+            else:
+                normalized_row[k] = v
+        return normalized_row
+
     def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
         """Assigns the row data to the subject by NACCID.
 
@@ -74,13 +106,9 @@ class CSVSplitVisitor(CSVVisitor):
             self.__error_writer.write(empty_field_error(empty_fields, line_num))
             return False
 
-        # normalize as needed
-        normalized_row = {}
-        for k, v in row.items():
-            if k in self.__normalize_dates:
-                normalized_row[k] = normalize_date(v, "%Y-%m-%d")
-            else:
-                normalized_row[k] = v
+        normalized_row = self.__normalize_row(row, line_num)
+        if normalized_row is None:
+            return False
 
         file = None
         try:

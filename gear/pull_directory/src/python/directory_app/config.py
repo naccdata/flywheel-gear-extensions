@@ -1,9 +1,14 @@
 """Configuration handling for the pull-directory gear."""
 
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, field_validator
+
+# REDCap server timezone — PHP is configured with
+# date.timezone = America/Los_Angeles
+REDCAP_SERVER_TIMEZONE = ZoneInfo("America/Los_Angeles")
 
 
 class TimeWindowConfig(BaseModel):
@@ -22,27 +27,29 @@ class TimeWindowConfig(BaseModel):
             raise ValueError("threshold must be non-negative")
         return value
 
-    def get_date_range(
-        self, now: Optional[datetime] = None
-    ) -> Optional[Tuple[str, str]]:
-        """Compute (dateRangeBegin, dateRangeEnd) or None if no filtering.
+    def get_date_range_begin(self, now: Optional[datetime] = None) -> Optional[str]:
+        """Compute dateRangeBegin in REDCap server time, or None if no
+        filtering.
+
+        Returns only the begin timestamp. The end is intentionally omitted
+        so that REDCap uses its own server time as the upper bound.
+
+        The timestamp is computed in America/Los_Angeles (Pacific) to match
+        the REDCap server's PHP timezone configuration.
 
         Args:
-            now: Reference time for computing the range. Defaults to
-                datetime.now() if not provided.
+            now: Reference time for computing the range. Defaults to the
+                current time in the REDCap server timezone.
 
         Returns:
-            A tuple of (begin, end) formatted as "YYYY-MM-DD HH:MM:SS",
-            or None when threshold is 0.
+            The begin timestamp formatted as "YYYY-MM-DD HH:MM:SS" in
+            REDCap server time, or None when threshold is 0 (full pull).
         """
         if self.threshold == 0:
             return None
 
         if now is None:
-            now = datetime.now()
+            now = datetime.now(REDCAP_SERVER_TIMEZONE)
 
         begin = now - timedelta(hours=self.threshold)
-        return (
-            begin.strftime("%Y-%m-%d %H:%M:%S"),
-            now.strftime("%Y-%m-%d %H:%M:%S"),
-        )
+        return begin.strftime("%Y-%m-%d %H:%M:%S")
