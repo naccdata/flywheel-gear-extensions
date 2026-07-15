@@ -169,8 +169,8 @@ def run(
     # make sure preserve_case applies to the required fields
     # and normalized dates as well
     if not preserve_case:
-        req_fields = [snakecase(x.strip()) for x in req_fields]
-        normalize_dates = [snakecase(x.strip()) for x in normalize_dates]
+        req_fields = set([snakecase(x.strip()) for x in req_fields])
+        normalize_dates = set([snakecase(x.strip()) for x in normalize_dates])
 
     result = read_csv(
         input_file=input_file,
