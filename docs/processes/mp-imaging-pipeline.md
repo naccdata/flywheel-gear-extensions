@@ -6,15 +6,15 @@ These rules form a single DICOM-processing chain. Each gear tags the file when i
 
 | # | Gear rule | Gear | Runs after (trigger tag) | Adds tag |
 |---|-----------|------|--------------------------|----------|
-| 1 | deid-inplace | `deid-inplace@1.4.1` | (any new DICOM) | `deid-inplace-PASS` / `-FAIL` |
-| 2 | image-pii-detector | `image-pii-detector@0.1.10` | `deid-inplace-PASS` | `PHI-Found` (awaiting review) |
-| 2a | phi-coordinator&nbsp;`*` | `phi-coordinator@0.0.3` | *(no rule: completed PHI reader task)* | `PHI-Not-Found` / `PHI-Confirmed` |
-| 2b | phi-image-removal | `phi-image-removal@0.0.1` | `PHI-Confirmed` | `PHI-Tombstone` (on the tombstone JSON) |
-| 3 | file-metadata-importer | `file-metadata-importer@1.7.8` | `deid-inplace-PASS` + `PHI-Not-Found` | `file-metadata-importer` |
-| 4 | dicom-qc | `dicom-qc@0.5.2` | `file-metadata-importer` | `dicom-qc` |
-| 5 | dicom-classifier | `file-classifier@0.9.0` | `dicom-qc` | `file-classifier` |
-| 5 | idea-lab-dicom-classifier&nbsp;`†` | `dicom-classifier@0.1.0-alpha.1` | `dicom-qc` | `mr-classifier` |
-| 6 | nifti-conversion | `dcm2niix@2.1.11_1.0.20260416` | `file-classifier` | `nifti-conversion` |
+| 1 | deid-inplace | `deid-inplace` | (any new DICOM) | `deid-inplace-PASS` / `-FAIL` |
+| 2 | image-pii-detector | `image-pii-detector` | `deid-inplace-PASS` | `PHI-Found` (awaiting review) |
+| 2a | phi-coordinator&nbsp;`*` | `phi-coordinator` | *(no rule: completed PHI reader task)* | `PHI-Not-Found` / `PHI-Confirmed` |
+| 2b | phi-image-removal | `phi-image-removal` | `PHI-Confirmed` | `PHI-Tombstone` (on the tombstone JSON) |
+| 3 | file-metadata-importer | `file-metadata-importer` | `deid-inplace-PASS` + `PHI-Not-Found` | `file-metadata-importer` |
+| 4 | dicom-qc | `dicom-qc` | `file-metadata-importer` | `dicom-qc` |
+| 5 | dicom-classifier | `file-classifier` | `dicom-qc` | `file-classifier` |
+| 5 | idea-lab-dicom-classifier&nbsp;`†` | `dicom-classifier` | `dicom-qc` | `mr-classifier` |
+| 6 | nifti-conversion | `dcm2niix` | `file-classifier` | `nifti-conversion` |
 
 `*` `phi-coordinator` has no gear rule on `phi-test`; it is run manually / on demand and finalizes the PHI tags from completed reader tasks (see its section below).
 
@@ -27,16 +27,16 @@ Edge labels show the tag (or tags) a file must carry for the next rule to fire.
 ```mermaid
 flowchart TD
     start([New DICOM in acquisition])
-    deid["1 · deid-inplace<br/>deid-inplace@1.4.1"]
-    pii["2 · image-pii-detector<br/>image-pii-detector@0.1.10"]
+    deid["1 · deid-inplace"]
+    pii["2 · image-pii-detector"]
     review[["Human reader task<br/>(PHI review)"]]
-    coord["2a · phi-coordinator *<br/>phi-coordinator@0.0.3"]:::norule
-    removal["2b · phi-image-removal<br/>phi-image-removal@0.0.1"]
-    meta["3 · file-metadata-importer<br/>file-metadata-importer@1.7.8"]
-    qc["4 · dicom-qc<br/>dicom-qc@0.5.2"]
-    fcls["5 · dicom-classifier<br/>file-classifier@0.9.0"]
-    icls["5 · idea-lab-dicom-classifier †<br/>dicom-classifier@0.1.0-alpha.1"]
-    nifti["6 · nifti-conversion<br/>dcm2niix"]
+    coord["2a · phi-coordinator *"]:::norule
+    removal["2b · phi-image-removal"]
+    meta["3 · file-metadata-importer"]
+    qc["4 · dicom-qc"]
+    fcls["5 · dicom-classifier<br/>(gear: file-classifier)"]
+    icls["5 · idea-lab-dicom-classifier †<br/>(gear: dicom-classifier)"]
+    nifti["6 · nifti-conversion<br/>(gear: dcm2niix)"]
     tomb([Image removed:<br/>PHI-Tombstone JSON]):::stop
     haltfail([Halt: deid-inplace-FAIL]):::stop
 
@@ -64,7 +64,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 1. deid-inplace: `deid-inplace@1.4.1`
+## 1. deid-inplace: `deid-inplace`
 
 **Function:** Deidentifies a Flywheel DICOM file in place using a deid profile.
 
@@ -79,7 +79,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 2. image-pii-detector: `image-pii-detector@0.1.10`
+## 2. image-pii-detector: `image-pii-detector`
 
 **Function:** Scans image pixel data for burned-in Personal Identifiable Information (PII), reports findings, and (in other modes) can redact PII from the pixels.
 
@@ -95,7 +95,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 2a. phi-coordinator: `phi-coordinator@0.0.3`
+## 2a. phi-coordinator: `phi-coordinator`
 
 > **No project gear rule is configured for this gear on `phi-test`.** It is a Flywheel `utility` gear run manually / on demand. The values below are the gear's defaults, and "Acts on" describes what it processes, not an automatic rule trigger.
 
@@ -114,7 +114,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 2b. phi-image-removal: `phi-image-removal@0.0.1`
+## 2b. phi-image-removal: `phi-image-removal`
 
 **Function:** Removes an image confirmed to contain PHI by replacing it with a JSON **tombstone** that records the removed file's details. This is the terminal step of the confirmed-PHI branch (implements the tombstone approach from todo.md item 4).
 
@@ -129,7 +129,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 3. file-metadata-importer: `file-metadata-importer@1.7.8`
+## 3. file-metadata-importer: `file-metadata-importer`
 
 **Function:** Extracts file metadata and imports it into Flywheel under `file.info.header`. Supports DICOM / DICOM Zip, PTD (Siemens PT), NIfTI, ParaVision (Bruker), and PAR/REC (Philips).
 
@@ -142,7 +142,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 4. dicom-qc: `dicom-qc@0.5.2`
+## 4. dicom-qc: `dicom-qc`
 
 **Function:** Validates a DICOM archive against a set of hardcoded and user-specified rules (series/slice consistency, instance-number uniqueness, embedded localizer, bed movement, DICOM-standard validation, etc.).
 
@@ -156,7 +156,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 5a. dicom-classifier: `file-classifier@0.9.0`
+## 5a. dicom-classifier: `file-classifier`
 
 **Function:** Generic file classifier; updates a file's classification from the metadata already attached to it. Runs only **after** metadata-populating gears (such as file-metadata-importer).
 
@@ -170,7 +170,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 5b. idea-lab-dicom-classifier: `dicom-classifier@0.1.0-alpha.1`
+## 5b. idea-lab-dicom-classifier: `dicom-classifier`
 
 **Function:** Classifies DICOM files (IDEA-lab classifier).
 
@@ -183,7 +183,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ---
 
-## 6. nifti-conversion: `dcm2niix@2.1.11_1.0.20260416`
+## 6. nifti-conversion: `dcm2niix`
 
 **Function:** Converts DICOM (or PAR/REC) to NIfTI using Chris Rorden's dcm2niix.
 
