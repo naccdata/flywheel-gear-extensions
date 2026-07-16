@@ -13,13 +13,14 @@ import logging
 import pytest
 from authorization.exceptions import ServiceUnavailableError
 from authorization_sync.sync_service import AuthorizationSyncService
-from authorization_sync_test.conftest import MockAuthorizationClient
 from users.event_models import (
     EventCategory,
     EventType,
     UserEventCollector,
 )
 from users.user_entry import PersonName, UserEntry
+
+from authorization_sync_test.conftest import MockAuthorizationClient
 
 
 class TestSyncProfileSkipsWhenAuthEmailIsNone:
