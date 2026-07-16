@@ -2,7 +2,7 @@
   "name": "pipeline-event-logger",
   "label": "Pipeline Event Logger",
   "description": "Reads QC results from upstream gears and propagates them to NACC QC status logs and S3 event capture",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": "NACC",
   "maintainer": "NACC <nacchelp@uw.edu>",
   "cite": "",
@@ -15,7 +15,7 @@
   "custom": {
     "gear-builder": {
       "category": "utility",
-      "image": "naccdata/pipeline-event-logger:0.1.1"
+      "image": "naccdata/pipeline-event-logger:0.2.0"
     },
     "flywheel": {
       "suite": "NACC Data Gears",

@@ -4,15 +4,21 @@ tools:
   - read
   - shell
 permissions:
-  - capability: shell
-    match:
-      - git status *
-      - git diff *
-      - git log *
-      - git show *
-    effect: allow
-  - capability: shell
-    effect: deny
+  rules:
+    - capability: shell
+      match:
+        - "git status *"
+        - "git diff *"
+        - "git log *"
+        - "git show *"
+      effect: allow
+    - capability: shell
+      match:
+        - "git add *"
+        - "git commit *"
+      effect: ask
+    - capability: shell
+      effect: deny
 ---
 
 # Commit Grouping Agent
@@ -52,7 +58,6 @@ When a file could reasonably go in more than one group:
 
 ## Rules
 
-- Do NOT run git add or git commit. The user does that manually.
 - Present the full plan before walking through individual commits.
 - Wait for explicit user confirmation between each commit step.
 - If the user wants to reorder or regroup, adjust the plan and re-present.
