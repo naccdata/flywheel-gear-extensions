@@ -17,10 +17,13 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
+from nacc_common.error_models import GearTags
 
 from dicom_qc_checker_app.main import run
 
 log = logging.getLogger(__name__)
+
+GEAR_NAME = "dicom-qc-checker"
 
 
 class DicomQCCheckerVisitor(GearExecutionEnvironment):
@@ -62,7 +65,18 @@ class DicomQCCheckerVisitor(GearExecutionEnvironment):
                 f"Failed to find the input file: {error}"
             ) from error
 
-        run(file=file, proxy=self.proxy)
+        status = run(file=file)
+
+        if status is None:
+            return
+
+        gear_tags = GearTags(gear_name=GEAR_NAME)
+        updated_tags = gear_tags.update_tags(tags=file.tags, status=status)
+        context.metadata.update_file_metadata(
+            self.__file_input.file_input,
+            tags=updated_tags,
+            container_type=context.config.destination["type"],
+        )
 
 
 def main():
