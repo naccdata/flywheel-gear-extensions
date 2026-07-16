@@ -1,0 +1,70 @@
+{
+  "upstream_gear_name": "dicom-qc",
+  "error_configs": [
+    {
+      "check_name": "dicom-validator",
+      "field_mapping": {
+        "type": "list",
+        "message": "name",
+        "error_code": "dicom-validation"
+      }
+    },
+    {
+      "check_name": "jsonschema-validation",
+      "field_mapping": {
+        "type": "list",
+        "message": "error_message",
+        "error_type": "error_type",
+        "error_code": "jsonschema-validation"
+      }
+    },
+    {
+      "check_name": "slice_consistency",
+      "field_mapping": {
+        "type": "string",
+        "error_code": "slice-consistency"
+      }
+    },
+    {
+      "check_name": "instance_number_uniqueness",
+      "field_mapping": {
+        "type": "string",
+        "error_code": "instance-number-uniqueness"
+      }
+    },
+    {
+      "check_name": "bed_moving",
+      "field_mapping": {
+        "type": "string",
+        "error_code": "bed-moving"
+      }
+    },
+    {
+      "check_name": "check_zero_byte",
+      "field_mapping": {
+        "type": "none",
+        "error_code": "zero-byte"
+      }
+    },
+    {
+      "check_name": "embedded_localizer",
+      "field_mapping": {
+        "type": "none",
+        "error_code": "embedded-localizer"
+      }
+    },
+    {
+      "check_name": "series_consistency",
+      "field_mapping": {
+        "type": "none",
+        "error_code": "series-consistency"
+      }
+    }
+  ],
+  "event_actions": {
+    "pass": "pass-qc",
+    "fail": "not-pass-qc"
+  },
+  "event_environment": "prod",
+  "event_bucket": "submission-events"
+}

@@ -1,0 +1,7 @@
+# ignore everything
+*
+# except for
+!.gitignore
+!dicom-qc-config.json
+!form-qc-checker-config.json
+!image-identifier-lookup-config.json
