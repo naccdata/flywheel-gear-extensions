@@ -15,15 +15,6 @@ from authorization.models import (
     UserProfileRequest,
 )
 from authorization_sync.sync_service import AuthorizationSyncService
-from hypothesis import given, settings
-from hypothesis import strategies as st
-from users.authorizations import Authorizations
-from users.event_models import (
-    EventCategory,
-    EventType,
-    UserEventCollector,
-)
-
 from authorization_sync_test.conftest import (
     MockAuthorizationClient,
     authorization_client_errors_st,
@@ -31,6 +22,14 @@ from authorization_sync_test.conftest import (
     center_group_ids_st,
     mapped_activities_st,
     registry_ids_st,
+)
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from users.authorizations import Authorizations
+from users.event_models import (
+    EventCategory,
+    EventType,
+    UserEventCollector,
 )
 
 
