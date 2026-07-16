@@ -11,8 +11,15 @@ permissions:
         - "git log *"
         - "git diff *"
         - "git show *"
-        - "git tag *"
+        - "git tag --list *"
       effect: allow
+    - capability: shell
+      match:
+        - "git add *"
+        - "git commit *"
+        - "git push *"
+        - "gh pr create *"
+      effect: ask
     - capability: shell
       effect: deny
 ---
@@ -81,25 +88,26 @@ Only include the subsections that apply. Match whatever format the existing CHAN
 
 Use git history to draft changelog entries. The typical workflow:
 
-1. Find the last version tag for the component:
-   - Gear: `git tag --list 'gear/{gear-name}/v*' --sort=-version:refname`
-   - Package: `git tag --list '{package-name}/v*' --sort=-version:refname`
-2. Get commits since that tag scoped to the component's directory:
-   - Gear: `git log <last-tag>..HEAD -- gear/{gear-name}/`
-   - Package: `git log <last-tag>..HEAD -- {package-name}/`
+1. Determine the baseline for changes:
+   - Check for a version tag: `git tag --list 'gear/{gear-name}/v*' --sort=-version:refname` (or `'{package-name}/v*'` for packages)
+   - If a tag exists, use it as the baseline
+   - If no tag exists, use `main` as the baseline
+2. Get commits since the baseline scoped to the component's directory:
+   - Gear: `git log <baseline>..HEAD -- gear/{gear-name}/`
+   - Package: `git log <baseline>..HEAD -- {package-name}/`
 3. Also check for changes in shared code that affect the component (e.g., `common/` changes relevant to a gear)
 4. Summarize the commits into user-facing changelog bullets — group by theme (features, fixes, breaking changes), drop noise (merge commits, formatting-only changes)
 5. Present the draft to the user for review before writing it
 
-If there are no tags for the component, ask the user for the baseline commit or just ask what changed.
+If the history is unclear or the user provides explicit changelog content, use what the user says.
 
 ## After Making Changes
 
-List all modified files so the user can review, commit, and tag manually. Remind them of the tag to create:
-- Gear: `git tag gear/{gear-name}/v{new-version}`
-- Package: `git tag {package-name}/v{new-version}`
-
-Do NOT run git add, git commit, or git tag. The user handles those.
+List all modified files so the user can review. Then:
+- Stage the modified files with `git add`
+- Commit with a message like `Prepare {component} v{version} release`
+- Push the branch with `git push`
+- Create a PR with `gh pr create`
 
 ## Rules
 
