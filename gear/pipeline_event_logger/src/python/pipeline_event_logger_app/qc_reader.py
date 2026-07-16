@@ -10,12 +10,12 @@ check results ahead of time.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Annotated, Any, Literal, Optional, Union
 
 from flywheel.models.file_entry import FileEntry
 from gear_execution.gear_execution import GearExecutionError
 from nacc_common.error_models import FileError, FileErrorList, QCStatus
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
 
@@ -23,31 +23,53 @@ log = logging.getLogger(__name__)
 _VALID_STATES: set[str] = {"PASS", "FAIL", "IN REVIEW"}
 
 
-class ErrorFieldMapping(BaseModel):
-    """Maps gear-specific error fields to FileError fields.
+class ListFieldMapping(BaseModel):
+    """Field mapping for checks that produce a list of error dicts.
 
-    Each field value is interpreted as:
-    - If it matches a key in the source error object, the value from
-      that key is used.
+    Each field value is resolved against the source error dict:
+    - If it matches a key in the source, the value from that key is used.
     - Otherwise, it is treated as a literal value.
 
-    Example for dicom-validator results:
-        ErrorFieldMapping(message="name", error_code="dicom-validation")
-        # "name" is a key in the source -> uses source["name"]
+    Example for dicom-validator:
+        ListFieldMapping(type="list", message="name", error_code="dicom-validation")
+        # "name" is a key in source -> uses source["name"]
         # "dicom-validation" is not a key -> used as literal
-
-    Example for jsonschema-validation results:
-        ErrorFieldMapping(
-            message="error_message",
-            error_type="error_type",
-            error_code="jsonschema-validation",
-        )
     """
 
+    type: Literal["list"]
     message: str
     error_type: str = "error"
     error_code: str = "qc-error"
     value: Optional[str] = None
+
+
+class StringFieldMapping(BaseModel):
+    """Field mapping for checks that produce a string explanation on failure.
+
+    The string value of the data field becomes the error message
+    directly.
+    """
+
+    type: Literal["string"]
+    error_type: str = "error"
+    error_code: str = "qc-error"
+
+
+class NoneFieldMapping(BaseModel):
+    """Field mapping for checks that produce null data on failure.
+
+    Synthesizes a "{check_name} failed" message when state is not PASS.
+    """
+
+    type: Literal["none"]
+    error_type: str = "error"
+    error_code: str = "qc-error"
+
+
+FieldMapping = Annotated[
+    Union[ListFieldMapping, StringFieldMapping, NoneFieldMapping],
+    Field(discriminator="type"),
+]
 
 
 class QCErrorConfig(BaseModel):
@@ -56,14 +78,15 @@ class QCErrorConfig(BaseModel):
     Attributes:
         check_name: Which check result to read errors from
             (e.g., "dicom-validator", "validation").
-        data_key: Key within the check result holding the error list.
+        data_key: Key within the check result holding the error data.
             Defaults to "data".
-        field_mapping: How to map source error fields to FileError fields.
+        field_mapping: Discriminated union describing the expected data
+            shape and how to produce FileError objects from it.
     """
 
     check_name: str
     data_key: str = "data"
-    field_mapping: ErrorFieldMapping
+    field_mapping: FieldMapping
 
 
 class GearQCResult:
@@ -106,23 +129,38 @@ class GearQCResult:
     def extract_errors(self, config: QCErrorConfig) -> FileErrorList:
         """Extract errors from this check result using the given config.
 
-        Reads the list at self._raw[config.data_key] and maps each item
-        to a FileError using config.field_mapping.
+        Dispatches based on the field_mapping type:
+        - "list": expects data to be a list of dicts, maps each item
+        - "string": expects data to be a string, uses it as the message
+        - "none": expects data to be null, synthesizes "{check_name} failed"
 
         Returns:
-            FileErrorList of extracted errors. Empty if data is None,
-            not a list, or the check_name doesn't match this result.
+            FileErrorList of extracted errors. Empty if the check_name
+            doesn't match, or if the check passed with no data.
         """
         if self._name != config.check_name:
             return FileErrorList([])
 
         raw_data = self._raw.get(config.data_key)
-        if not raw_data or not isinstance(raw_data, list):
+        mapping = config.field_mapping
+
+        if isinstance(mapping, ListFieldMapping):
+            return self._extract_from_list(raw_data, mapping)
+        if isinstance(mapping, StringFieldMapping):
+            return self._extract_from_string(raw_data, mapping)
+        if isinstance(mapping, NoneFieldMapping):
+            return self._extract_from_none(mapping)
+
+        return FileErrorList([])
+
+    def _extract_from_list(
+        self, raw_data: Any, mapping: ListFieldMapping
+    ) -> FileErrorList:
+        """Extract errors from list-of-dicts data."""
+        if not isinstance(raw_data, list):
             return FileErrorList([])
 
         errors: list[FileError] = []
-        mapping = config.field_mapping
-
         for item in raw_data:
             if not isinstance(item, dict):
                 continue
@@ -144,8 +182,38 @@ class GearQCResult:
                     value=value,
                 )
             )
-
         return FileErrorList(errors)
+
+    def _extract_from_string(
+        self, raw_data: Any, mapping: StringFieldMapping
+    ) -> FileErrorList:
+        """Extract a single error from string data."""
+        if not isinstance(raw_data, str):
+            return FileErrorList([])
+
+        return FileErrorList(
+            [
+                FileError(
+                    message=raw_data,
+                    error_type=mapping.error_type,
+                    error_code=mapping.error_code,
+                )
+            ]
+        )
+
+    def _extract_from_none(self, mapping: NoneFieldMapping) -> FileErrorList:
+        """Synthesize an error when data is null and state is not PASS."""
+        if self.state and self.state != "PASS":
+            return FileErrorList(
+                [
+                    FileError(
+                        message=f"{self._name} failed",
+                        error_type=mapping.error_type,
+                        error_code=mapping.error_code,
+                    )
+                ]
+            )
+        return FileErrorList([])
 
     def __repr__(self) -> str:
         return f"GearQCResult(name={self._name!r}, state={self.state!r})"
