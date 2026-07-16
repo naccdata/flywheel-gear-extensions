@@ -4,15 +4,16 @@ tools:
   - read
   - shell
 permissions:
-  - capability: shell
-    match:
-      - git status *
-      - git diff *
-      - git log *
-      - git show *
-    effect: allow
-  - capability: shell
-    effect: deny
+  rules:
+    - capability: shell
+      match:
+        - "git status *"
+        - "git diff *"
+        - "git log *"
+        - "git show *"
+      effect: allow
+    - capability: shell
+      effect: deny
 ---
 
 # Commit Grouping Agent

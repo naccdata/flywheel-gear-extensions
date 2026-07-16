@@ -5,15 +5,16 @@ tools:
   - write
   - shell
 permissions:
-  - capability: shell
-    match:
-      - git log *
-      - git diff *
-      - git show *
-      - git tag *
-    effect: allow
-  - capability: shell
-    effect: deny
+  rules:
+    - capability: shell
+      match:
+        - "git log *"
+        - "git diff *"
+        - "git show *"
+        - "git tag *"
+      effect: allow
+    - capability: shell
+      effect: deny
 ---
 
 # Release Agent

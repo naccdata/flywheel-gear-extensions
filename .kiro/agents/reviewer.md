@@ -5,21 +5,22 @@ tools:
   - shell
   - subagent
 permissions:
-  - capability: shell
-    match:
-      - git log *
-      - git diff *
-      - git show *
-      - git branch *
-      - git merge-base *
-      - git rev-parse *
-    effect: allow
-  - capability: shell
-    effect: deny
-  - capability: subagent
-    match:
-      - semantic_reviewer
-    effect: allow
+  rules:
+    - capability: shell
+      match:
+        - "git log *"
+        - "git diff *"
+        - "git show *"
+        - "git branch *"
+        - "git merge-base *"
+        - "git rev-parse *"
+      effect: allow
+    - capability: shell
+      effect: deny
+    - capability: subagent
+      match:
+        - "semantic_reviewer"
+      effect: allow
 ---
 
 # Code Reviewer Agent
