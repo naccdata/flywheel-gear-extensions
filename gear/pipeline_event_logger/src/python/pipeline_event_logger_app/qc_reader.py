@@ -190,6 +190,8 @@ class GearQCResult:
         """Extract a single error from string data."""
         if not isinstance(raw_data, str):
             return FileErrorList([])
+        if self.state == "PASS":
+            return FileErrorList([])
 
         return FileErrorList(
             [

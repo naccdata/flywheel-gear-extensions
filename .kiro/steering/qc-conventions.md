@@ -81,6 +81,7 @@ For NACC gears following this convention, the error_configs entry is always:
 {
   "check_name": "<check_name>",
   "field_mapping": {
+    "type": "list",
     "message": "message",
     "error_type": "type",
     "error_code": "code"

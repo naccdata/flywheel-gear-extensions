@@ -288,6 +288,23 @@ class TestStringFieldMapping:
 
         assert len(errors) == 0
 
+    def test_pass_state_with_string_data_returns_no_errors(self) -> None:
+        """PASS state with non-null string data produces no errors."""
+        result = GearQCResult(
+            name="slice_consistency",
+            raw={"state": "PASS", "data": "All slices consistent"},
+        )
+        config = QCErrorConfig(
+            check_name="slice_consistency",
+            field_mapping=StringFieldMapping(
+                type="string", error_code="slice-consistency"
+            ),
+        )
+
+        errors = result.extract_errors(config)
+
+        assert len(errors) == 0
+
     def test_list_data_returns_no_errors(self) -> None:
         """List data with string mapping produces no errors."""
         result = GearQCResult(
