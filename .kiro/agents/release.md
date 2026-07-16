@@ -15,10 +15,15 @@ permissions:
       effect: allow
     - capability: shell
       match:
+        - "gh pr view *"
+      effect: allow
+    - capability: shell
+      match:
         - "git add *"
         - "git commit *"
         - "git push *"
         - "gh pr create *"
+        - "gh pr edit *"
       effect: ask
     - capability: shell
       effect: deny
@@ -107,7 +112,13 @@ List all modified files so the user can review. Then:
 - Stage the modified files with `git add`
 - Commit with a message like `Prepare {component} v{version} release`
 - Push the branch with `git push`
-- Create a PR with `gh pr create`
+- Create a PR using `gh pr create` with `--body-file`:
+  1. Write the PR body to `scratch/pr-body.md` (using the write tool to preserve newlines)
+  2. Run `gh pr create --title "<title>" --body-file scratch/pr-body.md`
+  3. Verify with `gh pr view <number> --json body --jq .body`
+  4. Delete `scratch/pr-body.md`
+
+**Important**: Do not use `--body` with inline text — newlines get stripped by the shell execution layer. Always use `--body-file` instead.
 
 ## Rules
 
