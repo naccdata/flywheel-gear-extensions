@@ -44,7 +44,7 @@ Implement the dicom-qc-checker Flywheel gear following the project's standard ge
     - Raise `GearExecutionError` if tag persistence fails
     - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ]* 2.3 Write property tests for `determine_qc_status`
+  - [x] 2.3 Write property tests for `determine_qc_status`
     - Create `gear/dicom_qc_checker/test/python/dicom_qc_checker_app_test/test_determine_status.py`
     - **Property 1: Status determination correctness** — For any metadata dict with at least one check result, status is PASS iff every check result has state "PASS"
     - **Validates: Requirements 2.3, 2.4, 2.6**
@@ -54,16 +54,16 @@ Implement the dicom-qc-checker Flywheel gear following the project's standard ge
     - **Validates: Requirements 3.1, 3.2**
     - Use Hypothesis with custom strategies generating DICOM QC metadata dicts (0–10 check entries, job_info, optional non-check entries)
 
-  - [ ]* 2.4 Write unit tests for `main.run`
+  - [x] 2.4 Write unit tests for `main.run`
     - Create `gear/dicom_qc_checker/test/python/dicom_qc_checker_app_test/test_main.py`
-    - Test no-metadata case: `file.info` missing `qc` key → warning logged, no tags changed
-    - Test empty metadata case: `{}` → warning logged
-    - Test only-job_info case: `{"job_info": {...}}` → warning logged
-    - Test single PASS: verify PASS tag applied
-    - Test single FAIL: verify FAIL tag applied and check name logged
-    - Test mixed results: verify FAIL tag and all failed check names logged
-    - Test tag persistence failure: mock API exception → GearExecutionError raised
-    - _Requirements: 1.2, 1.3, 3.1, 3.2, 4.2, 4.3, 4.4, 4.5_
+    - Test no-metadata case: `file.info` has no `qc` key → returns None, warning logged
+    - Test empty dicom-qc case: `file.info.qc.dicom-qc` is `{}` → returns None, warning logged
+    - Test only-job_info case: metadata has only `{"job_info": {...}}` with no check results → returns None, warning logged
+    - Test single PASS: one check with state "PASS" → returns "PASS"
+    - Test single FAIL: one check with state "FAIL" → returns "FAIL", check name logged at WARNING
+    - Test mixed results: multiple checks, some PASS some FAIL → returns "FAIL", all failed check names logged
+    - Mock `FileEntry` with appropriate `info` dict; no proxy or API mocking needed since `main.run` is side-effect-free
+    - _Requirements: 1.2, 1.3, 2.3, 2.4, 3.1, 3.2_
 
 - [x] 3. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
@@ -82,7 +82,6 @@ Implement the dicom-qc-checker Flywheel gear following the project's standard ge
 
 ## Notes
 
-- Tasks marked with `*` are optional and can be skipped for faster MVP
 - Each task references specific requirements for traceability
 - Checkpoints ensure incremental validation
 - Property tests validate universal correctness properties from the design document
@@ -96,11 +95,7 @@ Implement the dicom-qc-checker Flywheel gear following the project's standard ge
 ```json
 {
   "waves": [
-    { "id": 0, "tasks": ["1.1", "1.2", "1.3"] },
-    { "id": 1, "tasks": ["2.1"] },
-    { "id": 2, "tasks": ["2.2"] },
-    { "id": 3, "tasks": ["2.3", "2.4", "4.1"] },
-    { "id": 4, "tasks": [] }
+    { "id": 0, "tasks": ["2.3", "2.4"] }
   ]
 }
 ```

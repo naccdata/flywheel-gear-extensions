@@ -1,5 +1,10 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "2.3 Write property tests for `determine_qc_status`": {
+      "status": "passed",
+      "lastRunTimestamp": 1784301577996
+    }
+  },
   "executionHistory": {
     "1.1 Create manifest.json for the dicom-qc-checker gear": [
       {
@@ -156,6 +161,50 @@
         "executionId": "7d8b5f03-45a9-4e82-ae83-98261b64a7e8",
         "chatSessionId": "sess_f5621ed2-137c-4401-aac7-d56d7c8770a2",
         "timestamp": 1784237517181
+      }
+    ],
+    "2.3 Write property tests for `determine_qc_status`": [
+      {
+        "executionId": "14772545-427f-4d77-840d-dce7f50f40a8",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784300233676
+      },
+      {
+        "executionId": "14772545-427f-4d77-840d-dce7f50f40a8",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784300238346
+      },
+      {
+        "executionId": "099f539c-7f21-4263-8674-c5afd78ea14d",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784301530548
+      },
+      {
+        "executionId": "099f539c-7f21-4263-8674-c5afd78ea14d",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784301590484
+      }
+    ],
+    "2.4 Write unit tests for `main.run`": [
+      {
+        "executionId": "14772545-427f-4d77-840d-dce7f50f40a8",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784300233736
+      },
+      {
+        "executionId": "14772545-427f-4d77-840d-dce7f50f40a8",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784300239185
+      },
+      {
+        "executionId": "099f539c-7f21-4263-8674-c5afd78ea14d",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784301594259
+      },
+      {
+        "executionId": "099f539c-7f21-4263-8674-c5afd78ea14d",
+        "chatSessionId": "sess_a06c87f5-1af7-4104-a4c9-6fd233053518",
+        "timestamp": 1784301678765
       }
     ]
   }
