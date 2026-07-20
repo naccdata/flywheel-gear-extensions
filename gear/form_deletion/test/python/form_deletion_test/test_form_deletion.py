@@ -133,6 +133,7 @@ class TestRun:
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
                 check_sbsq_visits=True,
+                skip_accepted_project=False,
                 context=mock_context,
             )
 
@@ -178,6 +179,7 @@ class TestRun:
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
                 check_sbsq_visits=True,
+                skip_accepted_project=False,
                 context=mock_context,
             )
 
@@ -218,6 +220,7 @@ class TestRun:
                 form_configs=form_configs,
                 identifiers_repo=identifiers_repo,
                 check_sbsq_visits=True,
+                skip_accepted_project=False,
                 context=mock_context,
             )
 

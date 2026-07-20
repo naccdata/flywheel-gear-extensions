@@ -2,7 +2,7 @@
     "name": "form-deletion",
     "label": "Form Deletion",
     "description": "A gear to process delete requests for submitted form data",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/form-deletion:1.0.5"
+            "image": "naccdata/form-deletion:1.0.6"
         },
         "flywheel": {
             "suite": "Utility",
@@ -58,6 +58,11 @@
         },
         "check_subsequent_visits": {
             "description": "Check whether there are any subsequent QC passed visits (enabled by default, set false to bypass)",
+            "type": "boolean",
+            "optional": true
+        },
+        "skip_accepted_project": {
+            "description": "Skip deleting files from the accepted project (disabled by default, set true to skip)",
             "type": "boolean",
             "optional": true
         }
