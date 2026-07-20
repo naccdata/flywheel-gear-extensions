@@ -273,3 +273,121 @@ class BatchOperation(BaseModel):
     resource_type: str
     resource_id: str
     relation: str
+
+
+# --- Resource Listing Models ---
+
+
+class ResourceListItem(BaseModel):
+    """A single resource in a list resources response."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    resource_id: str = Field(alias="resourceId")
+    structural_relation: str | None = Field(default=None, alias="structuralRelation")
+
+
+class ResourceListResponse(BaseModel):
+    """Response model for listing resources by type."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    resources: list[ResourceListItem]
+    next_token: str | None = Field(default=None, alias="nextToken")
+    limit: int
+
+
+# --- Permission Check Models ---
+
+
+class PermissionCheckRequest(BaseModel):
+    """Request model for checking a specific permission."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    user_id: str = Field(alias="userId")
+    relation: str
+    type: str
+    resource_id: str = Field(alias="resourceId")
+
+
+class PermissionCheckResponse(BaseModel):
+    """Response model for a permission check."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    allowed: bool
+
+
+# --- Authorization Model Metadata ---
+
+
+class RelationMetadata(BaseModel):
+    """Metadata for a relation within a type."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    description: str | None = None
+    assignable: bool
+
+
+class StructuralRelationMetadata(BaseModel):
+    """Metadata for a structural relation linking a resource to a parent."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    parent_type: str = Field(alias="parentType")
+    description: str | None = None
+
+
+class ComputedRelationMetadata(BaseModel):
+    """Metadata for a computed relation derived from the hierarchy."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    description: str | None = None
+    source_relation: str = Field(alias="sourceRelation")
+    parent_relation: str = Field(alias="parentRelation")
+    grants_relation: str = Field(alias="grantsRelation")
+
+
+class ParentCombination(BaseModel):
+    """A valid combination of parent relationships for a resource type."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    parents: list[str]
+    description: str | None = None
+    condition: str | None = None
+
+
+class TypeMetadata(BaseModel):
+    """Metadata for an organization or resource type."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    category: Literal["organization", "resource"]
+    description: str | None = None
+    relations: dict[str, RelationMetadata]
+    structural_relations: dict[str, StructuralRelationMetadata] | None = Field(
+        default=None, alias="structuralRelations"
+    )
+    computed_relations: dict[str, ComputedRelationMetadata] | None = Field(
+        default=None, alias="computedRelations"
+    )
+    valid_parent_combinations: list[ParentCombination] | None = Field(
+        default=None, alias="validParentCombinations"
+    )
+
+
+class AuthorizationModelMetadata(BaseModel):
+    """Response model for the authorization model metadata endpoint."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    version: str
+    types: dict[str, TypeMetadata]

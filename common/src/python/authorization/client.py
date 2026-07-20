@@ -14,6 +14,7 @@ from authorization.exceptions import (
     ValidationError,
 )
 from authorization.models import (
+    AuthorizationModelMetadata,
     BatchError,
     BatchOperation,
     BatchOperationModel,
@@ -24,6 +25,9 @@ from authorization.models import (
     GrantResult,
     HealthResult,
     ParentRelationshipModel,
+    PermissionCheckRequest,
+    PermissionCheckResponse,
+    ResourceListResponse,
     ResourceParents,
     RevokeRequest,
     RevokeResult,
@@ -620,6 +624,418 @@ class AuthorizationClient:
         error_msg = self._extract_error_message(response)
         log.error(
             "Set resource parents unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def get_resource_parents(
+        self,
+        resource_type: str,
+        resource_id: str,
+    ) -> ResourceParents:
+        """Get the parent organizations of a resource.
+
+        Sends a GET request to /resources/{type}/{resourceId}/parents.
+
+        Args:
+            resource_type: The type of resource.
+            resource_id: The resource identifier.
+
+        Returns:
+            ResourceParents containing the current parent relationships.
+
+        Raises:
+            ValidationError: If the API returns 400.
+            NotFoundError: If the resource is not found (404).
+            ServiceUnavailableError: If retries are exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        path = f"/resources/{resource_type}/{resource_id}/parents"
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="GET",
+                path=path,
+                body=None,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Get resource parents succeeded: type=%s, resource=%s",
+                resource_type,
+                resource_id,
+            )
+            try:
+                return ResourceParents.model_validate_json(response.body)
+            except Exception as exc:
+                raise ParseError(
+                    message=f"Failed to parse get resource parents response: {exc}",
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Get resource parents validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        if response.status_code == 404:
+            log.debug(
+                "Resource not found: type=%s, resource=%s",
+                resource_type,
+                resource_id,
+            )
+            raise NotFoundError(
+                message=(f"Resource not found: type={resource_type}, id={resource_id}"),
+            )
+
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Get resource parents unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def delete_resource_parents(
+        self,
+        resource_type: str,
+        resource_id: str,
+    ) -> None:
+        """Remove all parent relationships from a resource.
+
+        Sends a DELETE request to /resources/{type}/{resourceId}/parents.
+        Treats 404 as idempotent success (resource has no parents).
+
+        Args:
+            resource_type: The type of resource.
+            resource_id: The resource identifier.
+
+        Returns:
+            None on successful deletion.
+
+        Raises:
+            ValidationError: If the API returns 400.
+            ServiceUnavailableError: If retries are exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+        """
+        path = f"/resources/{resource_type}/{resource_id}/parents"
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="DELETE",
+                path=path,
+                body=None,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Delete resource parents succeeded: type=%s, resource=%s",
+                resource_type,
+                resource_id,
+            )
+            return None
+
+        if response.status_code == 404:
+            log.debug(
+                "Delete resource parents not found (idempotent): type=%s, resource=%s",
+                resource_type,
+                resource_id,
+            )
+            return None
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Delete resource parents validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Delete resource parents unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def list_resources(
+        self,
+        resource_type: str,
+        parent_type: str | None = None,
+        parent_id: str | None = None,
+        search: str | None = None,
+        limit: int | None = None,
+        next_token: str | None = None,
+    ) -> ResourceListResponse:
+        """List resources by type with optional filtering.
+
+        Supports three modes:
+        - Filtered: both parent_type and parent_id provided
+        - Unfiltered: both omitted (returns all resources of the type)
+        - Search: search string provided (substring match on resource ID)
+
+        Args:
+            resource_type: The type of resources to list.
+            parent_type: Filter by parent organization type.
+            parent_id: Filter by parent organization ID.
+            search: Search resources by ID substring.
+            limit: Maximum results per page (1-100, default 50).
+            next_token: Pagination token from a previous response.
+
+        Returns:
+            ResourceListResponse with resources and pagination token.
+
+        Raises:
+            ValidationError: If the API returns 400 (e.g., partial
+                parent params, search with parent params).
+            NotFoundError: If the resource type is not found (404).
+            ServiceUnavailableError: If retries are exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        path = f"/resources/{resource_type}"
+        query_params = self._build_list_resources_params(
+            parent_type=parent_type,
+            parent_id=parent_id,
+            search=search,
+            limit=limit,
+            next_token=next_token,
+        )
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="GET",
+                path=path,
+                body=None,
+                query_params=query_params or None,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "List resources succeeded: type=%s",
+                resource_type,
+            )
+            try:
+                return ResourceListResponse.model_validate_json(response.body)
+            except Exception as exc:
+                raise ParseError(
+                    message=f"Failed to parse list resources response: {exc}",
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "List resources validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        if response.status_code == 404:
+            log.debug(
+                "Resource type not found: type=%s",
+                resource_type,
+            )
+            raise NotFoundError(
+                message=f"Resource type not found: {resource_type}",
+            )
+
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "List resources unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    @staticmethod
+    def _build_list_resources_params(
+        parent_type: str | None,
+        parent_id: str | None,
+        search: str | None,
+        limit: int | None,
+        next_token: str | None,
+    ) -> dict[str, str]:
+        """Build query parameters for list_resources.
+
+        Args:
+            parent_type: Filter by parent organization type.
+            parent_id: Filter by parent organization ID.
+            search: Search resources by ID substring.
+            limit: Maximum results per page.
+            next_token: Pagination token.
+
+        Returns:
+            Dictionary of query parameter names to values.
+        """
+        query_params: dict[str, str] = {}
+        if parent_type is not None:
+            query_params["parentType"] = parent_type
+        if parent_id is not None:
+            query_params["parentId"] = parent_id
+        if search is not None:
+            query_params["search"] = search
+        if limit is not None:
+            query_params["limit"] = str(limit)
+        if next_token is not None:
+            query_params["nextToken"] = next_token
+        return query_params
+
+    def get_model(self) -> AuthorizationModelMetadata:
+        """Get the authorization model metadata.
+
+        Sends a GET request to /model. Returns the complete model
+        including all types, relations, structural relations, computed
+        relations, and valid parent combinations.
+
+        Returns:
+            AuthorizationModelMetadata with the full model.
+
+        Raises:
+            ServiceUnavailableError: If retries are exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="GET",
+                path="/model",
+                body=None,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug("Get model succeeded")
+            try:
+                return AuthorizationModelMetadata.model_validate_json(response.body)
+            except Exception as exc:
+                raise ParseError(
+                    message=f"Failed to parse model response: {exc}",
+                    raw_content=response.body,
+                ) from exc
+
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Get model unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def check_permission(
+        self,
+        user_id: str,
+        resource_type: str,
+        resource_id: str,
+        relation: str,
+    ) -> bool:
+        """Check whether a user has a specific permission.
+
+        Sends a POST request to /check. Returns whether the user has
+        the specified relation on the specified resource.
+
+        Args:
+            user_id: The user identifier (e.g., ePPN).
+            resource_type: The type of resource.
+            resource_id: The resource identifier.
+            relation: The relation to check.
+
+        Returns:
+            True if the user has the permission, False otherwise.
+
+        Raises:
+            ValidationError: If the API returns 400.
+            ServiceUnavailableError: If retries are exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        request = PermissionCheckRequest(
+            user_id=user_id,
+            relation=relation,
+            type=resource_type,
+            resource_id=resource_id,
+        )
+        body = request.model_dump_json(by_alias=True).encode()
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="POST",
+                path="/check",
+                body=body,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Check permission succeeded: user=%s, type=%s, "
+                "resource=%s, relation=%s",
+                user_id,
+                resource_type,
+                resource_id,
+                relation,
+            )
+            try:
+                result = PermissionCheckResponse.model_validate_json(response.body)
+                return result.allowed
+            except Exception as exc:
+                raise ParseError(
+                    message=f"Failed to parse check permission response: {exc}",
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Check permission validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Check permission unexpected error %d: %s",
             response.status_code,
             error_msg,
         )
