@@ -429,8 +429,8 @@ class TestCleanupAcquisitions:
     def test_accepted_project_skipped_when_configured(
         self, form_configs, uds_module_configs, deleted_items, delete_request
     ):
-        """With skip_accepted_project=True, a subject in the accepted project is
-        skipped without any deletion."""
+        """With skip_accepted_project=True, a subject in the accepted project
+        is skipped without any deletion."""
         acq_file = make_mock_acq_file()
         mock_subject, _, _ = make_mock_hierarchy(acq_file=acq_file)
         mock_subject.sessions.return_value = [MagicMock()]  # still has sessions
@@ -454,8 +454,8 @@ class TestCleanupAcquisitions:
     def test_accepted_project_deleted_by_default(
         self, form_configs, uds_module_configs, deleted_items, delete_request
     ):
-        """By default (skip_accepted_project=False), acquisitions in the accepted
-        project are deleted."""
+        """By default (skip_accepted_project=False), acquisitions in the
+        accepted project are deleted."""
         acq_file = make_mock_acq_file()
         mock_subject, _, mock_acquisition = make_mock_hierarchy(
             acq_file=acq_file, empty_session_after_delete=True
