@@ -33,6 +33,7 @@ class AcquisitionRemover:
         delete_request: DeleteRequest,
         dependent_modules: Optional[List[str]] = None,
         deleted_items: DeletedItems,
+        skip_accepted_project: bool = False,
     ):
         """
         Args:
@@ -45,6 +46,7 @@ class AcquisitionRemover:
             delete_request: the form delete request
             dependent_modules: associated modules for the current module, if present
             deleted_items: list of items deleted while processing this request
+            skip_accepted_project: Skip deleting files from the accepted project
         """
         self.__proxy = proxy
         self.__primary_project = primary_project_id
@@ -56,6 +58,14 @@ class AcquisitionRemover:
         self.__dependent_modules = dependent_modules
         self.__deleted = deleted_items
         self.__orphaned: List[DataIdentification] = []
+
+        # Form projects to check for matching acquisitions.
+        # Do not include retrospective-form, not removing legacy data.
+        # The accepted project is excluded when skip_accepted_project is set.
+        prefixes = ["ingest-form", "sandbox-form"]
+        if not skip_accepted_project:
+            prefixes.append("accepted")
+        self.__project_prefixes = tuple(prefixes)
 
     def __compare_visit_details(self, *, acq_file: FileEntry, date_field: str) -> bool:
         """Compares the file's info.forms.json fields with the delete request.
@@ -481,7 +491,8 @@ class AcquisitionRemover:
         after a clinical form deletion.
 
         Does NOT touch retrospective-form — only ingest-form, sandbox-form,
-        and accepted projects are modified.
+        and accepted projects are modified. The accepted project is skipped
+        when skip_accepted_project is set.
 
         Args:
             orphan_modules: module labels whose acquisitions should all be
@@ -497,7 +508,7 @@ class AcquisitionRemover:
             log.warning(f"Cannot find any subjects with NACCID {self.__naccid}")
             return True
 
-        prefixes = ("ingest-form", "sandbox-form", "accepted")
+        prefixes = self.__project_prefixes
         success = True
         for subject in subjects:
             project: Optional[Project] = self.__proxy.get_project_by_id(
@@ -573,8 +584,8 @@ class AcquisitionRemover:
             return False
 
         # List of form projects to check for matching acquisitions
-        # Do not include retrospective-form here, not removing legacy data
-        prefixes = ("ingest-form", "sandbox-form", "accepted")
+        # (retrospective-form excluded; accepted skipped if configured)
+        prefixes = self.__project_prefixes
 
         for subject in subjects:
             project: Optional[Project] = self.__proxy.get_project_by_id(
