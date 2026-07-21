@@ -8,6 +8,7 @@ authorizations.
 
 import logging
 
+from authorization.models import AuthorizationModelMetadata
 from users.authorizations import Authorizations
 
 from authorization_sync.models import DesiredGrant
@@ -94,3 +95,61 @@ def translate(
             )
 
     return grants
+
+
+def validate_activity_relation_map(
+    model: AuthorizationModelMetadata,
+) -> list[str]:
+    """Validate ACTIVITY_RELATION_MAP against the live authorization model.
+
+    Checks that every (resource_type, relation) pair referenced in the
+    map is a known, assignable relation in the model.
+
+    Args:
+        model: The authorization model metadata from the API.
+
+    Returns:
+        List of warning messages for invalid mappings. Empty if all
+        mappings are valid.
+    """
+    warnings: list[str] = []
+
+    for (action, resource_prefix), mapped_pairs in ACTIVITY_RELATION_MAP.items():
+        for api_resource_type, relation in mapped_pairs:
+            reason = _check_assignable(model, api_resource_type, relation)
+            if reason:
+                warnings.append(
+                    f"ACTIVITY_RELATION_MAP ({action}, {resource_prefix}) "
+                    f"-> ({api_resource_type}, {relation}): {reason}"
+                )
+
+    return warnings
+
+
+def _check_assignable(
+    model: AuthorizationModelMetadata,
+    resource_type: str,
+    relation: str,
+) -> str | None:
+    """Return a reason string if the relation is not assignable, else None.
+
+    Args:
+        model: The authorization model metadata.
+        resource_type: The type to check.
+        relation: The relation to check.
+
+    Returns:
+        A reason string if invalid, or None if valid.
+    """
+    type_meta = model.types.get(resource_type)
+    if type_meta is None:
+        return f"unknown type '{resource_type}'"
+
+    relation_meta = type_meta.relations.get(relation)
+    if relation_meta is None:
+        return f"unknown relation '{relation}' on type '{resource_type}'"
+
+    if not relation_meta.assignable:
+        return f"relation '{relation}' on type '{resource_type}' is not assignable"
+
+    return None

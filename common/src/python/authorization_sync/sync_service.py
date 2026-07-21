@@ -6,6 +6,7 @@ from typing import Protocol
 
 from authorization.exceptions import AuthorizationClientError
 from authorization.models import (
+    AuthorizationModelMetadata,
     BatchOperation,
     BatchResult,
     UserPermissions,
@@ -23,7 +24,7 @@ from users.event_models import (
 from users.user_entry import UserEntry
 
 from authorization_sync.models import DesiredGrant
-from authorization_sync.translator import translate
+from authorization_sync.translator import translate, validate_activity_relation_map
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +68,25 @@ class AuthorizationSyncService:
         """
         self._client = client
         self._collector = collector
+
+    def validate_model(
+        self,
+        model: AuthorizationModelMetadata,
+    ) -> None:
+        """Validate the activity-relation map against the live model.
+
+        Logs warnings for any mappings that reference unknown types,
+        unknown relations, or non-assignable relations. Does not raise
+        — validation failures are informational only.
+
+        Args:
+            model: The authorization model metadata from the API.
+        """
+        warnings = validate_activity_relation_map(model)
+        for warning in warnings:
+            log.warning(warning)
+        if not warnings:
+            log.info("ACTIVITY_RELATION_MAP validated against live model: all OK")
 
     def sync_user(
         self,

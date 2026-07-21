@@ -6,7 +6,11 @@ from authorization_sync.sync_service import (
     AuthorizationClientProtocol,
     AuthorizationSyncService,
 )
-from authorization_sync.translator import ACTIVITY_RELATION_MAP, translate
+from authorization_sync.translator import (
+    ACTIVITY_RELATION_MAP,
+    translate,
+    validate_activity_relation_map,
+)
 
 __all__ = [
     "ACTIVITY_RELATION_MAP",
@@ -14,4 +18,5 @@ __all__ = [
     "AuthorizationSyncService",
     "DesiredGrant",
     "translate",
+    "validate_activity_relation_map",
 ]
