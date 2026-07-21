@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
+from authorization import ConfigurationError, create_authorization_client
+from authorization_sync import AuthorizationSyncService
 from botocore.exceptions import ClientError
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.api_client import ApiClient
@@ -64,6 +66,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
         notification_mode: NotificationModeType = "date",
         support_emails: Optional[List[str]] = None,
         domain_config_filepath: Optional[Path] = None,
+        parameter_store: Optional[ParameterStore] = None,
+        authorization_path: Optional[str] = None,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -77,6 +81,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self.__portal_url = portal_url
         self.__support_emails = support_emails or []
         self.__domain_config_filepath = domain_config_filepath
+        self.__parameter_store = parameter_store
+        self.__authorization_path = authorization_path
 
     @classmethod
     def create(
@@ -152,6 +158,8 @@ class UserManagementVisitor(GearExecutionEnvironment):
             portal_url=portal_url["url"],
             support_emails=support_emails,
             domain_config_filepath=domain_config_filepath,
+            parameter_store=parameter_store,
+            authorization_path=context.config.opts.get("authorization_path"),
         )
 
     @staticmethod
@@ -279,6 +287,10 @@ class UserManagementVisitor(GearExecutionEnvironment):
             return
 
         collector = UserEventCollector()
+
+        # Create authorization sync service if configured
+        authorization_sync = self.__create_authorization_sync(collector)
+
         with ApiClient(configuration=self.__comanage_config) as comanage_client:
             admin_group = self.admin_group(admin_id=self.__admin_id)
             admin_group.set_redcap_param_repo(self.__redcap_param_repo)
@@ -324,6 +336,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
                             ),
                             domain_config=domain_config,
                             idp_config=idp_config,
+                            authorization_sync=authorization_sync,
                         ),
                         collector=collector,
                     ),
@@ -379,6 +392,41 @@ class UserManagementVisitor(GearExecutionEnvironment):
             error_filename=error_filename,
             email_client=email_client,
         )
+
+    def __create_authorization_sync(
+        self,
+        collector: UserEventCollector,
+    ) -> Optional[AuthorizationSyncService]:
+        """Create AuthorizationSyncService if configured.
+
+        Reads the Authorization API URL from the parameter store using
+        the authorization_path config value.
+
+        Args:
+            collector: Event collector for the sync service.
+
+        Returns:
+            AuthorizationSyncService if configured, None otherwise.
+        """
+        if not self.__parameter_store or not self.__authorization_path:
+            log.info(
+                "Authorization sync is disabled "
+                "(no parameter store or authorization_path configured)"
+            )
+            return None
+
+        try:
+            url_param = self.__parameter_store.get_authorization_url(
+                self.__authorization_path
+            )
+            client = create_authorization_client(base_url=url_param["url"])
+            return AuthorizationSyncService(client=client, collector=collector)
+        except (ParameterError, ConfigurationError) as error:
+            log.error(
+                "Authorization sync disabled: failed to create client: %s",
+                error,
+            )
+            return None
 
     def __send_redcap_disable_notification(
         self,
