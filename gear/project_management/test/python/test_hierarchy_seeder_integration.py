@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from authorization.client import AuthorizationClient
+from authorization.exceptions import NotFoundError
 from authorization.models import ParentRelationshipModel, ResourceParents
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import DashboardConfig, DatatypeConfig, PageConfig, StudyModel
@@ -60,6 +61,7 @@ def mock_authorization_client() -> MagicMock:
     client.set_resource_parents.return_value = ResourceParents(
         type="mock", resource_id="mock", parents=[]
     )
+    client.get_resource_parents.side_effect = NotFoundError(message="not found")
     return client
 
 
@@ -346,6 +348,7 @@ class TestHierarchySeederIntegration:
             client.set_resource_parents.return_value = ResourceParents(
                 type="mock", resource_id="mock", parents=[]
             )
+            client.get_resource_parents.side_effect = NotFoundError(message="not found")
 
             seeder = ResourceHierarchySeeder(client=client)
             visitor = StudyMappingVisitor(

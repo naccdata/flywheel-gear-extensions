@@ -8,8 +8,8 @@ computed relations.
 import logging
 
 from authorization.client import AuthorizationClient
-from authorization.exceptions import AuthorizationClientError
-from authorization.models import ParentRelationshipModel
+from authorization.exceptions import AuthorizationClientError, NotFoundError
+from authorization.models import ParentRelationshipModel, ResourceParents
 
 log = logging.getLogger(__name__)
 
@@ -30,11 +30,17 @@ class ResourceHierarchySeeder:
         """
         self._client = client
         self._failure_count = 0
+        self._skip_count = 0
 
     @property
     def failure_count(self) -> int:
         """Number of set_parents calls that failed during this run."""
         return self._failure_count
+
+    @property
+    def skip_count(self) -> int:
+        """Number of set_parents calls skipped (already correct)."""
+        return self._skip_count
 
     def seed_center_pipeline(
         self,
@@ -154,7 +160,11 @@ class ResourceHierarchySeeder:
         resource_id: str,
         parents: list[ParentRelationshipModel],
     ) -> None:
-        """Call set_resource_parents with error handling.
+        """Set resource parents, skipping if already correct.
+
+        Reads the current parent relationships first. If they match the
+        desired state, the write is skipped. If the resource has no
+        parents yet (404), the write proceeds unconditionally.
 
         Args:
             resource_type: The type of resource.
@@ -162,6 +172,15 @@ class ResourceHierarchySeeder:
             parents: List of parent relationships to set.
         """
         try:
+            if self._parents_already_match(resource_type, resource_id, parents):
+                self._skip_count += 1
+                log.debug(
+                    "Parents already correct for %s/%s, skipping",
+                    resource_type,
+                    resource_id,
+                )
+                return
+
             self._client.set_resource_parents(
                 resource_type=resource_type,
                 resource_id=resource_id,
@@ -181,6 +200,51 @@ class ResourceHierarchySeeder:
                 resource_id,
                 error,
             )
+
+    def _parents_already_match(
+        self,
+        resource_type: str,
+        resource_id: str,
+        desired: list[ParentRelationshipModel],
+    ) -> bool:
+        """Check whether the current parents match the desired state.
+
+        Returns False (proceed to write) if the read fails for any
+        reason other than a confirmed match. This ensures that GET
+        failures don't suppress writes or inflate failure_count.
+
+        Args:
+            resource_type: The type of resource.
+            resource_id: The resource identifier.
+            desired: The desired parent relationships.
+
+        Returns:
+            True if current parents match desired, False otherwise.
+        """
+        try:
+            current: ResourceParents = self._client.get_resource_parents(
+                resource_type=resource_type,
+                resource_id=resource_id,
+            )
+        except NotFoundError:
+            return False
+        except AuthorizationClientError as error:
+            log.debug(
+                "Could not read parents for %s/%s, proceeding to write: %s",
+                resource_type,
+                resource_id,
+                error,
+            )
+            return False
+
+        # Compare as sets of (structural_relation, parent_type, parent_id)
+        current_set = {
+            (p.structural_relation, p.parent_type, p.parent_id) for p in current.parents
+        }
+        desired_set = {
+            (p.structural_relation, p.parent_type, p.parent_id) for p in desired
+        }
+        return current_set == desired_set
 
 
 def _center_scoped_parents(

@@ -10,6 +10,7 @@ from authorization.client import AuthorizationClient
 from authorization.exceptions import (
     AuthorizationClientError,
     ConfigurationError,
+    NotFoundError,
     ParseError,
     ServiceUnavailableError,
     UnexpectedError,
@@ -115,6 +116,9 @@ class TestProperty4NonPropagationOfClientExceptions:
         """
         mock_client = MagicMock(spec=AuthorizationClient)
         mock_client.set_resource_parents.side_effect = error
+        mock_client.get_resource_parents.side_effect = NotFoundError(
+            message="not found"
+        )
 
         seeder = ResourceHierarchySeeder(client=mock_client)
 
@@ -178,6 +182,9 @@ class TestProperty4NonPropagationOfClientExceptions:
         mock_client = MagicMock(spec=AuthorizationClient)
         # First call raises, second call succeeds
         mock_client.set_resource_parents.side_effect = [error, None]
+        mock_client.get_resource_parents.side_effect = NotFoundError(
+            message="not found"
+        )
 
         seeder = ResourceHierarchySeeder(client=mock_client)
 

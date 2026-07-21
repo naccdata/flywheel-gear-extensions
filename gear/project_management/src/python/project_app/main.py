@@ -69,3 +69,9 @@ def run(
             "Authorization hierarchy seeding completed with %d failure(s)",
             seeder.failure_count,
         )
+
+    if seeder and seeder.skip_count > 0:
+        log.info(
+            "Authorization hierarchy seeding skipped %d resource(s) (already correct)",
+            seeder.skip_count,
+        )
