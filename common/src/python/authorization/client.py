@@ -799,11 +799,18 @@ class AuthorizationClient:
         - Unfiltered: both omitted (returns all resources of the type)
         - Search: search string provided (substring match on resource ID)
 
+        Note: parent_type and parent_id must both be provided or both
+        omitted. Providing only one results in a 400 from the API.
+        The search parameter is mutually exclusive with parent params.
+
         Args:
             resource_type: The type of resources to list.
-            parent_type: Filter by parent organization type.
-            parent_id: Filter by parent organization ID.
-            search: Search resources by ID substring.
+            parent_type: Filter by parent organization type. Must be
+                provided together with parent_id.
+            parent_id: Filter by parent organization ID. Must be
+                provided together with parent_type.
+            search: Search resources by ID substring. Mutually
+                exclusive with parent_type/parent_id.
             limit: Maximum results per page (1-100, default 50).
             next_token: Pagination token from a previous response.
 
