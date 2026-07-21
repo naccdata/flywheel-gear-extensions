@@ -377,6 +377,19 @@ class ParameterStore:
         """
         return self.get_parameters(param_type=URLParameter, parameter_path=param_path)
 
+    def get_authorization_url(self, param_path: str) -> URLParameter:
+        """Pulls the Authorization API endpoint URL from the SSM parameter
+        store at the given path.
+
+        Args:
+          param_path: the path in the parameter store
+        Returns:
+          the URL parameter stored at the path
+        Raises:
+          ParameterError if the parameter is missing
+        """
+        return self.get_parameters(param_type=URLParameter, parameter_path=param_path)
+
     def get_support_emails(self, param_path: str) -> List[str]:
         """Pulls support email addresses from the SSM parameter store at the
         given path.
