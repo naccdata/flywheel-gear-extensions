@@ -121,3 +121,44 @@ published: False
 ## Running the App
 
 For testing, see the gear wrangling directions in the development documentation.
+
+## Authorization API Integration
+
+When the `authorization_path` config is set and the API endpoint URL can be read from AWS SSM Parameter Store, the gear seeds the resource hierarchy in the NACC Authorization API.
+This establishes parent relationships that enable inherited permissions in the Portal.
+
+### What it does
+
+For each resource the gear creates or visits, it calls the Authorization API to set parent relationships:
+
+| Resource scope | Parents set |
+|----------------|------------|
+| Center pipeline (ingest, sandbox, retrospective, accepted) | `parent_study` + `parent_center` |
+| Center dashboard | `parent_study` + `parent_center` |
+| Center page | `parent_study` + `parent_center` |
+| Study dashboard | `parent_study` |
+| Study page | `parent_study` |
+| Community page | `parent_community` (id: "nacc") |
+
+The gear reads the current hierarchy before writing.
+If the parents already match the desired state, the write is skipped.
+This makes repeated runs efficient — only resources with changed or missing parents trigger API calls.
+
+### Failure behavior
+
+Authorization hierarchy seeding is optional and fault-isolated:
+
+- If the `authorization_path` config is not set or the parameter cannot be read from SSM, seeding is disabled and a warning is logged.
+- If any individual seeding call fails, the error is logged and the gear continues processing remaining resources.
+- Seeding failures do not affect Flywheel project creation or any other gear behavior.
+- A summary of failures (and skipped resources) is logged at the end of the run.
+
+### Configuration
+
+The gear manifest includes an `authorization_path` config field (default: `/prod/authorization/api-endpoint`).
+This is the SSM Parameter Store path where the Authorization API endpoint URL is stored.
+
+The integration activates automatically when:
+
+1. The SSM parameter at `authorization_path` contains a `url` value with the API Gateway endpoint
+2. AWS credentials are available via the standard credential chain (environment variables, IAM role, etc.)
