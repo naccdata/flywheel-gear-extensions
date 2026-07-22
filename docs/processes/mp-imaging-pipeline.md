@@ -1,24 +1,25 @@
-# Gears: `zach-test-center/phi-test`
+# Mixed Protocol Imaging Pipeline
 
-Reference for the gear rules configured on this project. For each gear: its **function**, **inputs**, **output**, and the **requirements that trigger it**. Full machine-readable settings live in the per-rule JSON files alongside this document (see [_index.json](_index.json)).
+Reference for the gear rules configured on this project. For each gear: its **function**, **inputs**, **output**, and the **requirements that trigger it**.
 
-These rules form a single DICOM-processing chain. Each gear tags the file when it finishes, and the next gear's rule is set to trigger on that tag, so the gears below are listed in the order they run. All rules match only `file.type = dicom`; the parent container is an acquisition unless noted. One gear in the chain, `phi-coordinator`, has **no project rule** and is run manually / on demand; it is marked with `*` below.
+These rules form a single DICOM-processing chain. Each gear tags the file when it finishes, and the next gear's rule is set to trigger on that tag, so the gears below are listed in the order they run. All rules match only `file.type = dicom`; the parent container is an acquisition unless noted. One gear in the chain, `phi-coordinator`, has **no active tag-triggered rule** — instead it runs on a nightly (overnight) schedule; it is marked with `*` below.
 
 | # | Gear rule | Gear | Runs after (trigger tag) | Adds tag |
 |---|-----------|------|--------------------------|----------|
 | 1 | deid-inplace | `deid-inplace` | (any new DICOM) | `deid-inplace-PASS` / `-FAIL` |
 | 2 | image-pii-detector | `image-pii-detector` | `deid-inplace-PASS` | `PHI-Found` (awaiting review) |
-| 2a | phi-coordinator&nbsp;`*` | `phi-coordinator` | *(no rule: completed PHI reader task)* | `PHI-Not-Found` / `PHI-Confirmed` |
+| 2a | phi-coordinator&nbsp;`*` | `phi-coordinator` | *(scheduled overnight: completed PHI reader tasks)* | `PHI-Not-Found` / `PHI-Confirmed` |
 | 2b | phi-image-removal | `phi-image-removal` | `PHI-Confirmed` | `PHI-Tombstone` (on the tombstone JSON) |
 | 3 | file-metadata-importer | `file-metadata-importer` | `deid-inplace-PASS` + `PHI-Not-Found` | `file-metadata-importer` |
 | 4 | dicom-qc | `dicom-qc` | `file-metadata-importer` | `dicom-qc` |
-| 5 | dicom-classifier | `file-classifier` | `dicom-qc` | `file-classifier` |
-| 5 | idea-lab-dicom-classifier&nbsp;`†` | `dicom-classifier` | `dicom-qc` | `mr-classifier` |
+| 4a | dicom-qc-checker | `dicom-qc-checker` | `dicom-qc` | `dicom-qc-checker-PASS` / `-FAIL` |
+| 5a | dicom-classifier | `file-classifier` | `dicom-qc-checker-PASS` | `file-classifier` |
+| 5b | idea-lab-dicom-classifier&nbsp;`†` | `dicom-classifier` | `dicom-qc-checker-PASS` | `mr-classifier` |
 | 6 | nifti-conversion | `dcm2niix` | `file-classifier` | `nifti-conversion` |
 
-`*` `phi-coordinator` has no gear rule on `phi-test`; it is run manually / on demand and finalizes the PHI tags from completed reader tasks (see its section below).
+`*` `phi-coordinator` has no *active* tag-triggered gear rule; it runs on a nightly (overnight) schedule and finalizes the PHI tags from completed reader tasks (see its section below). A project rule for it exists but is disabled and named "(reference only)" — it exists solely so the gear's config is visible in the Rules UI, not to drive execution.
 
-`†` `idea-lab-dicom-classifier` is a **terminal side-branch**: it fires off the `dicom-qc` tag but nothing downstream triggers on the `mr-classifier` tag it adds. The main chain continues `dicom-qc` to `dicom-classifier` (`file-classifier`) to `nifti-conversion` (`dcm2niix`).
+`†` `idea-lab-dicom-classifier` is a **terminal side-branch**: it fires on the `dicom-qc-checker-PASS` tag but nothing downstream triggers on the `mr-classifier` tag it adds. The main chain continues `dicom-qc-checker` → `dicom-classifier` (`file-classifier`) → `nifti-conversion` (`dcm2niix`).
 
 ### Pipeline flow
 
@@ -30,15 +31,17 @@ flowchart TD
     deid["1 · deid-inplace"]
     pii["2 · image-pii-detector"]
     review[["Human reader task<br/>(PHI review)"]]
-    coord["2a · phi-coordinator *"]:::norule
+    coord["2a · phi-coordinator *<br/>(nightly)"]:::norule
     removal["2b · phi-image-removal"]
     meta["3 · file-metadata-importer"]
     qc["4 · dicom-qc"]
-    fcls["5 · dicom-classifier<br/>(gear: file-classifier)"]
-    icls["5 · idea-lab-dicom-classifier †<br/>(gear: dicom-classifier)"]
+    qcchk["4a · dicom-qc-checker"]
+    fcls["5a · dicom-classifier<br/>(gear: file-classifier)"]
+    icls["5b · idea-lab-dicom-classifier †<br/>(gear: dicom-classifier)"]
     nifti["6 · nifti-conversion<br/>(gear: dcm2niix)"]
     tomb([Image removed:<br/>PHI-Tombstone JSON]):::stop
     haltfail([Halt: deid-inplace-FAIL]):::stop
+    haltqc([Halt: dicom-qc-checker-FAIL]):::stop
 
     start --> deid
     deid -->|deid-inplace-PASS| pii
@@ -50,17 +53,15 @@ flowchart TD
     removal -->|PHI-Tombstone<br/>DICOM replaced by JSON, dead-ends| tomb
     coord -->|PHI-Not-Found<br/>rejoins main path| meta
     meta -->|file-metadata-importer| qc
-    qc -->|dicom-qc| fcls
-    qc -->|dicom-qc| icls
+    qc -->|dicom-qc| qcchk
+    qcchk -->|dicom-qc-checker-PASS| fcls
+    qcchk -->|dicom-qc-checker-PASS| icls
+    qcchk -->|dicom-qc-checker-FAIL<br/>dead-ends, no rule| haltqc
     fcls -->|file-classifier| nifti
 
     classDef stop fill:#fde2e2,stroke:#c0392b,color:#7b241c;
     classDef norule stroke-dasharray:5 5,stroke:#8e44ad,color:#6c3483;
 ```
-
-Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, so `-FAIL` files stop at deid-inplace (no rule consumes `deid-inplace-FAIL`). Among the `-PASS` files, only those resolved to `PHI-Not-Found` proceed to file-metadata-importer. After metadata import, `dicom-qc` runs; both classifiers then fire off the `dicom-qc` tag. Only `dicom-classifier` (tag `file-classifier`) feeds nifti-conversion; `idea-lab-dicom-classifier` (tag `mr-classifier`) is a terminal side-branch. `phi-coordinator` (dashed) has **no project gear rule**; it is run manually / on demand and finalizes the PHI tags from completed reader tasks. Files it resolves to `PHI-Confirmed` are then consumed by **phi-image-removal**, which replaces the DICOM with a JSON tombstone (tagged `PHI-Tombstone`); this is the terminal step of the confirmed-PHI branch (nothing consumes `PHI-Tombstone`).
-
-> `api-key` is an input on every gear but is supplied automatically by Flywheel (the running user's API context), so it is omitted from the input lists below.
 
 ---
 
@@ -97,26 +98,26 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 ## 2a. phi-coordinator: `phi-coordinator`
 
-> **No project gear rule is configured for this gear on `phi-test`.** It is a Flywheel `utility` gear run manually / on demand. The values below are the gear's defaults, and "Acts on" describes what it processes, not an automatic rule trigger.
+> **No *active* tag-triggered gear rule is configured for this gear.** It is a Flywheel `utility` gear that runs on a nightly (overnight) schedule rather than on a file-event trigger. A project rule does exist for it but it is **disabled** and named "phi-coordinator (reference only)" — created so the gear's config is visible in the project's Rules UI, not to drive execution. The values below are the gear's defaults, and "Acts on" describes what it processes on each scheduled run.
 
-**Function:** Finalizes PHI review tags by reading completed reader-task form responses. For each completed task in the configured protocol, it reads the reviewer's yes/no answer and resolves the file's PHI tags accordingly.
+**Function:** Finalizes PHI review tags by reading completed reader-task form responses. For each completed task in the configured protocol, it reads the reviewer's yes/no answer and a deletion-acknowledgement checkbox answer, and resolves the file's PHI tags accordingly.
 
 **Inputs:** None beyond the auto-provided `api-key`; it operates on reader-task form responses via the API, not on a file input.
 
 **Output** (tag changes only; no new file):
 - Removes `PHI-Found` from a file once its review is resolved.
-- Adds `PHI-Confirmed` when the reviewer confirms PHI is present; the file leaves the main workflow and is picked up by **phi-image-removal** (step 2b).
+- Adds `PHI-Confirmed` when the reviewer confirms PHI is present **and** acknowledges deletion (config `ack_key`, the `delete_ack` checkbox on the reader-task form); the file leaves the main workflow and is picked up by **phi-image-removal** (step 2b).
 - Adds `PHI-Not-Found` when the reviewer reports no PHI, so the file proceeds to `file-metadata-importer`.
 - Tags each processed reader task `phi-coordinator` so it is excluded from future runs.
 - If a completed task has no usable answer, resets it to *Todo* and clears its response (`reset_on_missing_data = true`, default).
 
-**Acts on** (no rule, manual / on demand): completed reader tasks in the protocol `default_image_pii_detector_protocol` (config `phi_protocol_label`), reading the yes/no answer from response key `phi_radio` (config `answer_key`). These are the tasks created by **image-pii-detector** (step 2).
+**Acts on** (nightly scheduled run): completed reader tasks in the protocol `default_image_pii_detector_protocol` (config `phi_protocol_label`), reading the yes/no answer from response key `phi_radio` (config `answer_key`) and the acknowledgement from `delete_ack` (config `ack_key`). These are the tasks created by **image-pii-detector** (step 2).
 
 ---
 
 ## 2b. phi-image-removal: `phi-image-removal`
 
-**Function:** Removes an image confirmed to contain PHI by replacing it with a JSON **tombstone** that records the removed file's details. This is the terminal step of the confirmed-PHI branch (implements the tombstone approach from todo.md item 4).
+**Function:** Removes an image confirmed to contain PHI by replacing it with a JSON **tombstone** that records the removed file's details. This is the terminal step of the confirmed-PHI branch.
 
 **Inputs:**
 - `input_file` *(file, required, triggering file)*: the `PHI-Confirmed` DICOM to remove.
@@ -148,11 +149,28 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 **Inputs:**
 - `dicom` *(file, required, triggering file)*: the DICOM archive to validate.
-- `validation-schema` *(file, required)*: rule schema (gear default used when none supplied).
+- `validation-schema` *(file, required)*: rule schema (`dicom_qc.json`, project file).
 
-**Output:** QC results written to the file's metadata (`file.info.qc`); no new file is produced. Tags the file `dicom-qc`; both classifiers trigger on this tag. Note: the tag is added whenever QC *runs* (not only when it passes), so it does not gate downstream gears on the QC result (see todo.md item 1).
+**Config:** `check_instance_number_uniqueness`, `check_series_consistency`, and `check_slice_consistency` are enabled; `check_bed_moving`, `check_dicom_validator`, and `check_embedded_localizer` are **disabled**. `fail_on_critical_error = true`.
+
+**Output:** QC results written to the file's metadata (`file.info.qc`); no new file is produced. Tags the file `dicom-qc` whenever the job succeeds (regardless of which checks pass) — this tag is just the trigger for **dicom-qc-checker** (step 4a), which is what actually gates the file on the QC outcome.
 
 **Triggered when:** a DICOM file in an acquisition is tagged `file-metadata-importer` and is **not** yet tagged `dicom-qc`.
+
+---
+
+## 4a. dicom-qc-checker: `dicom-qc-checker`
+
+**Function:** Evaluates the QC results dicom-qc wrote to `file.info.qc` and tags the file with an explicit pass/fail status.
+
+**Inputs:**
+- `input_file` *(file, required, triggering file)*: the DICOM already tagged `dicom-qc`.
+
+**Output:** Tags the file `dicom-qc-checker-PASS` or `dicom-qc-checker-FAIL`. (The gear exposes no config_schema, so these tag names are not surfaced as config; they are the exact tags both downstream classifier rules require.) No new file is produced.
+
+**Triggered when:** a DICOM file in an acquisition is tagged `dicom-qc`.
+
+> **Caution:** this rule's `not` (exclusion) list is **empty** — unlike every other gear rule in this pipeline, it has no guard against re-matching the tag it just wrote. Since adding a tag is itself a file-modification event, this rule may re-evaluate and re-fire on the same file after tagging it, i.e. a potential unbounded retrigger loop.
 
 ---
 
@@ -166,7 +184,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 **Output:** Classification written to the file's metadata, replacing any existing classification (`remove_existing = true`); no new file is produced. Tags the file `file-classifier`.
 
-**Triggered when:** a DICOM file in an acquisition is tagged `dicom-qc` and is **not** yet tagged `file-classifier`.
+**Triggered when:** a DICOM file in an acquisition is tagged `dicom-qc-checker-PASS` and is **not** yet tagged `file-classifier`.
 
 ---
 
@@ -179,7 +197,7 @@ Notes: `image-pii-detector` now matches only the exact `deid-inplace-PASS` tag, 
 
 **Output:** Classification written to the file's metadata, added alongside any existing classification (`remove_existing = false`); no new file is produced. Tags the file `mr-classifier`. **Terminal side-branch**: no rule triggers on the `mr-classifier` tag, so it does not feed nifti-conversion.
 
-**Triggered when:** a DICOM file in an acquisition is tagged `dicom-qc` and is **not** yet tagged `mr-classifier`.
+**Triggered when:** a DICOM file in an acquisition is tagged `dicom-qc-checker-PASS` and is **not** yet tagged `mr-classifier`.
 
 ---
 
