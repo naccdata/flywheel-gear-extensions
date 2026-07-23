@@ -119,7 +119,10 @@ def compose_record_id(
     return composed_id
 
 
+# maximum attempts to generate a new record if the current attempt fails
 MAX_NEW_RECORD_ATTEMPTS = 4
+
+# maximum number of attempts to pause and see if the other session will yield
 MAX_PAUSES_FOR_OTHER_SESSION = 3
 
 
@@ -179,7 +182,7 @@ def ensure_record_id_is_unique(
                         )
                         sleep(1.0)
                         # reload() does not update ses.info["record_id"],
-                        # so get fresh container again
+                        # so get the fresh container again
                         ses = proxy.get_container_by_id(ses.id)
                         if ses.info["record_id"] != record_id:
                             log.info(f"  ...session {ses.id} yielded.")

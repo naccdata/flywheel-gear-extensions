@@ -78,7 +78,7 @@ class REDCapImageFormCreatorVisitor(GearExecutionEnvironment):
             ).parents["session"]
         else:
             raise GearExecutionError(
-                f"Expected to run on associated session, given "
+                "Expected to run on associated session, given "
                 f"{context.config.destination['type']}"
             )
 
