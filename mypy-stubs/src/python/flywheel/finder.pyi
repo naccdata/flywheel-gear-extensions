@@ -1,4 +1,4 @@
-from typing import Iterable, List, TypeVar, Generic
+from typing import Iterable, Iterator, List, TypeVar, Generic
 
 T = TypeVar('T')
 
@@ -12,4 +12,10 @@ class Finder(Generic[T]):
         ...
 
     def iter(self) -> Iterable[T]:
+        ...
+
+    def __iter__(self) -> Iterator[T]:
+        ...
+
+    def __call__(self) -> List[T]:
         ...
