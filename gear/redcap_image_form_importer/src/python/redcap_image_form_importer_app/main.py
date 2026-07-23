@@ -50,6 +50,19 @@ def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> None:
 
 # Names of REDCap variables that are common across session types
 all_types_variables_to_import: list[str] = [
+    "record_id",
+    "ptid",
+    "naccid",
+    "adcid",
+    "display_loc_project",
+    "fw_session_label",
+    "scandt",
+    "scanstart",
+    "loc_imageheader",
+    "loc_project",
+    "study",
+    "uploader_email",
+    "uploader_fullname",
     "uploader_role",
     "uploader_rolex",
     "imagetype",
@@ -106,7 +119,7 @@ def format_variables_for_session(
     for var in redcap_variables_to_import:
         if var in redcap_record:
             log.info(f'  {var}: "{redcap_record[var]}"')
-            string_to_return += '"' + var + '":"' + redcap_record[var] + '"\n'
+            string_to_return += '    "' + var + '":"' + redcap_record[var] + '",\n'
         else:
             log.info(f"  {var}: <missing>")
     return string_to_return
@@ -162,18 +175,19 @@ def import_content_from_redcap_to_flywheel(
         session: target Flywheel session
         output_dir: directory to write output submission form to
     """
-    content_to_import = format_variables_for_session(
+    content_to_import = "{\n" + format_variables_for_session(
         all_types_variables_to_import, redcap_record
     )
 
-    if redcap_record["imagetype"] == 1:  # PET
+    if redcap_record["imagetype"] == "1":  # PET
         content_to_import += format_variables_for_session(
             pet_variables_to_import, redcap_record
         )
-    elif redcap_record["imagetype"] == 2:  # MRI
+    elif redcap_record["imagetype"] == "2":  # MRI
         content_to_import += format_variables_for_session(
             mri_variables_to_import, redcap_record
         )
+    content_to_import = content_to_import.rstrip(",\n") + "\n}"
 
     log.info(
         f"Content to import for {session.label}_image-submission-form.json:\n"
@@ -269,6 +283,13 @@ def run(
     fw_record_dict: dict[str, str] = {}
     fw_record_dict.update(fw_record)
     for var in fw_record.all_types_variables_to_check:
+        if (
+            var == "redcap_data_access_group"
+            and fw_record_dict[var] == ""
+            and fw_record_dict["adcid"] == 0
+        ):
+            log.info(f"Note: skipping agreement of {var} for test center")
+            continue
         if str(fw_record_dict[var]) != redcap_record[var]:
             tag_fail(
                 dry_run,
