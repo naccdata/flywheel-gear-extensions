@@ -4,6 +4,7 @@ from typing import ClassVar, Optional
 
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
