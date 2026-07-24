@@ -203,6 +203,44 @@ class TestBatchSizeAndReloadWorkersConfig:
         assert mock_run.call_args.kwargs["reload_workers"] == 5
 
 
+class TestCreateValidation:
+    """Non-positive batch_size/reload_workers are rejected by create() as gear-
+    level configuration errors, rather than surfacing later as a raw ValueError
+    from ThreadPoolExecutor or an empty query loop."""
+
+    def _create(self, **config) -> CenterFormExportVisitor:
+        options = {
+            "group_id": "test-group",
+            "project_name": "test-project",
+            "modules": "UDS",
+        }
+        options.update(config)
+        context = MagicMock()
+        context.config.opts = options
+
+        with patch("center_form_export_app.run.GearBotClient.create"):
+            return CenterFormExportVisitor.create(
+                context=context, parameter_store=MagicMock()
+            )
+
+    @pytest.mark.parametrize("batch_size", [0, -1])
+    def test_non_positive_batch_size_rejected(self, batch_size: int):
+        with pytest.raises(GearExecutionError, match="batch_size must be a positive"):
+            self._create(batch_size=batch_size)
+
+    @pytest.mark.parametrize("reload_workers", [0, -1])
+    def test_non_positive_reload_workers_rejected(self, reload_workers: int):
+        with pytest.raises(
+            GearExecutionError, match="reload_workers must be a positive"
+        ):
+            self._create(reload_workers=reload_workers)
+
+    def test_positive_values_accepted(self):
+        visitor = self._create(batch_size=50, reload_workers=4)
+
+        assert isinstance(visitor, CenterFormExportVisitor)
+
+
 class TestOutput:
     """Tests for CSV output file production.
 

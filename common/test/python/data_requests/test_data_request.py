@@ -1,5 +1,5 @@
 import logging
-import time
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -274,39 +274,48 @@ class TestModuleDataGathererProjectQuery:
         assert "Failed to load data" in caplog.text
 
     def test_reloads_files_within_a_batch_concurrently(self):
-        """Reloading N files takes much less than N times a single reload's
-        duration, confirming reloads within a batch run in parallel rather than
-        serially."""
+        """Reloads within a batch genuinely overlap: every reload blocks on a
+        shared barrier that only releases once all of them are in flight at
+        once, so a serial implementation can never get past it.
 
-        def make_slow_file(file_id: str) -> MagicMock:
+        Unlike a wall-clock assertion, this doesn't fail on a slow-but-correct
+        run -- only on one that isn't actually concurrent.
+        """
+        workers = 4
+        barrier = threading.Barrier(workers)
+
+        def make_blocking_file(file_id: str) -> MagicMock:
             file_mock = MagicMock()
             file_mock.file_id = file_id
 
-            def slow_reload():
-                time.sleep(0.1)
+            def blocking_reload():
+                # Raises BrokenBarrierError -- propagating out of
+                # gather_project_data and failing the test -- unless all
+                # `workers` reloads run at the same time.
+                barrier.wait(timeout=10)
                 reloaded = MagicMock()
                 reloaded.info = {"forms.json": {"naccid": file_id}}
                 reloaded.file_id = file_id
                 return reloaded
 
-            file_mock.reload.side_effect = slow_reload
+            file_mock.reload.side_effect = blocking_reload
             return file_mock
 
         proxy = MagicMock()
-        proxy.get_files.return_value = [make_slow_file(f"file-{i}") for i in range(10)]
+        proxy.get_files.return_value = [
+            make_blocking_file(f"file-{i}") for i in range(workers)
+        ]
         gatherer = ModuleDataGatherer(
             proxy=proxy,
             module_name="UDS",
             info_paths=["forms.json"],
         )
 
-        start = time.time()
-        gatherer.gather_project_data(["sub-1"])
-        elapsed = time.time() - start
+        gatherer.gather_project_data(["sub-1"], reload_workers=workers)
 
-        # Serial would take >= 1.0s (10 * 0.1s); concurrent should be a
-        # small fraction of that.
-        assert elapsed < 0.5
+        content = gatherer.content
+        for i in range(workers):
+            assert f"file-{i}" in content
 
     def test_unexpected_reload_error_propagates(self):
         """An error raised by file.reload() itself (not a ModuleDataError) is
