@@ -173,7 +173,8 @@ class TestHierarchySeederIntegration:
         # Build expected calls as (resource_type, resource_id, parents) tuples
         expected_calls = set()
 
-        # Center-scoped data pipelines (primary study, no suffix)
+        # Center-scoped data pipelines (primary study)
+        # Format: {center}_{label}-{study_id}
         # accepted, ingest-form, sandbox-form, ingest-dicom, sandbox-dicom
         # retrospective-form, retrospective-dicom (legacy=True)
         center_pipeline_labels = [
@@ -186,15 +187,34 @@ class TestHierarchySeederIntegration:
             "retrospective-dicom",
         ]
         for label in center_pipeline_labels:
-            expected_calls.add(("data_pipeline", label, "test-study", "center-01"))
+            expected_calls.add(
+                (
+                    "data_pipeline",
+                    f"center-01_{label}-test-study",
+                    "test-study",
+                    "center-01",
+                )
+            )
 
         # Center-scoped dashboard: adrc-reports
         expected_calls.add(
-            ("dashboard", "dashboard-adrc-reports", "test-study", "center-01")
+            (
+                "dashboard",
+                "center-01_dashboard-adrc-reports-test-study",
+                "test-study",
+                "center-01",
+            )
         )
 
         # Center-scoped page: enrollment
-        expected_calls.add(("page", "page-enrollment", "test-study", "center-01"))
+        expected_calls.add(
+            (
+                "page",
+                "center-01_page-enrollment-test-study",
+                "test-study",
+                "center-01",
+            )
+        )
 
         # Study-scoped dashboard: study-overview
         # Study-scoped page: study-summary
@@ -243,14 +263,14 @@ class TestHierarchySeederIntegration:
 
         # Assert study-scoped resources
         expected_study_calls = {
-            ("dashboard", "dashboard-study-overview", "test-study"),
-            ("page", "page-study-summary", "test-study"),
+            ("dashboard", "dashboard-study-overview-test-study", "test-study"),
+            ("page", "page-study-summary-test-study", "test-study"),
         }
         assert expected_study_calls == actual_study_calls
 
         # Assert community-scoped resources
         expected_community_calls = {
-            ("page", "page-community-resources", "nacc"),
+            ("page", "page-community-resources-test-study", "nacc"),
         }
         assert expected_community_calls == actual_community_calls
 
@@ -583,5 +603,11 @@ class TestHierarchySeederIntegration:
         ]
 
         # Should NOT have center-scoped dashboards or pages
-        assert ("dashboard", "dashboard-reports") not in resource_types_and_ids
-        assert ("page", "page-enrollment") not in resource_types_and_ids
+        assert (
+            "dashboard",
+            "center-01_dashboard-reports-inactive-test",
+        ) not in resource_types_and_ids
+        assert (
+            "page",
+            "center-01_page-enrollment-inactive-test",
+        ) not in resource_types_and_ids

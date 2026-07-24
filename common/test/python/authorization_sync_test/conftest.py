@@ -173,10 +173,12 @@ api_relations_st = st.sampled_from(API_RELATIONS)
 
 # Resource IDs (can be center-scoped or general)
 resource_ids_st = st.one_of(
-    # Center-scoped: {center_group_id}/{project_label}
-    st.tuples(center_group_ids_st, project_labels_st).map(lambda t: f"{t[0]}/{t[1]}"),
-    # General: just project_label
-    project_labels_st,
+    # Center-scoped: {center_group_id}_{label}-{study_id}
+    st.tuples(center_group_ids_st, project_labels_st, study_ids_st).map(
+        lambda t: f"{t[0]}_{t[1]}-{t[2]}"
+    ),
+    # General: {label}-{study_id}
+    st.tuples(project_labels_st, study_ids_st).map(lambda t: f"{t[0]}-{t[1]}"),
 )
 
 # DesiredGrant instances
