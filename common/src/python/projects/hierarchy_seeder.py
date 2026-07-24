@@ -51,7 +51,8 @@ class ResourceHierarchySeeder:
         """Set parents for a center-scoped data pipeline.
 
         Args:
-            resource_id: The pipeline resource ID (Flywheel project label).
+            resource_id: The pipeline resource ID in the format
+                "{center}_{stage}-{datatype}-{study_id}".
             study_id: The study identifier.
             center_id: The research center identifier.
         """

@@ -46,7 +46,6 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 from keys.types import DatatypeNameType
-
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
@@ -618,7 +617,7 @@ class StudyMappingVisitor(StudyVisitor):
 
             community_pages = study.get_pages_by_level("community")
             for page_name in community_pages:
-                page_label = self.__project_label(f"page-{page_name}")
+                page_label = self.__auth_resource_id_no_center(f"page-{page_name}")
                 self.__hierarchy_seeder.seed_community_page(
                     resource_id=page_label,
                 )
@@ -691,6 +690,44 @@ class StudyMappingVisitor(StudyVisitor):
 
         center.update_project_info(portal_info)
 
+    def __auth_resource_id(self, label: str, center_id: str) -> str:
+        """Build an authorization resource ID with center prefix.
+
+        The authorization API uses the format:
+            {center}_{label}-{study_id}
+
+        The study_id is always explicit (including for the primary study).
+        The center prefix is separated by underscore (center names never
+        contain underscores).
+
+        Args:
+            label: the base label (e.g., "ingest-form", "accepted")
+            center_id: the research center identifier
+
+        Returns:
+            the authorization resource ID
+        """
+        assert self.__study, "study must be set"
+        return f"{center_id}_{label}-{self.__study.study_id}"
+
+    def __auth_resource_id_no_center(self, label: str) -> str:
+        """Build an authorization resource ID without center prefix.
+
+        Used for study-scoped and community-scoped resources that are not
+        center-specific. The study_id is always explicit.
+
+        For dashboards: "dashboard-{name}-{study_id}"
+        For pages: "page-{name}-{study_id}"
+
+        Args:
+            label: the base label (e.g., "dashboard-summary", "page-reports")
+
+        Returns:
+            the authorization resource ID
+        """
+        assert self.__study, "study must be set"
+        return f"{label}-{self.__study.study_id}"
+
     def __seed_center_pipelines(self, center_model: StudyCenterModel) -> None:
         """Seed hierarchy for center-scoped data pipelines.
 
@@ -712,9 +749,8 @@ class StudyMappingVisitor(StudyVisitor):
             center_model
         ):
             # accepted project
-            accepted_label = self.__project_label("accepted")
             self.__hierarchy_seeder.seed_center_pipeline(
-                resource_id=accepted_label,
+                resource_id=self.__auth_resource_id("accepted", center_id),
                 study_id=study_id,
                 center_id=center_id,
             )
@@ -722,11 +758,10 @@ class StudyMappingVisitor(StudyVisitor):
             # ingest and sandbox pipelines for each aggregation datatype
             for pipeline in ["ingest", "sandbox"]:
                 for datatype in self.__aggregation_datatypes:
-                    pipeline_label = self.__project_label(
-                        f"{pipeline}-{datatype.lower()}"
-                    )
                     self.__hierarchy_seeder.seed_center_pipeline(
-                        resource_id=pipeline_label,
+                        resource_id=self.__auth_resource_id(
+                            f"{pipeline}-{datatype.lower()}", center_id
+                        ),
                         study_id=study_id,
                         center_id=center_id,
                     )
@@ -734,11 +769,10 @@ class StudyMappingVisitor(StudyVisitor):
             # retrospective pipelines (if study has legacy)
             if self.__study.has_legacy():
                 for datatype in self.__aggregation_datatypes:
-                    retro_label = self.__project_label(
-                        f"retrospective-{datatype.lower()}"
-                    )
                     self.__hierarchy_seeder.seed_center_pipeline(
-                        resource_id=retro_label,
+                        resource_id=self.__auth_resource_id(
+                            f"retrospective-{datatype.lower()}", center_id
+                        ),
                         study_id=study_id,
                         center_id=center_id,
                     )
@@ -746,9 +780,10 @@ class StudyMappingVisitor(StudyVisitor):
         # Seed distribution pipelines
         if self.__distribution_mapper:
             for datatype in self.__distribution_datatypes:
-                dist_label = self.__project_label(f"distribution-{datatype.lower()}")
                 self.__hierarchy_seeder.seed_center_pipeline(
-                    resource_id=dist_label,
+                    resource_id=self.__auth_resource_id(
+                        f"distribution-{datatype.lower()}", center_id
+                    ),
                     study_id=study_id,
                     center_id=center_id,
                 )
@@ -769,7 +804,9 @@ class StudyMappingVisitor(StudyVisitor):
         # Seed study-level dashboards
         study_dashboards = study.get_dashboards_by_level("study")
         for dashboard_name in study_dashboards:
-            dashboard_label = self.__project_label(f"dashboard-{dashboard_name}")
+            dashboard_label = self.__auth_resource_id_no_center(
+                f"dashboard-{dashboard_name}"
+            )
             self.__hierarchy_seeder.seed_study_dashboard(
                 resource_id=dashboard_label,
                 study_id=study_id,
@@ -778,7 +815,7 @@ class StudyMappingVisitor(StudyVisitor):
         # Seed study-level pages
         study_pages = study.get_pages_by_level("study")
         for page_name in study_pages:
-            page_label = self.__project_label(f"page-{page_name}")
+            page_label = self.__auth_resource_id_no_center(f"page-{page_name}")
             self.__hierarchy_seeder.seed_study_page(
                 resource_id=page_label,
                 study_id=study_id,
@@ -814,11 +851,10 @@ class StudyMappingVisitor(StudyVisitor):
                     center=center, study_info=study_info, dashboard_name=dashboard_name
                 )
                 if self.__hierarchy_seeder is not None:
-                    dashboard_label = self.__project_label(
-                        f"dashboard-{dashboard_name}"
-                    )
                     self.__hierarchy_seeder.seed_center_dashboard(
-                        resource_id=dashboard_label,
+                        resource_id=self.__auth_resource_id(
+                            f"dashboard-{dashboard_name}", center.id
+                        ),
                         study_id=self.__study.study_id,
                         center_id=center.id,
                     )
@@ -835,9 +871,10 @@ class StudyMappingVisitor(StudyVisitor):
                     center=center, study_info=study_info, page_name=page_name
                 )
                 if self.__hierarchy_seeder is not None:
-                    page_label = self.__project_label(f"page-{page_name}")
                     self.__hierarchy_seeder.seed_center_page(
-                        resource_id=page_label,
+                        resource_id=self.__auth_resource_id(
+                            f"page-{page_name}", center.id
+                        ),
                         study_id=self.__study.study_id,
                         center_id=center.id,
                     )
