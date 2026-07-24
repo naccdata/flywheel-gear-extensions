@@ -4,6 +4,10 @@ All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
 
+## 2.6.1
+
+* Skips disabled or deleted admin users when assigning admin roles to projects, preventing stale permissions from being propagated
+
 ## 2.6.0
 
 * Adds flexible configuration support for page projects with center/study levels
