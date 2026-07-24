@@ -13,6 +13,8 @@ from authorization.models import (
     UserProfile,
     UserProfileRequest,
 )
+from authorization_sync.models import DesiredGrant
+from authorization_sync.translator import translate, validate_activity_relation_map
 from users.authorizations import Authorizations
 from users.event_models import (
     EventCategory,
@@ -23,10 +25,11 @@ from users.event_models import (
 )
 from users.user_entry import UserEntry
 
-from authorization_sync.models import DesiredGrant
-from authorization_sync.translator import translate, validate_activity_relation_map
-
 log = logging.getLogger(__name__)
+
+# Resource types queried during sync — derived from ACTIVITY_RELATION_MAP values.
+# The permissions endpoint requires one type per request (ADR-015).
+_SYNC_RESOURCE_TYPES = ("data_pipeline", "dashboard", "page")
 
 
 class AuthorizationClientProtocol(Protocol):
@@ -115,10 +118,15 @@ class AuthorizationSyncService:
                 authorizations=authorizations,
                 center_group_id=center_group_id,
             )
-            permissions = self._client.get_user_permissions(
-                user_id=registry_id,
-            )
-            current = permissions.to_grants(DesiredGrant)
+
+            # Query current permissions per type (type is required per ADR-015)
+            current: set[DesiredGrant] = set()
+            for resource_type in _SYNC_RESOURCE_TYPES:
+                permissions = self._client.get_user_permissions(
+                    user_id=registry_id,
+                    type_filter=resource_type,
+                )
+                current |= permissions.to_grants(DesiredGrant)
 
             grants_to_add = desired - current
             grants_to_revoke = current - desired
