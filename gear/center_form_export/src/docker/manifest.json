@@ -70,6 +70,11 @@
       "description": "Number of concurrent workers used to reload each batch's files",
       "type": "integer",
       "default": 10
+    },
+    "run_id": {
+      "description": "Caller-supplied identifier shared by all jobs of one export run; appended to output filenames after the run date. Letters and digits only, at most 32 characters. Omit to stamp filenames with the run date alone.",
+      "type": "string",
+      "default": ""
     }
   },
   "command": "/bin/run"

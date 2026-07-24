@@ -26,17 +26,20 @@ The only input is `api-key` (a Flywheel API key). No file input is required.
 | `formver_split` | boolean | `false` | no | Split output CSVs by form version |
 | `batch_size` | integer | `100` | no | Number of subject ids per query batch (see Performance) |
 | `reload_workers` | integer | `10` | no | Concurrent workers used to reload each batch's files (see Performance) |
+| `run_id` | string | `""` | no | Caller-supplied identifier appended to output filenames (see Run Identifiers) |
 
 ## Output
 
 A CSV file is written for each module for which subject data is found. Columns depend on the module and whether `include_derived` is `true`.
+
+Every output file is tagged with the gear name (`center-form-export`), so consumers can recognize export artifacts from file tags rather than by matching the filename. Tags are written through the gear context's metadata, which is only flushed when the gear exits cleanly — a failed run's partial output is untagged.
 
 ### Filename Patterns
 
 When `formver_split` is **disabled** (default), one file is produced per module:
 
 ```
-{study_id}-{module_name}-{YYYY-MM-DD}.csv
+{study_id}-{module_name}-{stamp}.csv
 ```
 
 Example: `adrc-UDS-2025-06-15.csv`
@@ -44,10 +47,24 @@ Example: `adrc-UDS-2025-06-15.csv`
 When `formver_split` is **enabled**, one file is produced per (module, form version) pair:
 
 ```
-{study_id}-{module_name}-{formver_label}-{YYYY-MM-DD}.csv
+{study_id}-{module_name}-{formver_label}-{stamp}.csv
 ```
 
 Example: `adrc-UDS-v4-2025-06-15.csv`
+
+`{stamp}` is the run date (`YYYY-MM-DD`), followed by `-{run_id}` when a `run_id` was supplied.
+
+### Run Identifiers
+
+By default filenames are stamped with the run date alone, which has day granularity: a second export of the same modules on the same day writes the same filenames, so Flywheel replaces the files in place. The previous version is retained by Flywheel but is not reachable through interfaces that have no version selector, and nothing in the filename distinguishes one run from another.
+
+Passing `run_id` adds a caller-chosen segment after the date. Two exports on the same day then produce distinct files, and all files of one run — including files written by *separate* jobs, when a caller fans one user-facing export out across several projects — carry the same identifier and can be grouped by it.
+
+`run_id` must contain only letters and digits, and be at most 32 characters. Because filenames are `-`-delimited and parsed by anchored patterns, a `run_id` containing `-`, `.`, or `_` would make the trailing segments ambiguous; a malformed value fails the job at startup rather than silently producing an unparseable filename. A compact UTC timestamp such as `20260724T210431` satisfies the charset and sorts naturally.
+
+The run date and the `run_id` are both fixed once per gear run, not per output file. Output is written as each module finishes gathering, which on a large export can be minutes apart and can cross midnight — so a value read from the clock at write time would differ between modules and split one run's files across several apparent runs.
+
+Omitting `run_id` reproduces the date-only filenames exactly, with no trailing separator.
 
 ## Performance
 

@@ -22,6 +22,7 @@ def create_visitor(
     info_paths: list[str] | None = None,
     study_id: str = "adrc",
     formver_split: bool = False,
+    run_id: str = "",
 ) -> CenterFormExportVisitor:
     """Factory to create a CenterFormExportVisitor with test defaults."""
     if modules is None:
@@ -37,6 +38,7 @@ def create_visitor(
         modules=modules,
         study_id=study_id,
         formver_split=formver_split,
+        run_id=run_id,
     )
 
 
@@ -46,6 +48,37 @@ def create_mock_subject(label: str, subject_id: str) -> MagicMock:
     subject.label = label
     subject.id = subject_id
     return subject
+
+
+def setup_single_subject_project(mock_proxy: MagicMock) -> None:
+    """Wires proxy mocks so that a project with one subject resolves."""
+    mock_group = MagicMock()
+    mock_project = MagicMock()
+    mock_project.id = "proj-123"
+    mock_project.label = "test-project"
+    mock_project.project.subjects.iter.return_value = iter(
+        [create_mock_subject("NACC000001", "sub-001")]
+    )
+    mock_proxy.find_group.return_value = mock_group
+    mock_group.find_project.return_value = mock_project
+
+
+def create_mock_gatherer(
+    module_name: str,
+    content: str | None = None,
+    content_by_formver: dict[str, str] | None = None,
+) -> MagicMock:
+    """Factory to create a mock ModuleDataGatherer that has already
+    gathered."""
+    gatherer = MagicMock()
+    gatherer.module_name = module_name
+    if content_by_formver is not None:
+        gatherer.split_by_formver = True
+        gatherer.content_by_formver = content_by_formver
+    else:
+        gatherer.split_by_formver = False
+        gatherer.content = content
+    return gatherer
 
 
 class TestErrorHandling:
@@ -239,6 +272,276 @@ class TestCreateValidation:
         visitor = self._create(batch_size=50, reload_workers=4)
 
         assert isinstance(visitor, CenterFormExportVisitor)
+
+    @pytest.mark.parametrize(
+        "run_id",
+        [
+            "2026-07-24T21:04:31",  # dashes and colons
+            "20260724T210431.1",  # dot
+            "run_1",  # underscore
+            "run 1",  # space
+            "run/1",  # path separator
+        ],
+    )
+    def test_malformed_run_id_rejected(self, run_id: str):
+        """A run_id outside [A-Za-z0-9] would make filename segments ambiguous
+        for consumers, so it fails the job rather than silently falling back to
+        a date-only name."""
+        with pytest.raises(GearExecutionError, match="run_id must contain only"):
+            self._create(run_id=run_id)
+
+    def test_over_long_run_id_rejected(self):
+        with pytest.raises(GearExecutionError, match="run_id must be at most"):
+            self._create(run_id="a" * 33)
+
+    def test_well_formed_run_id_accepted(self):
+        visitor = self._create(run_id="20260724T210431")
+
+        assert isinstance(visitor, CenterFormExportVisitor)
+
+    def test_omitted_run_id_accepted(self):
+        visitor = self._create()
+
+        assert isinstance(visitor, CenterFormExportVisitor)
+
+    def test_whitespace_only_run_id_treated_as_omitted(self):
+        visitor = self._create(run_id="   ")
+
+        assert isinstance(visitor, CenterFormExportVisitor)
+
+
+class TestRunIdStamp:
+    """A caller-supplied run_id is appended to output filenames after the run
+    date, so that two exports of the same modules on the same day produce
+    distinct files instead of the second overwriting the first."""
+
+    def test_run_id_appended_to_default_filename(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(mock_client, modules={"UDS"}, run_id="20260724T210431")
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS", content="header\ndata\n"
+            )
+            with patch("center_form_export_app.run.date") as mock_date:
+                mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+                visitor.run(mock_context)
+
+        assert list(mock_context.output_files) == [
+            "adrc-UDS-2026-07-24-20260724T210431.csv"
+        ]
+
+    def test_run_id_appended_to_formver_split_filenames(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(
+            mock_client,
+            modules={"UDS"},
+            formver_split=True,
+            run_id="20260724T210431",
+        )
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS",
+                content_by_formver={"v3": "naccid\nA\n", "v4": "naccid\nB\n"},
+            )
+            with patch("center_form_export_app.run.date") as mock_date:
+                mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+                visitor.run(mock_context)
+
+        assert sorted(mock_context.output_files) == [
+            "adrc-UDS-v3-2026-07-24-20260724T210431.csv",
+            "adrc-UDS-v4-2026-07-24-20260724T210431.csv",
+        ]
+
+    def test_omitted_run_id_reproduces_date_only_filenames(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """Ad-hoc callers that send no run_id keep the previous filenames
+        exactly, with no trailing separator."""
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(mock_client, modules={"UDS"})
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS", content="header\ndata\n"
+            )
+            with patch("center_form_export_app.run.date") as mock_date:
+                mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+                visitor.run(mock_context)
+
+        assert list(mock_context.output_files) == ["adrc-UDS-2026-07-24.csv"]
+
+    def test_every_module_shares_one_date(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """The date is read from the clock once per run, not once per output
+        file.
+
+        Output is written as each module finishes gathering, which on a
+        long export can be minutes apart -- and across midnight, two
+        different dates. Consumers group a run's files by their stamp,
+        so a per-file clock read would split one run into several
+        apparent runs. The stubbed clock returns a later date on any
+        second call: both modules must still carry the first.
+        """
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(mock_client, modules={"UDS", "FTLD"})
+
+        gatherers = {
+            "UDS": create_mock_gatherer("UDS", content="header\nuds\n"),
+            "FTLD": create_mock_gatherer("FTLD", content="header\nftld\n"),
+        }
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.side_effect = (
+                lambda proxy, module_name, info_paths, **kwargs: gatherers[module_name]
+            )
+            with patch("center_form_export_app.run.date") as mock_date:
+                before_midnight = MagicMock()
+                before_midnight.isoformat.return_value = "2026-07-24"
+                after_midnight = MagicMock()
+                after_midnight.isoformat.return_value = "2026-07-25"
+                mock_date.today.side_effect = [before_midnight, after_midnight]
+
+                visitor.run(mock_context)
+
+        assert sorted(mock_context.output_files) == [
+            "adrc-FTLD-2026-07-24.csv",
+            "adrc-UDS-2026-07-24.csv",
+        ]
+
+    def test_every_module_shares_one_run_id(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(
+            mock_client, modules={"UDS", "FTLD"}, run_id="20260724T210431"
+        )
+
+        gatherers = {
+            "UDS": create_mock_gatherer("UDS", content="header\nuds\n"),
+            "FTLD": create_mock_gatherer("FTLD", content="header\nftld\n"),
+        }
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.side_effect = (
+                lambda proxy, module_name, info_paths, **kwargs: gatherers[module_name]
+            )
+            visitor.run(mock_context)
+
+        assert len(mock_context.output_files) == 2
+        assert all(
+            filename.endswith("-20260724T210431.csv")
+            for filename in mock_context.output_files
+        )
+
+
+class TestOutputTagging:
+    """Output files are tagged with the gear name so consumers can recognize
+    export artifacts from typed file metadata instead of a filename pattern."""
+
+    def test_each_output_file_is_tagged(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """Tagging goes through the explicit container_type path, since an
+        output file does not exist as a container at gear runtime."""
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(mock_client, modules={"UDS"}, formver_split=True)
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS",
+                content_by_formver={"v3": "naccid\nA\n", "v4": "naccid\nB\n"},
+            )
+            visitor.run(mock_context)
+
+        tagged = {
+            call.args[0]: call.kwargs
+            for call in mock_context.metadata.update_file_metadata.call_args_list
+        }
+        assert set(tagged) == set(mock_context.output_files)
+        for kwargs in tagged.values():
+            assert kwargs["container_type"] == "project"
+            assert kwargs["tags"] == ["center-form-export"]
+
+    def test_untagged_when_no_output_is_written(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(mock_client, modules={"UDS"})
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer("UDS", content="")
+            visitor.run(mock_context)
+
+        mock_context.metadata.update_file_metadata.assert_not_called()
+
+    def test_tagging_failure_does_not_discard_output(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        """Tagging is advisory: it must not fail a run whose data is already
+        written."""
+        setup_single_subject_project(mock_proxy)
+        mock_context.metadata.update_file_metadata.side_effect = ValueError(
+            "container type project is outside the hierarchy"
+        )
+        visitor = create_visitor(mock_client, modules={"UDS"})
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS", content="header\ndata\n"
+            )
+            with caplog.at_level(logging.WARNING):
+                visitor.run(mock_context)
+
+        assert len(mock_context.output_files) == 1
+        assert "Unable to tag output file" in caplog.text
 
 
 class TestOutput:

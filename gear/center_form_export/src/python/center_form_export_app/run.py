@@ -1,6 +1,7 @@
 """Entry script for Center Form Export."""
 
 import logging
+import re
 from datetime import date
 from typing import Optional
 
@@ -19,11 +20,64 @@ from center_form_export_app.main import run
 
 log = logging.getLogger(__name__)
 
+DEFAULT_GEAR_NAME = "center-form-export"
+
+# A run_id becomes a filename segment in a '-'-delimited name, so it must
+# not contain a delimiter (or a '.', which would confuse the extension).
+# Consumers parse these names with anchored regexes; anything outside this
+# charset makes the trailing segments ambiguous.
+RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
+RUN_ID_MAX_LENGTH = 32
+
+
+def _output_stamp(run_date: str, run_id: str) -> str:
+    """Returns the per-run filename stamp.
+
+    Args:
+      run_date: the run's date, ISO formatted, computed once per gear run
+      run_id: the caller-supplied run identifier, possibly empty
+    Returns:
+      the date alone when no run_id was supplied, otherwise the date
+      followed by the run_id
+    """
+    return f"{run_date}-{run_id}" if run_id else run_date
+
+
+def _tag_output(context: GearContext, output_filename: str, gear_name: str) -> None:
+    """Tags an output file with the gear name.
+
+    Uses the explicit ``container_type`` path, which resolves the name
+    without an API lookup -- outputs do not exist as containers yet at
+    gear runtime, so the input-tagging path (``add_file_tags``) does not
+    apply.
+
+    Tagging is advisory: a failure here must not discard an export's
+    already-written data, so it is logged rather than raised. Note that
+    the gear context only writes ``.metadata.json`` when the gear exits
+    cleanly, so these tags do not survive a failed run.
+
+    Args:
+      context: the gear context
+      output_filename: the name of the output file to tag
+      gear_name: the tag to apply
+    """
+    try:
+        context.metadata.update_file_metadata(
+            output_filename,
+            container_type="project",
+            tags=[gear_name],
+        )
+    except Exception as error:  # tagging must not fail the export
+        log.warning("Unable to tag output file %s: %s", output_filename, error)
+
 
 def _write_gatherer_output(
     context: GearContext,
     gatherer: ModuleDataGatherer,
     study_id: str,
+    run_date: str,
+    run_id: str,
+    gear_name: str,
 ) -> None:
     """Writes one gatherer's data content to one or more output files.
 
@@ -33,20 +87,31 @@ def _write_gatherer_output(
     on disk before a later module has a chance to fail and halt the gear.
 
     For a gatherer with ``split_by_formver=False`` (default), produces a
-    single CSV named ``{study_id}-{module}-{date}.csv``.
+    single CSV named ``{study_id}-{module}-{stamp}.csv``.
 
     For a gatherer with ``split_by_formver=True``, produces one CSV per
     (module, formver) pair, named
-    ``{study_id}-{module}-{formver_label}-{date}.csv`` (e.g.
+    ``{study_id}-{module}-{formver_label}-{stamp}.csv`` (e.g.
     ``adrc-UDS-v4-2026-05-29.csv``). The formver label is normalized via
     ``formver_label`` (e.g. "1.0" -> "v1", missing -> "unknown").
+
+    ``stamp`` is the run date, plus the caller-supplied ``run_id`` when
+    one was given (e.g. ``2026-05-29-20260529T210431``). Both are fixed
+    for the whole gear run and passed in rather than computed here: this
+    function runs once per module, minutes apart on a large export, so
+    deriving either from the clock at write time would give each module a
+    different stamp and split one run's output across several apparent
+    runs.
 
     Args:
       context: the gear context
       gatherer: the ModuleDataGatherer to write output for
       study_id: the study identifier used in output filenames
+      run_date: the run's date, ISO formatted
+      run_id: the caller-supplied run identifier, possibly empty
+      gear_name: the tag to apply to each output file
     """
-    today = date.today().isoformat()
+    stamp = _output_stamp(run_date=run_date, run_id=run_id)
     if gatherer.split_by_formver:
         buckets = gatherer.content_by_formver
         if not buckets:
@@ -59,12 +124,15 @@ def _write_gatherer_output(
             if not content:
                 continue
             output_filename = (
-                f"{study_id}-{gatherer.module_name}-{formver_label_value}-{today}.csv"
+                f"{study_id}-{gatherer.module_name}-{formver_label_value}-{stamp}.csv"
             )
             with context.open_output(
                 output_filename, mode="w", encoding="utf-8"
             ) as output_file:
                 output_file.write(content)
+            _tag_output(
+                context=context, output_filename=output_filename, gear_name=gear_name
+            )
         return
 
     if not gatherer.content:
@@ -74,11 +142,12 @@ def _write_gatherer_output(
         )
         return
 
-    output_filename = f"{study_id}-{gatherer.module_name}-{today}.csv"
+    output_filename = f"{study_id}-{gatherer.module_name}-{stamp}.csv"
     with context.open_output(
         output_filename, mode="w", encoding="utf-8"
     ) as output_file:
         output_file.write(gatherer.content)
+    _tag_output(context=context, output_filename=output_filename, gear_name=gear_name)
 
 
 class CenterFormExportVisitor(GearExecutionEnvironment):
@@ -95,6 +164,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         formver_split: bool = False,
         batch_size: int = 100,
         reload_workers: int = 10,
+        run_id: str = "",
     ):
         super().__init__(client=client)
         self.__group_id = group_id
@@ -105,6 +175,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         self.__formver_split = formver_split
         self.__batch_size = batch_size
         self.__reload_workers = reload_workers
+        self.__run_id = run_id
 
     @classmethod
     def create(
@@ -138,6 +209,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         formver_split = options.get("formver_split", False)
         batch_size = int(options.get("batch_size", 100))
         reload_workers = int(options.get("reload_workers", 10))
+        run_id = options.get("run_id", "").strip()
 
         if not group_id:
             raise GearExecutionError("group_id must not be empty")
@@ -149,6 +221,15 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             raise GearExecutionError("batch_size must be a positive integer")
         if reload_workers <= 0:
             raise GearExecutionError("reload_workers must be a positive integer")
+        if run_id and not RUN_ID_PATTERN.match(run_id):
+            raise GearExecutionError(
+                f"run_id must contain only letters and digits, got {run_id!r}"
+            )
+        if len(run_id) > RUN_ID_MAX_LENGTH:
+            raise GearExecutionError(
+                f"run_id must be at most {RUN_ID_MAX_LENGTH} characters, "
+                f"got {len(run_id)}"
+            )
 
         return CenterFormExportVisitor(
             client=client,
@@ -160,6 +241,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             formver_split=formver_split,
             batch_size=batch_size,
             reload_workers=reload_workers,
+            run_id=run_id,
         )
 
     def run(self, context: GearContext) -> None:
@@ -171,9 +253,16 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         on to the next module, so a later module's failure doesn't
         discard an earlier module's already-completed output.
 
+        The date stamping output filenames is computed once here rather
+        than per output file, so that every module of one run shares it
+        even when the run spans midnight.
+
         Raises:
           GearExecutionError if the group or project cannot be found.
         """
+        run_date = date.today().isoformat()
+        gear_name = self.get_gear_name(context, DEFAULT_GEAR_NAME)
+
         group = self.proxy.find_group(self.__group_id)
         if not group:
             raise GearExecutionError(f"Group not found: {self.__group_id}")
@@ -207,7 +296,12 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             subject_ids=subject_ids,
             gatherers=gatherers,
             on_module_gathered=lambda gatherer: _write_gatherer_output(
-                context=context, gatherer=gatherer, study_id=self.__study_id
+                context=context,
+                gatherer=gatherer,
+                study_id=self.__study_id,
+                run_date=run_date,
+                run_id=self.__run_id,
+                gear_name=gear_name,
             ),
             batch_size=self.__batch_size,
             reload_workers=self.__reload_workers,
