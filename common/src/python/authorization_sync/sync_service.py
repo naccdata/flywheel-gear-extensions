@@ -13,8 +13,6 @@ from authorization.models import (
     UserProfile,
     UserProfileRequest,
 )
-from authorization_sync.models import DesiredGrant
-from authorization_sync.translator import translate, validate_activity_relation_map
 from users.authorizations import Authorizations
 from users.event_models import (
     EventCategory,
@@ -25,11 +23,24 @@ from users.event_models import (
 )
 from users.user_entry import UserEntry
 
+from authorization_sync.models import DesiredGrant
+from authorization_sync.translator import (
+    ACTIVITY_RELATION_MAP,
+    translate,
+    validate_activity_relation_map,
+)
+
 log = logging.getLogger(__name__)
 
 # Resource types queried during sync — derived from ACTIVITY_RELATION_MAP values.
 # The permissions endpoint requires one type per request (ADR-015).
-_SYNC_RESOURCE_TYPES = ("data_pipeline", "dashboard", "page")
+_SYNC_RESOURCE_TYPES = tuple(
+    {
+        resource_type
+        for pairs in ACTIVITY_RELATION_MAP.values()
+        for resource_type, _ in pairs
+    }
+)
 
 
 class AuthorizationClientProtocol(Protocol):
@@ -53,6 +64,8 @@ class AuthorizationClientProtocol(Protocol):
         request: UserProfileRequest,
     ) -> UserProfile: ...
 
+    def get_model(self) -> AuthorizationModelMetadata: ...
+
 
 class AuthorizationSyncService:
     """Orchestrates the query-diff-apply cycle for user grant
@@ -72,19 +85,23 @@ class AuthorizationSyncService:
         self._client = client
         self._collector = collector
 
-    def validate_model(
-        self,
-        model: AuthorizationModelMetadata,
-    ) -> None:
+    def validate_model(self) -> None:
         """Validate the activity-relation map against the live model.
 
-        Logs warnings for any mappings that reference unknown types,
-        unknown relations, or non-assignable relations. Does not raise
-        — validation failures are informational only.
-
-        Args:
-            model: The authorization model metadata from the API.
+        Fetches the model from the API and logs warnings for any
+        mappings that reference unknown types, unknown relations, or
+        non-assignable relations. Does not raise — validation failures
+        are informational only.
         """
+        try:
+            model = self._client.get_model()
+        except AuthorizationClientError as error:
+            log.warning(
+                "Could not fetch authorization model for validation: %s",
+                error,
+            )
+            return
+
         warnings = validate_activity_relation_map(model)
         for warning in warnings:
             log.warning(warning)

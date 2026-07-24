@@ -12,9 +12,12 @@ from authorization.exceptions import (
     ValidationError,
 )
 from authorization.models import (
+    AuthorizationModelMetadata,
     BatchOperation,
     BatchResult,
     PermissionEntry,
+    RelationMetadata,
+    TypeMetadata,
     UserPermissions,
     UserProfile,
     UserProfileRequest,
@@ -343,6 +346,40 @@ class MockAuthorizationClient:
             email=request.email,
             auth_email=request.auth_email,
             active=request.active if request.active is not None else True,
+        )
+
+    def get_model(self) -> AuthorizationModelMetadata:
+        """Mock get_model that returns a minimal valid model."""
+        if self.error_to_raise is not None:
+            raise self.error_to_raise
+        return AuthorizationModelMetadata(
+            version="1.0.0",
+            types={
+                "data_pipeline": TypeMetadata(
+                    name="data_pipeline",
+                    category="resource",
+                    relations={
+                        "viewer": RelationMetadata(name="viewer", assignable=True),
+                        "submitter": RelationMetadata(
+                            name="submitter", assignable=True
+                        ),
+                    },
+                ),
+                "dashboard": TypeMetadata(
+                    name="dashboard",
+                    category="resource",
+                    relations={
+                        "viewer": RelationMetadata(name="viewer", assignable=True),
+                    },
+                ),
+                "page": TypeMetadata(
+                    name="page",
+                    category="resource",
+                    relations={
+                        "viewer": RelationMetadata(name="viewer", assignable=True),
+                    },
+                ),
+            },
         )
 
 
