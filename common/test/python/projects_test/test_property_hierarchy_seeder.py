@@ -204,3 +204,114 @@ class TestProperty4NonPropagationOfClientExceptions:
         # Verify: one failure counted, two calls made
         assert seeder.failure_count == 1
         assert mock_client.set_resource_parents.call_count == 2
+
+
+class TestProperty5SkipWhenParentsAlreadyMatch:
+    """Property 5: Read-before-write skip optimization.
+
+    When get_resource_parents returns parents that match the desired
+    state, set_resource_parents SHALL NOT be called and skip_count SHALL
+    be incremented.
+    """
+
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
+    @given(
+        resource_id=resource_ids,
+        study_id=study_ids,
+        center_id=center_ids,
+    )
+    def test_skip_count_increments_when_parents_match(
+        self,
+        resource_id: str,
+        study_id: str,
+        center_id: str,
+    ) -> None:
+        """skip_count increments when current parents match desired.
+
+        Validates read-before-write optimization.
+        """
+        from authorization.models import ParentRelationship, ResourceParents
+
+        # Build the expected parents for a center-scoped pipeline
+        expected_parents = [
+            ParentRelationship(
+                structural_relation="parent_study",
+                parent_type="study",
+                parent_id=study_id,
+            ),
+            ParentRelationship(
+                structural_relation="parent_center",
+                parent_type="research_center",
+                parent_id=center_id,
+            ),
+        ]
+
+        mock_client = MagicMock(spec=AuthorizationClient)
+        # get_resource_parents returns parents that already match
+        mock_client.get_resource_parents.return_value = ResourceParents(
+            type="data_pipeline",
+            resource_id=resource_id,
+            parents=expected_parents,
+        )
+
+        seeder = ResourceHierarchySeeder(client=mock_client)
+
+        seeder.seed_center_pipeline(
+            resource_id=resource_id,
+            study_id=study_id,
+            center_id=center_id,
+        )
+
+        # set_resource_parents should NOT have been called
+        mock_client.set_resource_parents.assert_not_called()
+        # skip_count should be incremented
+        assert seeder.skip_count == 1
+        # failure_count should remain 0
+        assert seeder.failure_count == 0
+
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
+    @given(
+        resource_id=resource_ids,
+        study_id=study_ids,
+        center_id=center_ids,
+    )
+    def test_write_proceeds_when_parents_differ(
+        self,
+        resource_id: str,
+        study_id: str,
+        center_id: str,
+    ) -> None:
+        """Write proceeds when current parents do not match desired.
+
+        Validates that mismatched parents trigger a write.
+        """
+        from authorization.models import ParentRelationship, ResourceParents
+
+        # Return different parents from what the seeder expects
+        different_parents = [
+            ParentRelationship(
+                structural_relation="parent_study",
+                parent_type="study",
+                parent_id="different-study",
+            ),
+        ]
+
+        mock_client = MagicMock(spec=AuthorizationClient)
+        mock_client.get_resource_parents.return_value = ResourceParents(
+            type="data_pipeline",
+            resource_id=resource_id,
+            parents=different_parents,
+        )
+
+        seeder = ResourceHierarchySeeder(client=mock_client)
+
+        seeder.seed_center_pipeline(
+            resource_id=resource_id,
+            study_id=study_id,
+            center_id=center_id,
+        )
+
+        # set_resource_parents SHOULD have been called
+        mock_client.set_resource_parents.assert_called_once()
+        # skip_count should remain 0
+        assert seeder.skip_count == 0
