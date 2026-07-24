@@ -9,9 +9,8 @@ authorizations.
 import logging
 
 from authorization.models import AuthorizationModelMetadata
-from users.authorizations import Authorizations
-
 from authorization_sync.models import DesiredGrant
+from users.authorizations import Authorizations, StudyAuthorizations
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +30,61 @@ ACTIVITY_RELATION_MAP: dict[
 }
 
 
+def _build_resource_id(
+    resource_prefix: str,
+    resource_name: str,
+    center_group_id: str | None,
+    study_id: str | None,
+) -> str:
+    """Build a resource ID using the Authorization API format.
+
+    For center-scoped resources the format is:
+        {center}_{resource_name}-{study_id}
+
+    For non-center resources (study-scoped or community-scoped):
+        {resource_name}-{study_id}
+
+    The study_id is always explicit (never omitted for the primary study).
+    The underscore separator is safe because center names never contain
+    underscores.
+
+    For data_pipeline resources the resource_name is the pipeline label
+    (e.g., "ingest-form") so the full ID becomes
+    "washington_ingest-form-adrc".
+
+    Args:
+        resource_prefix: The resource type prefix ("datatype", "dashboard",
+            "page").
+        resource_name: The resource name from the authorization activity.
+        center_group_id: The Flywheel group ID for the center, or None
+            for general authorizations.
+        study_id: The study identifier, or None if unavailable.
+
+    Returns:
+        The formatted resource ID.
+    """
+    # Build the label portion based on resource type
+    if resource_prefix == "datatype":
+        # Data pipelines use "ingest-{datatype}" as the label
+        label = f"ingest-{resource_name}"
+    elif resource_prefix == "dashboard":
+        label = f"dashboard-{resource_name}"
+    elif resource_prefix == "page":
+        label = f"page-{resource_name}"
+    else:
+        label = resource_name
+
+    # Append study_id (always explicit per ADR-016)
+    if study_id:
+        label = f"{label}-{study_id}"
+
+    # Add center prefix for center-scoped resources
+    if center_group_id is not None:
+        return f"{center_group_id}_{label}"
+
+    return label
+
+
 def translate(
     registry_id: str,
     authorizations: Authorizations,
@@ -41,9 +95,12 @@ def translate(
     Iterates activities in the authorizations and maps each to grants
     using ACTIVITY_RELATION_MAP.
 
-    Resource ID scoping depends on center_group_id:
-    - When provided: resource_id = "{center_group_id}/{project_label}"
-    - When None: resource_id = "{project_label}" (no prefix)
+    Resource ID format follows ADR-016:
+    - Center-scoped: "{center}_{label}-{study_id}"
+    - Non-center: "{label}-{study_id}"
+
+    The study_id is always explicit.  For data_pipeline resources the
+    label includes the ingest stage prefix (e.g., "ingest-form").
 
     Works with both Authorizations (general) and StudyAuthorizations
     (center-scoped) since StudyAuthorizations extends Authorizations.
@@ -58,12 +115,17 @@ def translate(
     Returns:
         Set of DesiredGrant objects.
     """
+    # Extract study_id from StudyAuthorizations if available
+    study_id: str | None = None
+    if isinstance(authorizations, StudyAuthorizations):
+        study_id = authorizations.study_id
+
     grants: set[DesiredGrant] = set()
 
     for resource, activity in authorizations.activities.items():
         action = activity.action
         resource_prefix = resource.prefix()
-        project_label = resource.name
+        resource_name = resource.name
 
         mapping_key = (action, resource_prefix)
         mapped_pairs = ACTIVITY_RELATION_MAP.get(mapping_key)
@@ -74,15 +136,16 @@ def translate(
                 "resource_name=%s — skipping",
                 action,
                 resource_prefix,
-                project_label,
+                resource_name,
             )
             continue
 
-        # Construct resource_id based on scoping
-        if center_group_id is not None:
-            resource_id = f"{center_group_id}/{project_label}"
-        else:
-            resource_id = project_label
+        resource_id = _build_resource_id(
+            resource_prefix=resource_prefix,
+            resource_name=resource_name,
+            center_group_id=center_group_id,
+            study_id=study_id,
+        )
 
         for api_resource_type, relation in mapped_pairs:
             grants.add(
