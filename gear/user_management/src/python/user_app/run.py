@@ -130,7 +130,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             "notification configuration",
         )
         portal_url = cls._get_parameters(
-            parameter_store.get_portal_url, portal_path, "portal URL"
+            parameter_store.get_url, portal_path, "portal URL"
         )
 
         # Parse support emails from notification parameters
@@ -416,11 +416,11 @@ class UserManagementVisitor(GearExecutionEnvironment):
             return None
 
         try:
-            url_param = self.__parameter_store.get_authorization_url(
-                self.__authorization_path
-            )
+            url_param = self.__parameter_store.get_url(self.__authorization_path)
             client = create_authorization_client(base_url=url_param["url"])
-            return AuthorizationSyncService(client=client, collector=collector)
+            service = AuthorizationSyncService(client=client, collector=collector)
+            service.validate_model()
+            return service
         except (ParameterError, ConfigurationError) as error:
             log.error(
                 "Authorization sync disabled: failed to create client: %s",

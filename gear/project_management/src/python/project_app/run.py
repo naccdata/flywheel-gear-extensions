@@ -106,9 +106,7 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
         authorization_client: Optional[AuthorizationClient] = None
         if self.__parameter_store and self.__authorization_path:
             try:
-                url_param = self.__parameter_store.get_authorization_url(
-                    self.__authorization_path
-                )
+                url_param = self.__parameter_store.get_url(self.__authorization_path)
                 authorization_client = create_authorization_client(
                     base_url=url_param["url"]
                 )

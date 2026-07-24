@@ -66,7 +66,7 @@ class TestRunClientCreationSuccess:
         mock_gear_context: MagicMock,
     ) -> None:
         """Successful SSM lookup and client creation passes client to run()."""
-        mock_parameter_store.get_authorization_url.return_value = {
+        mock_parameter_store.get_url.return_value = {
             "url": "https://api.example.com/auth"
         }
         mock_auth_client = MagicMock(spec=AuthorizationClient)
@@ -82,7 +82,7 @@ class TestRunClientCreationSuccess:
 
         visitor.run(mock_gear_context)
 
-        mock_parameter_store.get_authorization_url.assert_called_once_with(
+        mock_parameter_store.get_url.assert_called_once_with(
             "/prod/authorization/api-endpoint"
         )
         mock_create_client.assert_called_once_with(
@@ -111,9 +111,7 @@ class TestRunClientCreationParameterError:
         mock_gear_context: MagicMock,
     ) -> None:
         """ParameterError from SSM results in None authorization_client."""
-        mock_parameter_store.get_authorization_url.side_effect = ParameterError(
-            "Parameter not found"
-        )
+        mock_parameter_store.get_url.side_effect = ParameterError("Parameter not found")
 
         visitor = ProjectCreationVisitor(
             admin_id="nacc",
@@ -142,9 +140,7 @@ class TestRunClientCreationParameterError:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """ParameterError logs an error message."""
-        mock_parameter_store.get_authorization_url.side_effect = ParameterError(
-            "Parameter not found"
-        )
+        mock_parameter_store.get_url.side_effect = ParameterError("Parameter not found")
 
         visitor = ProjectCreationVisitor(
             admin_id="nacc",
