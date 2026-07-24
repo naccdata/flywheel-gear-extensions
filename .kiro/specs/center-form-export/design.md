@@ -1,5 +1,17 @@
 # Design Document: center-form-export
 
+> **Superseded, 2026-07-16 through 23:** the per-subject architecture below (`DataRequestMatch`/`gather_request_data`) was replaced in several iterations, driven by real failures and benchmarks, not just design preference:
+> - Original per-subject design: 1h52m in production against Arizona's ~25k-file `retrospective-form` (a large, legacy-import center used as a test case — not confirmed to be the largest or worst-case center overall).
+> - Attempt 1 — one unscoped query per module for the whole project: abandoned same day after reliably hitting a Flywheel read-timeout on a specific pagination cursor, retrying ~10min, then hard-failing with zero output.
+> - Attempt 2 — batch subject ids into groups (OR-list filter `parents.subject=|[...]`, default 100/batch): avoided the timeout, but a side-by-side test showed only ~24% faster than the original (557s→424s) — revealed `.reload()` calls, not query count, as the dominant cost.
+> - A dataview-based bulk-fetch was investigated to eliminate the reload N+1, confirmed unworkable (dataviews only support named scalar fields; this gear's fields are dynamic per module).
+> - Added concurrent `.reload()` via a bounded thread pool (benchmarked ~6.7x reload speedup first, before implementing).
+> - Full validation against `retrospective-form`: 16m10s vs. the 1h52m14s baseline (~6.9x faster), byte-comparable output. The original timeout did not reproduce (presumed transient — neither fix directly addresses that specific mechanism).
+> - Code review (2026-07-20) drove: `batch_size`/`reload_workers` made explicit params *and* gear config fields; the thread pool reused across batches instead of rebuilt per batch; output written per-module immediately instead of batched to the end (Requirement 3.11/4.4); shared-client thread-safety documented as an accepted, unverified assumption (Requirement 4.6).
+> - A `batch_size` sweep (25/100/200, `ingest-form` + `retrospective-form`) confirmed 100 as the default: 25 was slower everywhere; 200 was faster on the small center but a wash on the largest (reload volume dominates there) and didn't reproduce the timeout — confirming 100 has real margin, not a fragile edge.
+>
+> `gather_request_data`/`DataRequestMatch` are still not used by this gear — see `ModuleDataGatherer.gather_project_data` and Requirement 3 in `requirements.md` for the current design. Everything below (diagrams, code snippets, Property 2/3) describes the original per-subject design and is kept for historical context only.
+
 ## Overview
 
 This design extracts the "project mode" execution path from the `gather_form_data` gear into a standalone gear called `center_form_export`. The new gear iterates all subjects in a Flywheel group/project and exports form data per module, while the original gear reverts to participant-list-only behavior.
@@ -432,4 +444,3 @@ Tests use:
 - `hypothesis` — property-based testing
 - `unittest.mock` — mocking Flywheel SDK and proxies
 - Shared mock fixtures in `conftest.py` for `ClientWrapper`, `FlywheelProxy`, and `GearContext`
-

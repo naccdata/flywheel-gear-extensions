@@ -120,6 +120,88 @@ class TestErrorHandling:
         assert "No subjects found" in caplog.text
         mock_context.open_output.assert_not_called()
 
+    def test_project_with_no_matching_files(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        """When subjects exist but a module's batched query returns no files,
+        skip output for that module and log a warning."""
+        mock_group = MagicMock()
+        mock_project = MagicMock()
+        mock_project.id = "proj-with-subjects"
+        mock_project.label = "test-project"
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
+
+        mock_proxy.find_group.return_value = mock_group
+        mock_group.find_project.return_value = mock_project
+        mock_proxy.get_files.return_value = []
+
+        visitor = create_visitor(mock_client)
+
+        with caplog.at_level(logging.WARNING):
+            visitor.run(mock_context)
+
+        assert "skipping output for module UDS" in caplog.text
+        mock_context.open_output.assert_not_called()
+
+
+class TestBatchSizeAndReloadWorkersConfig:
+    """batch_size/reload_workers are read from gear config (with defaults of
+    100/10) and passed through to main.run()."""
+
+    def _setup_project(self, mock_proxy: MagicMock) -> None:
+        mock_group = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
+        mock_proxy.find_group.return_value = mock_group
+        mock_group.find_project.return_value = mock_project
+
+    def test_defaults_used_when_not_configured(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        self._setup_project(mock_proxy)
+        visitor = create_visitor(mock_client)
+
+        with patch("center_form_export_app.run.run") as mock_run:
+            visitor.run(mock_context)
+
+        assert mock_run.call_args.kwargs["batch_size"] == 100
+        assert mock_run.call_args.kwargs["reload_workers"] == 10
+
+    def test_configured_values_passed_through(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        self._setup_project(mock_proxy)
+        visitor = CenterFormExportVisitor(
+            client=mock_client,
+            group_id="test-group",
+            project_name="test-project",
+            info_paths=["forms.json"],
+            modules={"UDS"},
+            study_id="adrc",
+            batch_size=250,
+            reload_workers=5,
+        )
+
+        with patch("center_form_export_app.run.run") as mock_run:
+            visitor.run(mock_context)
+
+        assert mock_run.call_args.kwargs["batch_size"] == 250
+        assert mock_run.call_args.kwargs["reload_workers"] == 5
+
 
 class TestOutput:
     """Tests for CSV output file production.
@@ -133,15 +215,14 @@ class TestOutput:
         mock_proxy: MagicMock,
         mock_context: MagicMock,
     ):
-        """When subjects have data, output files are written."""
+        """When a gatherer has data, output files are written."""
         mock_group = MagicMock()
         mock_project = MagicMock()
-        subjects = [
-            create_mock_subject("NACC000001", "sub-001"),
-            create_mock_subject("NACC000002", "sub-002"),
-        ]
-        mock_project.project.subjects.iter.return_value = iter(subjects)
+        mock_project.id = "proj-123"
         mock_project.label = "test-project"
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
 
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
@@ -174,9 +255,11 @@ class TestOutput:
         """Output filename follows {study_id}-{module}-{date}.csv pattern."""
         mock_group = MagicMock()
         mock_project = MagicMock()
-        subjects = [create_mock_subject("NACC000001", "sub-001")]
-        mock_project.project.subjects.iter.return_value = iter(subjects)
+        mock_project.id = "proj-123"
         mock_project.label = "test-project"
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
 
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
@@ -210,9 +293,11 @@ class TestOutput:
         """Only modules with content produce output; empty ones are skipped."""
         mock_group = MagicMock()
         mock_project = MagicMock()
-        subjects = [create_mock_subject("NACC000001", "sub-001")]
-        mock_project.project.subjects.iter.return_value = iter(subjects)
+        mock_project.id = "proj-123"
         mock_project.label = "test-project"
+        mock_project.project.subjects.iter.return_value = iter(
+            [create_mock_subject("NACC000001", "sub-001")]
+        )
 
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
@@ -280,10 +365,11 @@ class TestFormverSplit:
         """A gatherer with two formver buckets produces two output files."""
         mock_group = MagicMock()
         mock_project = MagicMock()
+        mock_project.id = "proj-123"
+        mock_project.label = "test-project"
         mock_project.project.subjects.iter.return_value = iter(
             [create_mock_subject("NACC000001", "sub-001")]
         )
-        mock_project.label = "test-project"
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
 
@@ -328,10 +414,11 @@ class TestFormverSplit:
         """Buckets with empty content do not produce files."""
         mock_group = MagicMock()
         mock_project = MagicMock()
+        mock_project.id = "proj-123"
+        mock_project.label = "test-project"
         mock_project.project.subjects.iter.return_value = iter(
             [create_mock_subject("NACC000001", "sub-001")]
         )
-        mock_project.label = "test-project"
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
 
@@ -365,10 +452,11 @@ class TestFormverSplit:
         """A gatherer that gathered no rows produces no files and logs."""
         mock_group = MagicMock()
         mock_project = MagicMock()
+        mock_project.id = "proj-123"
+        mock_project.label = "test-project"
         mock_project.project.subjects.iter.return_value = iter(
             [create_mock_subject("NACC000001", "sub-001")]
         )
-        mock_project.label = "test-project"
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
 

@@ -2,7 +2,7 @@
   "name": "center-form-export",
   "label": "Center Form Export",
   "description": "Exports form data for all subjects in a Flywheel group/project without a participant list",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "NACC",
   "maintainer": "NACC <nacchelp@uw.edu>",
   "cite": "",
@@ -15,7 +15,7 @@
   "custom": {
     "gear-builder": {
       "category": "utility",
-      "image": "naccdata/center-form-export:0.0.2"
+      "image": "naccdata/center-form-export:0.0.3"
     },
     "flywheel": {
       "suite": "Utility",
@@ -60,6 +60,16 @@
       "description": "The instance specific AWS parameter path prefix for apikey",
       "type": "string",
       "default": "/prod/flywheel/gearbot"
+    },
+    "batch_size": {
+      "description": "Number of subject ids per query batch when gathering project data",
+      "type": "integer",
+      "default": 100
+    },
+    "reload_workers": {
+      "description": "Number of concurrent workers used to reload each batch's files",
+      "type": "integer",
+      "default": 10
     }
   },
   "command": "/bin/run"
