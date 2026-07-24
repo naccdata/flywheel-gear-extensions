@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.1.3
+
+* Fixes timezone mismatch in incremental pull date range computation
+* Computes `dateRangeBegin` in America/Los_Angeles (Pacific) to match the REDCap server's PHP timezone configuration
+* Drops `dateRangeEnd` parameter, letting REDCap use its own server time as the upper bound
+* Previously the gear used container-local time, which could produce a query window in the wrong time range and return zero records
+
 ## 4.1.2
 
 * Skips writing the user file when no valid user entries are produced, preventing user-management from being triggered on empty incremental pulls

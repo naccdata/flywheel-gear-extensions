@@ -233,6 +233,29 @@ def empty_field_error(
     )
 
 
+def date_parse_error(
+    field: str,
+    value: str,
+    line: int,
+) -> FileError:
+    """Creates a FileError for a date field that cannot be parsed.
+
+    Args:
+      field: the field name
+      value: the unparseable date value
+      line: the line number in the CSV
+    Returns:
+      a FileError for the date parse failure
+    """
+    return FileError(
+        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_code="date-parse-error",  # pyright: ignore[reportCallIssue]
+        location=CSVLocation(line=line, column_name=field),
+        value=value,
+        message=f"Unable to parse date value '{value}' for field '{field}'",
+    )
+
+
 def malformed_file_error(error: str) -> FileError:
     """Creates a FileError for a malformed input file."""
     return FileError(

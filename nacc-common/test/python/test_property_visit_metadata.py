@@ -5,11 +5,19 @@
 **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 """
 
+import datetime
 from typing import Any, Dict
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from nacc_common.error_models import DataIdentification
+
+# Constrain dates to a realistic range so dateutil can round-trip them.
+# Years < 100 produce ambiguous short strings that dateutil misinterprets.
+_REALISTIC_DATES = st.dates(
+    min_value=datetime.date(1900, 1, 1),
+    max_value=datetime.date(2100, 12, 31),
+).map(lambda d: d.strftime("%Y-%m-%d"))
 
 
 @st.composite
@@ -23,7 +31,7 @@ def visit_keys_strategy(draw):
         "ptid": draw(st.text(min_size=1, max_size=10)),  # Required
         "visitnum": draw(st.one_of(st.none(), st.text(min_size=1, max_size=3))),
         "module": draw(st.text(min_size=1, max_size=10)),  # Required
-        "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),  # Required
+        "date": draw(_REALISTIC_DATES),  # Required
         "naccid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=15))),
     }
 
@@ -40,7 +48,7 @@ def visit_metadata_strategy(draw):
         "ptid": draw(st.text(min_size=1, max_size=10)),  # Required
         "visitnum": draw(st.one_of(st.none(), st.text(min_size=1, max_size=3))),
         "module": draw(st.text(min_size=1, max_size=10)),  # Required
-        "date": draw(st.dates().map(lambda d: d.strftime("%Y-%m-%d"))),  # Required
+        "date": draw(_REALISTIC_DATES),  # Required
         "naccid": draw(st.one_of(st.none(), st.text(min_size=1, max_size=15))),
         "packet": draw(st.one_of(st.none(), st.text(min_size=1, max_size=5))),
     }

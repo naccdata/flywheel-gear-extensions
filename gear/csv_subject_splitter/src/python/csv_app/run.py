@@ -43,6 +43,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         hierarchy_labels: Dict[str, str],
         preserve_case: bool,
         req_fields: Set[str],
+        normalize_dates: Set[str],
     ) -> None:
         self.__client = client
         self.__device_key = device_key
@@ -50,6 +51,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         self.__hierarchy_labels = hierarchy_labels
         self.__preserve_case = preserve_case
         self.__req_fields = req_fields
+        self.__normalize_dates = normalize_dates
 
     @classmethod
     def create(
@@ -95,6 +97,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
 
         preserve_case = options.get("preserve_case", False)
         req_fields = set(parse_string_to_list(options.get("required_fields", "")))
+        normalize_dates = set(parse_string_to_list(options.get("normalize_dates", "")))
 
         return CsvToJsonVisitor(
             client=client,
@@ -103,6 +106,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             hierarchy_labels=hierarchy_labels,
             preserve_case=preserve_case,
             req_fields=req_fields,
+            normalize_dates=normalize_dates,
         )
 
     def run(self, context: GearContext) -> None:
@@ -150,6 +154,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 error_writer=error_writer,
                 preserve_case=self.__preserve_case,
                 req_fields=self.__req_fields,
+                normalize_dates=self.__normalize_dates,
             )
 
             context.metadata.add_qc_result(
