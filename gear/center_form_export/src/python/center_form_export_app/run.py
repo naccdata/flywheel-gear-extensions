@@ -147,6 +147,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             raise GearExecutionError("at least one module must be specified")
         if batch_size <= 0:
             raise GearExecutionError("batch_size must be a positive integer")
+        if reload_workers <= 0:
+            raise GearExecutionError("reload_workers must be a positive integer")
 
         return CenterFormExportVisitor(
             client=client,
