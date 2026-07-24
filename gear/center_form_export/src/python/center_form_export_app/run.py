@@ -136,8 +136,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
         study_id = options.get("study_id", "adrc")
         formver_split = options.get("formver_split", False)
-        batch_size = options.get("batch_size", 100)
-        reload_workers = options.get("reload_workers", 10)
+        batch_size = int(options.get("batch_size", 100))
+        reload_workers = int(options.get("reload_workers", 10))
 
         if not group_id:
             raise GearExecutionError("group_id must not be empty")
@@ -145,6 +145,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             raise GearExecutionError("project_name must not be empty")
         if not modules:
             raise GearExecutionError("at least one module must be specified")
+        if batch_size <= 0:
+            raise GearExecutionError("batch_size must be a positive integer")
 
         return CenterFormExportVisitor(
             client=client,

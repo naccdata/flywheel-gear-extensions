@@ -377,3 +377,27 @@ class TestModuleDataGathererProjectQuery:
         # 3 batches (10, 10, 5), but only one pool for the whole call.
         assert proxy.get_files.call_count == 3
         mock_pool_cls.assert_called_once()
+
+    def test_error_during_file_listing_propagates_without_processing_batch(self):
+        """A file-list iterable that raises partway through (e.g. a paginated
+        query's cursor timing out) surfaces immediately: ThreadPoolExecutor.map
+        fully consumes its input iterable to submit futures before returning
+        any results, so nothing from that batch -- not even files listed before
+        the failure -- gets processed."""
+
+        def raising_files():
+            yield _make_file_mock({"naccid": "NACC0001", "field_a": "x"}, "file-1")
+            raise ConnectionError("pagination cursor timeout")
+
+        proxy = MagicMock()
+        proxy.get_files.return_value = raising_files()
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        with pytest.raises(ConnectionError, match="pagination cursor timeout"):
+            gatherer.gather_project_data(["sub-1"])
+
+        assert gatherer.content == ""
