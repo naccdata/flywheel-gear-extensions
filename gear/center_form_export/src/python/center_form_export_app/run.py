@@ -4,7 +4,7 @@ import logging
 from datetime import date
 from typing import Optional
 
-from data_requests.data_request import DataRequestMatch, ModuleDataGatherer
+from data_requests.data_request import ModuleDataGatherer
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -20,17 +20,22 @@ from center_form_export_app.main import run
 log = logging.getLogger(__name__)
 
 
-def _write_module_output(
+def _write_gatherer_output(
     context: GearContext,
-    gatherers: list[ModuleDataGatherer],
+    gatherer: ModuleDataGatherer,
     study_id: str,
 ) -> None:
-    """Writes the data content in each gatherer to one or more output files.
+    """Writes one gatherer's data content to one or more output files.
 
-    For gatherers with ``split_by_formver=False`` (default), produces a single
-    CSV per module named ``{study_id}-{module}-{date}.csv``.
+    Called immediately after each module finishes gathering (see
+    ``main.run``'s ``on_module_gathered`` callback), rather than after all
+    modules have gathered, so that an already-completed module's output is
+    on disk before a later module has a chance to fail and halt the gear.
 
-    For gatherers with ``split_by_formver=True``, produces one CSV per
+    For a gatherer with ``split_by_formver=False`` (default), produces a
+    single CSV named ``{study_id}-{module}-{date}.csv``.
+
+    For a gatherer with ``split_by_formver=True``, produces one CSV per
     (module, formver) pair, named
     ``{study_id}-{module}-{formver_label}-{date}.csv`` (e.g.
     ``adrc-UDS-v4-2026-05-29.csv``). The formver label is normalized via
@@ -38,44 +43,42 @@ def _write_module_output(
 
     Args:
       context: the gear context
-      gatherers: a list of ModuleDataGatherer objects
+      gatherer: the ModuleDataGatherer to write output for
       study_id: the study identifier used in output filenames
     """
     today = date.today().isoformat()
-    for gatherer in gatherers:
-        if gatherer.split_by_formver:
-            buckets = gatherer.content_by_formver
-            if not buckets:
-                log.warning(
-                    "skipping output for module %s: no data found",
-                    gatherer.module_name,
-                )
-                continue
-            for formver_label_value, content in buckets.items():
-                if not content:
-                    continue
-                output_filename = (
-                    f"{study_id}-{gatherer.module_name}-"
-                    f"{formver_label_value}-{today}.csv"
-                )
-                with context.open_output(
-                    output_filename, mode="w", encoding="utf-8"
-                ) as output_file:
-                    output_file.write(content)
-            continue
-
-        if not gatherer.content:
+    if gatherer.split_by_formver:
+        buckets = gatherer.content_by_formver
+        if not buckets:
             log.warning(
                 "skipping output for module %s: no data found",
                 gatherer.module_name,
             )
-            continue
+            return
+        for formver_label_value, content in buckets.items():
+            if not content:
+                continue
+            output_filename = (
+                f"{study_id}-{gatherer.module_name}-{formver_label_value}-{today}.csv"
+            )
+            with context.open_output(
+                output_filename, mode="w", encoding="utf-8"
+            ) as output_file:
+                output_file.write(content)
+        return
 
-        output_filename = f"{study_id}-{gatherer.module_name}-{today}.csv"
-        with context.open_output(
-            output_filename, mode="w", encoding="utf-8"
-        ) as output_file:
-            output_file.write(gatherer.content)
+    if not gatherer.content:
+        log.warning(
+            "skipping output for module %s: no data found",
+            gatherer.module_name,
+        )
+        return
+
+    output_filename = f"{study_id}-{gatherer.module_name}-{today}.csv"
+    with context.open_output(
+        output_filename, mode="w", encoding="utf-8"
+    ) as output_file:
+        output_file.write(gatherer.content)
 
 
 class CenterFormExportVisitor(GearExecutionEnvironment):
@@ -90,6 +93,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         modules: set[str],
         study_id: str,
         formver_split: bool = False,
+        batch_size: int = 100,
+        reload_workers: int = 10,
     ):
         super().__init__(client=client)
         self.__group_id = group_id
@@ -98,6 +103,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         self.__modules = modules
         self.__study_id = study_id
         self.__formver_split = formver_split
+        self.__batch_size = batch_size
+        self.__reload_workers = reload_workers
 
     @classmethod
     def create(
@@ -129,6 +136,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
         study_id = options.get("study_id", "adrc")
         formver_split = options.get("formver_split", False)
+        batch_size = int(options.get("batch_size", 100))
+        reload_workers = int(options.get("reload_workers", 10))
 
         if not group_id:
             raise GearExecutionError("group_id must not be empty")
@@ -136,6 +145,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             raise GearExecutionError("project_name must not be empty")
         if not modules:
             raise GearExecutionError("at least one module must be specified")
+        if batch_size <= 0:
+            raise GearExecutionError("batch_size must be a positive integer")
 
         return CenterFormExportVisitor(
             client=client,
@@ -145,13 +156,18 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             modules=modules,
             study_id=study_id,
             formver_split=formver_split,
+            batch_size=batch_size,
+            reload_workers=reload_workers,
         )
 
     def run(self, context: GearContext) -> None:
         """Runs the center form export.
 
-        Resolves group/project, iterates subjects, gathers data, and
-        writes output files.
+        Resolves the group/project, then gathers and writes each
+        configured module's data in turn: each module's output is written
+        to disk as soon as that module finishes gathering, before moving
+        on to the next module, so a later module's failure doesn't
+        discard an earlier module's already-completed output.
 
         Raises:
           GearExecutionError if the group or project cannot be found.
@@ -166,23 +182,14 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
                 f"Project not found: {self.__project_name} in group {self.__group_id}"
             )
 
-        subjects = list(project.project.subjects.iter())
-        if not subjects:
+        subject_ids = [subject.id for subject in project.project.subjects.iter()]
+        if not subject_ids:
             log.warning(
                 "No subjects found in project %s/%s",
                 self.__group_id,
                 self.__project_name,
             )
             return
-
-        requests = [
-            DataRequestMatch(
-                naccid=subject.label,
-                subject_id=subject.id,
-                project_label=project.label,
-            )
-            for subject in subjects
-        ]
 
         gatherers = [
             ModuleDataGatherer(
@@ -194,12 +201,14 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             for module_name in self.__modules
         ]
 
-        run(requests=requests, gatherers=gatherers)
-
-        _write_module_output(
-            context=context,
+        run(
+            subject_ids=subject_ids,
             gatherers=gatherers,
-            study_id=self.__study_id,
+            on_module_gathered=lambda gatherer: _write_gatherer_output(
+                context=context, gatherer=gatherer, study_id=self.__study_id
+            ),
+            batch_size=self.__batch_size,
+            reload_workers=self.__reload_workers,
         )
 
 
