@@ -187,8 +187,16 @@ Grants that already exist are not re-sent.
 
 ### Scoping
 
-- For center-scoped authorizations (study-specific), the resource ID is `{center_group_id}/{resource_name}`
-- For general authorizations (not center-specific), the resource ID is just `{resource_name}`
+- For center-scoped authorizations (study-specific), the resource ID is `{center_group_id}_{resource_label}-{study_id}`
+- For general authorizations (not center-specific), the resource ID is `{resource_label}-{study_id}`
+
+The resource label depends on the resource type:
+
+- Data pipelines: `ingest-{datatype}` (e.g., `ingest-form`)
+- Dashboards: `dashboard-{name}` (e.g., `dashboard-reports`)
+- Pages: `page-{name}` (e.g., `page-enrollment`)
+
+For example, a center-scoped data pipeline for the `form` datatype in center `washington` and study `adrc` would have resource ID: `washington_ingest-form-adrc`.
 
 ### Failure behavior
 
