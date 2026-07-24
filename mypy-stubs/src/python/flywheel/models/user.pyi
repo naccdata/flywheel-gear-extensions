@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 
@@ -14,13 +15,13 @@ class User:
         roles: Optional[List[str]] = None,
         root: Optional[bool] = None,
         disabled: Optional[bool] = None,
+        deleted: Optional[datetime] = None,
         # preferences: Optional[preferences],
         # wechat: Optional[wechat],
         # firstlogin: Optional[firstlogin],
         # lastlogin: Optional[lastlogin],
         # created: Optional[created],
         # modified: Optional[modified],
-        # deleted: Optional[deleted],
         # api_key: Optional[api_key],
         # api_keys: Optional[api_keys]
     ) -> None:
@@ -32,6 +33,14 @@ class User:
 
     @property
     def email(self) -> Optional[str]:
+        ...
+
+    @property
+    def disabled(self) -> Optional[bool]:
+        ...
+
+    @property
+    def deleted(self) -> Optional[datetime]:
         ...
 
     @property
