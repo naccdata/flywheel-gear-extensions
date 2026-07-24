@@ -9,8 +9,13 @@ authorizations.
 import logging
 
 from authorization.models import AuthorizationModelMetadata
-from authorization_sync.models import DesiredGrant
 from users.authorizations import Authorizations, StudyAuthorizations
+
+from authorization_sync.models import DesiredGrant
+from authorization_sync.resource_ids import (
+    build_label_for_resource_prefix,
+    build_resource_id,
+)
 
 log = logging.getLogger(__name__)
 
@@ -28,61 +33,6 @@ ACTIVITY_RELATION_MAP: dict[
     ("view", "dashboard"): [("dashboard", "viewer")],
     ("view", "page"): [("page", "viewer")],
 }
-
-
-def _build_resource_id(
-    resource_prefix: str,
-    resource_name: str,
-    center_group_id: str | None,
-    study_id: str | None,
-) -> str:
-    """Build a resource ID using the Authorization API format.
-
-    For center-scoped resources the format is:
-        {center}_{resource_name}-{study_id}
-
-    For non-center resources (study-scoped or community-scoped):
-        {resource_name}-{study_id}
-
-    The study_id is always explicit (never omitted for the primary study).
-    The underscore separator is safe because center names never contain
-    underscores.
-
-    For data_pipeline resources the resource_name is the pipeline label
-    (e.g., "ingest-form") so the full ID becomes
-    "washington_ingest-form-adrc".
-
-    Args:
-        resource_prefix: The resource type prefix ("datatype", "dashboard",
-            "page").
-        resource_name: The resource name from the authorization activity.
-        center_group_id: The Flywheel group ID for the center, or None
-            for general authorizations.
-        study_id: The study identifier, or None if unavailable.
-
-    Returns:
-        The formatted resource ID.
-    """
-    # Build the label portion based on resource type
-    if resource_prefix == "datatype":
-        # Data pipelines use "ingest-{datatype}" as the label
-        label = f"ingest-{resource_name}"
-    elif resource_prefix == "dashboard":
-        label = f"dashboard-{resource_name}"
-    elif resource_prefix == "page":
-        label = f"page-{resource_name}"
-    else:
-        label = resource_name
-
-    # Append study_id (always explicit per ADR-016)
-    if study_id:
-        label = f"{label}-{study_id}"
-
-    # Add center prefix for center-scoped resources
-    if center_group_id is not None:
-        return f"{center_group_id}_{label}"
-
-    return label
 
 
 def translate(
@@ -140,10 +90,10 @@ def translate(
             )
             continue
 
-        resource_id = _build_resource_id(
-            resource_prefix=resource_prefix,
-            resource_name=resource_name,
-            center_group_id=center_group_id,
+        label = build_label_for_resource_prefix(resource_prefix, resource_name)
+        resource_id = build_resource_id(
+            label,
+            center_id=center_group_id,
             study_id=study_id,
         )
 

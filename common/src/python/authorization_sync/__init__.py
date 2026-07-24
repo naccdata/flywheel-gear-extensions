@@ -2,6 +2,10 @@
 grants."""
 
 from authorization_sync.models import DesiredGrant
+from authorization_sync.resource_ids import (
+    build_label_for_resource_prefix,
+    build_resource_id,
+)
 from authorization_sync.sync_service import (
     AuthorizationClientProtocol,
     AuthorizationSyncService,
@@ -17,6 +21,8 @@ __all__ = [
     "AuthorizationClientProtocol",
     "AuthorizationSyncService",
     "DesiredGrant",
+    "build_label_for_resource_prefix",
+    "build_resource_id",
     "translate",
     "validate_activity_relation_map",
 ]

@@ -29,6 +29,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional
 
+from authorization_sync.resource_ids import build_resource_id
 from centers.center_group import (
     CenterError,
     CenterGroup,
@@ -46,6 +47,7 @@ from flywheel_adaptor.flywheel_proxy import (
     ProjectAdaptor,
 )
 from keys.types import DatatypeNameType
+
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup
@@ -693,12 +695,8 @@ class StudyMappingVisitor(StudyVisitor):
     def __auth_resource_id(self, label: str, center_id: str) -> str:
         """Build an authorization resource ID with center prefix.
 
-        The authorization API uses the format:
-            {center}_{label}-{study_id}
-
-        The study_id is always explicit (including for the primary study).
-        The center prefix is separated by underscore (center names never
-        contain underscores).
+        Delegates to the shared build_resource_id utility for consistent
+        format across the translator and hierarchy seeder.
 
         Args:
             label: the base label (e.g., "ingest-form", "accepted")
@@ -708,16 +706,15 @@ class StudyMappingVisitor(StudyVisitor):
             the authorization resource ID
         """
         assert self.__study, "study must be set"
-        return f"{center_id}_{label}-{self.__study.study_id}"
+        return build_resource_id(
+            label, center_id=center_id, study_id=self.__study.study_id
+        )
 
     def __auth_resource_id_no_center(self, label: str) -> str:
         """Build an authorization resource ID without center prefix.
 
-        Used for study-scoped and community-scoped resources that are not
-        center-specific. The study_id is always explicit.
-
-        For dashboards: "dashboard-{name}-{study_id}"
-        For pages: "page-{name}-{study_id}"
+        Delegates to the shared build_resource_id utility for consistent
+        format across the translator and hierarchy seeder.
 
         Args:
             label: the base label (e.g., "dashboard-summary", "page-reports")
@@ -726,7 +723,7 @@ class StudyMappingVisitor(StudyVisitor):
             the authorization resource ID
         """
         assert self.__study, "study must be set"
-        return f"{label}-{self.__study.study_id}"
+        return build_resource_id(label, study_id=self.__study.study_id)
 
     def __seed_center_pipelines(self, center_model: StudyCenterModel) -> None:
         """Seed hierarchy for center-scoped data pipelines.
