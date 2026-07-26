@@ -2041,7 +2041,7 @@
           "artifacts": [
             {
               "algorithm": "sha256",
-              "hash": "5787ee11becb2c3efce74497859425307a4038dcb924fb551026cbaab27475d0",
+              "hash": "52a8c282d1dd9dec89c5873c3a27a2e473ec167810386e7a57eb0db72f9f33d9",
               "url": "https://github.com/naccdata/nacc-attribute-deriver/releases/download/v2.3.6/nacc_attribute_deriver-2.3.6-py3-none-any.whl"
             }
           ],
