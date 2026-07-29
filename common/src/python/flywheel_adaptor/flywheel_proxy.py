@@ -136,7 +136,7 @@ class FlywheelProxy:
             user_id: the ID to search for
 
         Returns:
-            a list with the user, or None if not found
+            the user, or None if not found
         """
         return self.__fw.users.find_first(f"_id={user_id}")
 
@@ -1498,14 +1498,15 @@ class ProjectAdaptor:
             permission.id for permission in permissions if permission.access == "admin"
         ]
         for user_id in admin_users:
+            if not user_id:
+                continue
             try:
                 self.add_user_role_assignments(
                     RolesRoleAssignment(id=user_id, role_ids=[admin_role.id])
                 )
             except ProjectError:
                 log.warning(
-                    "Unable to add admin user %s to project %s, user may not"
-                    " exist on this instance",
+                    "Unable to add admin user %s to project %s",
                     user_id,
                     self._project.label,
                 )

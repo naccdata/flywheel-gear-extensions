@@ -1,0 +1,36 @@
+{
+    "name": "dicom-qc-checker",
+    "label": "DICOM QC Checker",
+    "description": "Evaluates DICOM QC check results and tags files with pass/fail status.",
+    "version": "0.0.1",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/dicom-qc-checker:0.0.1"
+        },
+        "flywheel": {
+            "suite": "NACC Data Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "The file to evaluate for DICOM QC check results",
+            "base": "file"
+        }
+    },
+    "config": {},
+    "command": "/bin/run"
+}
