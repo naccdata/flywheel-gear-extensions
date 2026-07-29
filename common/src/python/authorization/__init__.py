@@ -32,13 +32,17 @@ from authorization.models import (
     RelationMetadata,
     ResourceListItem,
     ResourceListResponse,
+    ResourceObject,
     ResourceParents,
     RevokeRequest,
     RevokeResult,
     SetParentsRequestModel,
     StructuralRelationMetadata,
     TypeMetadata,
+    UpdateResourceRequest,
+    UpdateResourceResponse,
     UserPermissions,
+    UserProfileSearchResponse,
 )
 from authorization.sigv4_transport import SigV4Transport
 from authorization.transport import HttpResponse, HttpTransport
@@ -71,6 +75,7 @@ __all__ = [
     "RelationMetadata",
     "ResourceListItem",
     "ResourceListResponse",
+    "ResourceObject",
     "ResourceParents",
     "RevokeRequest",
     "RevokeResult",
@@ -80,7 +85,10 @@ __all__ = [
     "StructuralRelationMetadata",
     "TypeMetadata",
     "UnexpectedError",
+    "UpdateResourceRequest",
+    "UpdateResourceResponse",
     "UserPermissions",
+    "UserProfileSearchResponse",
     "ValidationError",
     "create_authorization_client",
 ]

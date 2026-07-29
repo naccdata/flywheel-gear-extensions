@@ -32,10 +32,13 @@ from authorization.models import (
     RevokeRequest,
     RevokeResult,
     SetParentsRequestModel,
+    UpdateResourceRequest,
+    UpdateResourceResponse,
     UserPermissions,
     UserProfile,
     UserProfileList,
     UserProfileRequest,
+    UserProfileSearchResponse,
 )
 from authorization.retry import retry_on_503
 from authorization.transport import HttpResponse, HttpTransport
@@ -493,17 +496,21 @@ class AuthorizationClient:
     def get_user_permissions(
         self,
         user_id: str,
-        type_filter: str | None = None,
+        type_filter: str,
         relation_filter: str | None = None,
     ) -> UserPermissions:
-        """Retrieve all resources a user can access.
+        """Retrieve resources a user can access for the specified type.
 
-        Sends a GET request to /users/{userId}/permissions with optional
-        type and relation query parameters for filtering.
+        Sends a GET request to /users/{userId}/permissions with the
+        required type query parameter and optional relation filter.
+
+        The type parameter is required by the API (ADR-015). Omitting
+        it returns a 400 validation error.
 
         Args:
             user_id: The user identifier (e.g., ePPN).
-            type_filter: Optional resource type to filter by.
+            type_filter: Resource or organization type to query
+                (required).
             relation_filter: Optional relation to filter by.
 
         Returns:
@@ -511,14 +518,13 @@ class AuthorizationClient:
             by resource type.
 
         Raises:
+            ValidationError: If the API returns 400.
             ServiceUnavailableError: If retries are exhausted on 503.
             UnexpectedError: On unexpected HTTP errors.
             ParseError: If the response body cannot be parsed.
         """
         path = f"/users/{user_id}/permissions"
-        query_params: dict[str, str] = {}
-        if type_filter is not None:
-            query_params["type"] = type_filter
+        query_params: dict[str, str] = {"type": type_filter}
         if relation_filter is not None:
             query_params["relation"] = relation_filter
 
@@ -527,7 +533,7 @@ class AuthorizationClient:
                 method="GET",
                 path=path,
                 body=None,
-                query_params=query_params or None,
+                query_params=query_params,
             )
 
         response = retry_on_503(do_request, **self._retry_kwargs())
@@ -920,6 +926,91 @@ class AuthorizationClient:
         if next_token is not None:
             query_params["nextToken"] = next_token
         return query_params
+
+    def update_resource(
+        self,
+        resource_type: str,
+        resource_id: str,
+        display_name: str,
+    ) -> "UpdateResourceResponse":
+        """Set or clear a resource's display name.
+
+        Sends a PATCH request to /resources/{type}/{resourceId} with
+        the display name. Send an empty string to clear the name.
+
+        Args:
+            resource_type: The type of resource.
+            resource_id: The resource identifier.
+            display_name: The display name to set, or "" to clear.
+
+        Returns:
+            UpdateResourceResponse with the updated resource info.
+
+        Raises:
+            ValidationError: If the API returns 400.
+            NotFoundError: If the resource is not found (404).
+            ServiceUnavailableError: If retries exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        request = UpdateResourceRequest(display_name=display_name)
+        body = request.model_dump_json(by_alias=True).encode()
+        path = f"/resources/{resource_type}/{resource_id}"
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="PATCH",
+                path=path,
+                body=body,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Update resource succeeded: type=%s, resource=%s",
+                resource_type,
+                resource_id,
+            )
+            try:
+                return UpdateResourceResponse.model_validate_json(response.body)
+            except Exception as exc:
+                raise ParseError(
+                    message=f"Failed to parse update resource response: {exc}",
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Update resource validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        if response.status_code == 404:
+            log.debug(
+                "Resource not found for update: type=%s, resource=%s",
+                resource_type,
+                resource_id,
+            )
+            raise NotFoundError(
+                message=(f"Resource not found: {resource_type}/{resource_id}"),
+            )
+
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Update resource unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
 
     def get_model(self) -> AuthorizationModelMetadata:
         """Get the authorization model metadata.
@@ -1342,6 +1433,87 @@ class AuthorizationClient:
         error_msg = self._extract_error_message(response)
         log.error(
             "Get user profiles unexpected error %d: %s",
+            response.status_code,
+            error_msg,
+        )
+        raise UnexpectedError(
+            status_code=response.status_code,
+            message=error_msg,
+        )
+
+    def search_user_profiles(
+        self,
+        search: str,
+        limit: int | None = None,
+        next_token: str | None = None,
+    ) -> UserProfileSearchResponse:
+        """Search user profiles by substring match.
+
+        Sends a GET request to /users?search=... with pagination params.
+        Matches against first_name, last_name, and auth_email
+        (case-insensitive).
+
+        Args:
+            search: Substring to match (1-256 characters).
+            limit: Maximum results per page (1-100, default 25).
+            next_token: Opaque pagination cursor from a previous
+                response.
+
+        Returns:
+            UserProfileSearchResponse with matching profiles and
+            pagination metadata.
+
+        Raises:
+            ValidationError: If the API returns 400.
+            ServiceUnavailableError: If retries exhausted on 503.
+            UnexpectedError: On other unexpected HTTP errors.
+            ParseError: If the response body cannot be parsed.
+        """
+        path = "/users"
+        query_params: dict[str, str] = {"search": search}
+        if limit is not None:
+            query_params["limit"] = str(limit)
+        if next_token is not None:
+            query_params["nextToken"] = next_token
+
+        def do_request() -> HttpResponse:
+            return self._transport.request(
+                method="GET",
+                path=path,
+                body=None,
+                query_params=query_params,
+            )
+
+        response = retry_on_503(do_request, **self._retry_kwargs())
+
+        if response.status_code == 200:
+            log.debug(
+                "Search user profiles succeeded: search=%s",
+                search,
+            )
+            try:
+                return UserProfileSearchResponse.model_validate_json(response.body)
+            except Exception as exc:
+                raise ParseError(
+                    message=(f"Failed to parse search user profiles response: {exc}"),
+                    raw_content=response.body,
+                ) from exc
+
+        if response.status_code == 400:
+            error_resp = self._parse_error_response(response)
+            log.error(
+                "Search user profiles validation error: %s",
+                error_resp.message,
+            )
+            raise ValidationError(
+                message=error_resp.message,
+                details=error_resp.details,
+            )
+
+        # Any other error status
+        error_msg = self._extract_error_message(response)
+        log.error(
+            "Search user profiles unexpected error %d: %s",
             response.status_code,
             error_msg,
         )
