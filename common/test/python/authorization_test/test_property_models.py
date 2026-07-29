@@ -355,7 +355,7 @@ class TestProperty10MalformedResponseParseError:
         client = AuthorizationClient(transport=transport, sleep=no_sleep)
 
         with pytest.raises(ParseError) as exc_info:
-            client.get_user_permissions(user_id="user1")
+            client.get_user_permissions(user_id="user1", type_filter="study")
 
         assert exc_info.value.raw_content == bad_body
 

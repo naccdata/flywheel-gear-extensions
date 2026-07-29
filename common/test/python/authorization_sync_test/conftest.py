@@ -299,7 +299,7 @@ class MockAuthorizationClient:
     def get_user_permissions(
         self,
         user_id: str,
-        type_filter: str | None = None,
+        type_filter: str,
         relation_filter: str | None = None,
     ) -> UserPermissions:
         """Mock get_user_permissions that returns configured response."""

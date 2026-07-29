@@ -16,6 +16,7 @@ from users.authorizations import (
     DashboardResource,
     DatatypeResource,
     PageResource,
+    Resource,
     StudyAuthorizations,
 )
 
@@ -30,7 +31,7 @@ from .conftest import (
 )
 
 
-def _expected_resource_id(resource: "Activity.resource", study_id: str | None) -> str:
+def _expected_resource_id(resource: Resource, study_id: str | None) -> str:
     """Build the expected resource_id for test assertions.
 
     Mirrors the _build_resource_id logic in the translator:

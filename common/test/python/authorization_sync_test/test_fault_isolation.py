@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from authorization.exceptions import AuthorizationClientError
 from authorization.models import (
+    AuthorizationModelMetadata,
     BatchError,
     BatchOperation,
     BatchResult,
@@ -48,7 +49,7 @@ class PartialFailureClient:
     def get_user_permissions(
         self,
         user_id: str,
-        type_filter: str | None = None,
+        type_filter: str,
         relation_filter: str | None = None,
     ) -> UserPermissions:
         """Return empty permissions so diff produces operations."""
@@ -73,6 +74,10 @@ class PartialFailureClient:
             auth_email="test@example.com",
             active=True,
         )
+
+    def get_model(self) -> AuthorizationModelMetadata:
+        """Mock get_model that returns minimal metadata."""
+        return AuthorizationModelMetadata(version="1.0.0", types={})
 
 
 @st.composite
