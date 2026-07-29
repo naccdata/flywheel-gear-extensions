@@ -1,7 +1,7 @@
 """Tests for new AuthorizationClient methods.
 
 Covers: get_resource_parents, delete_resource_parents, list_resources,
-get_model, check_permission.
+get_model, check_permission, search_user_profiles.
 """
 
 import json
@@ -417,3 +417,128 @@ class TestCheckPermission:
 
         with pytest.raises(UnexpectedError):
             client.check_permission("alice", "data_pipeline", "pipe-1", "viewer")
+
+
+# --- search_user_profiles ---
+
+
+class TestSearchUserProfiles:
+    """Tests for search_user_profiles."""
+
+    def test_sends_get_with_search_param(self) -> None:
+        """Sends GET /users?search=...
+
+        with the search query.
+        """
+        response = MockResponse(
+            status_code=200,
+            body=json.dumps(
+                {
+                    "users": [],
+                    "nextToken": None,
+                    "total": 0,
+                    "limit": 25,
+                }
+            ).encode(),
+        )
+        transport = MockTransport(response)
+        client = AuthorizationClient(transport=transport, sleep=no_sleep)
+
+        client.search_user_profiles("jane")
+
+        method, path, body, query_params = transport.requests[0]
+        assert method == "GET"
+        assert path == "/users"
+        assert body is None
+        assert query_params == {"search": "jane"}
+
+    def test_sends_limit_and_next_token_params(self) -> None:
+        """Includes limit and nextToken in query params when provided."""
+        response = MockResponse(
+            status_code=200,
+            body=json.dumps(
+                {
+                    "users": [],
+                    "nextToken": None,
+                    "total": 0,
+                    "limit": 10,
+                }
+            ).encode(),
+        )
+        transport = MockTransport(response)
+        client = AuthorizationClient(transport=transport, sleep=no_sleep)
+
+        client.search_user_profiles("smith", limit=10, next_token="cursor123")
+
+        _, _, _, query_params = transport.requests[0]
+        assert query_params == {
+            "search": "smith",
+            "limit": "10",
+            "nextToken": "cursor123",
+        }
+
+    def test_returns_search_response_on_200(self) -> None:
+        """Parses 200 response into UserProfileSearchResponse."""
+        from authorization.models import UserProfileSearchResponse
+
+        response = MockResponse(
+            status_code=200,
+            body=json.dumps(
+                {
+                    "users": [
+                        {
+                            "userId": "Registry000001@naccdata.org",
+                            "firstName": "Jane",
+                            "lastName": "Smith",
+                            "authEmail": "jane@example.com",
+                            "active": True,
+                        }
+                    ],
+                    "nextToken": "next-page-token",
+                    "total": 1,
+                    "limit": 25,
+                }
+            ).encode(),
+        )
+        transport = MockTransport(response)
+        client = AuthorizationClient(transport=transport, sleep=no_sleep)
+
+        result = client.search_user_profiles("jane")
+
+        assert isinstance(result, UserProfileSearchResponse)
+        assert len(result.users) == 1
+        assert result.users[0].first_name == "Jane"
+        assert result.users[0].user_id == "Registry000001@naccdata.org"
+        assert result.next_token == "next-page-token"
+        assert result.total == 1
+        assert result.limit == 25
+
+    def test_raises_validation_error_on_400(self) -> None:
+        """Raises ValidationError on 400."""
+        response = MockResponse(
+            status_code=400,
+            body=b'{"error":"validation_error","message":"search too short"}',
+        )
+        transport = MockTransport(response)
+        client = AuthorizationClient(transport=transport, sleep=no_sleep)
+
+        with pytest.raises(ValidationError):
+            client.search_user_profiles("")
+
+    def test_raises_unexpected_error_on_500(self) -> None:
+        """Raises UnexpectedError on 500."""
+        response = MockResponse(status_code=500, body=b"internal error")
+        transport = MockTransport(response)
+        client = AuthorizationClient(transport=transport, sleep=no_sleep)
+
+        with pytest.raises(UnexpectedError):
+            client.search_user_profiles("jane")
+
+    def test_raises_parse_error_on_bad_json(self) -> None:
+        """Raises ParseError on invalid JSON in 200 response."""
+        response = MockResponse(status_code=200, body=b"not json")
+        transport = MockTransport(response)
+        client = AuthorizationClient(transport=transport, sleep=no_sleep)
+
+        with pytest.raises(ParseError):
+            client.search_user_profiles("jane")
