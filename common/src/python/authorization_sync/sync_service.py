@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 # Resource types queried during sync — derived from ACTIVITY_RELATION_MAP values.
 # The permissions endpoint requires one type per request (ADR-015).
-_SYNC_RESOURCE_TYPES = tuple(
+_SYNC_RESOURCE_TYPES: frozenset[str] = frozenset(
     {
         resource_type
         for pairs in ACTIVITY_RELATION_MAP.values()
@@ -97,15 +97,29 @@ class AuthorizationSyncService:
             model = self._client.get_model()
         except AuthorizationClientError as error:
             log.warning(
-                "Could not fetch authorization model for validation: %s",
+                "Could not fetch authorization model for validation: %s. "
+                "Sync operations for resource types %s may fail at runtime "
+                "if the activity-relation map is stale.",
                 error,
+                sorted(_SYNC_RESOURCE_TYPES),
             )
             return
 
         warnings = validate_activity_relation_map(model)
-        for warning in warnings:
-            log.warning(warning)
-        if not warnings:
+        if warnings:
+            affected_types = sorted(
+                {w.split("-> (")[1].split(",")[0] for w in warnings if "-> (" in w}
+            )
+            log.warning(
+                "ACTIVITY_RELATION_MAP has %d invalid mapping(s) affecting "
+                "resource types %s. Grants to these types may be rejected "
+                "by the API at sync time.",
+                len(warnings),
+                affected_types,
+            )
+            for warning in warnings:
+                log.warning(warning)
+        else:
             log.info("ACTIVITY_RELATION_MAP validated against live model: all OK")
 
     def sync_user(

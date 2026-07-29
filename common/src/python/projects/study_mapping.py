@@ -564,7 +564,9 @@ class StudyMappingVisitor(StudyVisitor):
         Returns:
             True if aggregation should be skipped.
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot check aggregation skip: study not set")
+            return False
         return (
             self.__study.study_type == "affiliated"
             and center_model.enrollment_pattern == "co-enrollment"
@@ -636,7 +638,9 @@ class StudyMappingVisitor(StudyVisitor):
         Args:
           center: the center study model
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot visit center: study not set")
+            return
 
         group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
@@ -705,7 +709,9 @@ class StudyMappingVisitor(StudyVisitor):
         Returns:
             the authorization resource ID
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot build resource ID: study not set")
+            return ""
         return build_resource_id(
             label, center_id=center_id, study_id=self.__study.study_id
         )
@@ -722,7 +728,9 @@ class StudyMappingVisitor(StudyVisitor):
         Returns:
             the authorization resource ID
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot build resource ID: study not set")
+            return ""
         return build_resource_id(label, study_id=self.__study.study_id)
 
     def __seed_center_pipelines(self, center_model: StudyCenterModel) -> None:
@@ -734,8 +742,11 @@ class StudyMappingVisitor(StudyVisitor):
         Args:
             center_model: the center study model with center_id
         """
-        assert self.__study, "study must be set"
-        assert self.__hierarchy_seeder is not None
+        if not self.__study:
+            log.error("Cannot seed center pipelines: study not set")
+            return
+        if self.__hierarchy_seeder is None:
+            return
 
         study_id = self.__study.study_id
         center_id = center_model.center_id
@@ -794,7 +805,8 @@ class StudyMappingVisitor(StudyVisitor):
         Args:
             study: the study model
         """
-        assert self.__hierarchy_seeder is not None
+        if self.__hierarchy_seeder is None:
+            return
 
         study_id = study.study_id
 
@@ -831,7 +843,9 @@ class StudyMappingVisitor(StudyVisitor):
             center: the center group
             study_info: the study metadata
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot handle dashboards and pages: study not set")
+            return
 
         if not center.is_active():
             return
@@ -889,10 +903,14 @@ class StudyMappingVisitor(StudyVisitor):
             study_info: the study metadata
             dashboard_name: the name of the dashboard
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot add dashboard: study not set")
+            return
 
         def update_dashboard(project: ProjectAdaptor) -> None:
-            assert self.__study, "study must be set"
+            if not self.__study:
+                log.error("Cannot update dashboard metadata: study not set")
+                return
             study_info.add_dashboard(
                 DashboardProjectMetadata(
                     study_id=self.__study.study_id,
@@ -922,10 +940,14 @@ class StudyMappingVisitor(StudyVisitor):
             study_info: the study metadata
             page_name: the name of the page
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot add page: study not set")
+            return
 
         def update_page(project: ProjectAdaptor) -> None:
-            assert self.__study, "study must be set"
+            if not self.__study:
+                log.error("Cannot update page metadata: study not set")
+                return
             study_info.add_page(
                 PageProjectMetadata(
                     study_id=self.__study.study_id,
@@ -973,7 +995,9 @@ class StudyMappingVisitor(StudyVisitor):
         Returns:
             the project label with study suffix
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot create project label: study not set")
+            return label
         if self.__study.is_primary():
             return label
         return f"{label}-{self.__study.study_id}"
