@@ -86,7 +86,7 @@ class ResourceObject(BaseModel):
 
     type: str
     id: str
-    flat_id: str | None = Field(default=None, alias="flat_id")
+    flat_id: str | None = None
     name: str | None = None
     study: str | None = None
     center: str | None = None

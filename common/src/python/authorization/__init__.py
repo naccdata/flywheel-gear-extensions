@@ -4,6 +4,7 @@ from authorization.client import AuthorizationClient
 from authorization.exceptions import (
     AuthorizationClientError,
     ConfigurationError,
+    NotFoundError,
     ParseError,
     ServiceUnavailableError,
     UnexpectedError,
@@ -42,6 +43,9 @@ from authorization.models import (
     UpdateResourceRequest,
     UpdateResourceResponse,
     UserPermissions,
+    UserProfile,
+    UserProfileList,
+    UserProfileRequest,
     UserProfileSearchResponse,
 )
 from authorization.sigv4_transport import SigV4Transport
@@ -65,6 +69,7 @@ __all__ = [
     "HttpResponse",
     "HttpTransport",
     "InheritanceSource",
+    "NotFoundError",
     "ParentCombination",
     "ParentRelationship",
     "ParentRelationshipModel",
@@ -88,6 +93,9 @@ __all__ = [
     "UpdateResourceRequest",
     "UpdateResourceResponse",
     "UserPermissions",
+    "UserProfile",
+    "UserProfileList",
+    "UserProfileRequest",
     "UserProfileSearchResponse",
     "ValidationError",
     "create_authorization_client",
