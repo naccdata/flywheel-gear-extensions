@@ -33,6 +33,8 @@ tags:
     description: Manage parent relationships that define the resource hierarchy and enable inherited permissions.
   - name: Batch Operations
     description: Bulk grant and revoke operations for data loading and synchronization.
+  - name: User Profiles
+    description: CRUD operations for user profile records backed by MySQL.
   - name: Health
     description: Operational health checks.
 
@@ -92,21 +94,27 @@ paths:
       operationId: getUserPermissions
       summary: Get all permissions for a user
       description: |
-        Returns every resource and organization a user can access, grouped by type.
-        Each entry includes the relation and whether the access is direct, inherited,
-        or both.
-        
-        For inherited permissions, the response includes the inheritance source —
-        which parent organization and role grants the access (e.g., "inherited from
-        admin role on study:study1").
-        
-        This is the primary endpoint Portal uses to render what a user can see.
+        Returns resources and organizations a user can access for the specified type,
+        grouped by type. Each entry includes the resource ID and relation.
+
+        The `type` query parameter is mandatory. Omitting it returns a 400 validation
+        error. This ensures bounded work per request — each call issues only 2-4
+        OpenFGA ListObjects calls regardless of how many types exist in the model.
+
+        Classification (direct vs inherited) is not included in this response. Use
+        `GET /users/{userId}/effective-permissions/{type}/{resourceId}` for per-entry
+        classification when needed.
+
+        See ADR-015 for the rationale behind requiring the type parameter.
       tags: [Permissions]
       parameters:
         - $ref: "#/components/parameters/UserIdPath"
         - name: type
           in: query
-          description: Filter results to a specific resource or organization type.
+          required: true
+          description: |
+            The resource or organization type to query. Required — the endpoint
+            returns 400 if omitted.
           schema:
             type: string
             example: data_pipeline
@@ -387,6 +395,317 @@ paths:
           $ref: "#/components/responses/ValidationError"
 
   # ---------------------------------------------------------------------------
+  # User Profiles
+  # ---------------------------------------------------------------------------
+  /users/{profileUserId}:
+    get:
+      operationId: getUserProfile
+      summary: Get a user profile
+      description: |
+        Returns the user profile for the specified profile user ID.
+      tags: [User Profiles]
+      parameters:
+        - $ref: "#/components/parameters/ProfileUserIdPath"
+      responses:
+        "200":
+          description: User profile found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: putUserProfile
+      summary: Create or update a user profile
+      description: |
+        Creates or updates the user profile for the specified profile user ID.
+        If the profile does not exist, it is created. If it exists, it is updated
+        with the provided fields.
+      tags: [User Profiles]
+      parameters:
+        - $ref: "#/components/parameters/ProfileUserIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileRequest"
+      responses:
+        "200":
+          description: User profile created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+    delete:
+      operationId: deleteUserProfile
+      summary: Delete a user profile
+      description: |
+        Deletes the user profile for the specified profile user ID.
+        Idempotent — succeeds with 204 regardless of whether the profile existed.
+      tags: [User Profiles]
+      parameters:
+        - $ref: "#/components/parameters/ProfileUserIdPath"
+      responses:
+        "204":
+          description: User profile deleted (or did not exist).
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /users:
+    get:
+      operationId: getUserProfiles
+      summary: Get user profiles by batch or search
+      description: |
+        Returns user profiles either by batch ID lookup or by substring search.
+
+        **Batch mode:** Provide the `ids` query parameter with a comma-separated
+        list of profile user IDs (maximum 50). Returns profiles for those IDs.
+
+        **Search mode:** Provide the `search` query parameter with a substring to
+        match against `first_name`, `last_name`, and `auth_email` (case-insensitive).
+        Results are paginated using keyset cursors via `nextToken`.
+
+        The `ids` and `search` parameters are **mutually exclusive** — providing both
+        in the same request returns a 400 validation error.
+
+        **Breaking change (api-list-endpoints):** The `ids` parameter was previously
+        `required: true`. It is now `required: false` because the endpoint supports
+        either `ids` or `search`. Existing clients that always send `ids` are
+        unaffected. New clients must send exactly one of `ids` or `search`.
+        The TypeScript client (`@nacc/authorization-client`) needs a new
+        `searchUserProfiles` method to expose search mode.
+      tags: [User Profiles]
+      parameters:
+        - name: ids
+          in: query
+          required: false
+          description: |
+            Comma-separated list of profile user IDs to retrieve (maximum 50).
+            Mutually exclusive with `search`. At least one of `ids` or `search`
+            must be provided.
+
+            Previously this parameter was required. It became optional when search
+            mode was added. Existing batch callers are unaffected.
+          schema:
+            type: string
+            maxLength: 3200
+          example: "Registry000001@naccdata.org,Registry000002@naccdata.org"
+        - name: search
+          in: query
+          required: false
+          description: |
+            Substring to match against first_name, last_name, and auth_email
+            (case-insensitive). Mutually exclusive with `ids`. Must be 1-256
+            characters after trimming whitespace. SQL wildcard characters
+            (`%`, `_`) are treated as literal characters.
+          schema:
+            type: string
+            maxLength: 256
+          example: "jane"
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of results to return per page (search mode only).
+            Must be between 1 and 100. Defaults to 25.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: nextToken
+          in: query
+          required: false
+          description: |
+            Opaque pagination cursor from a previous search response. Used to
+            retrieve the next page of results (search mode only). Maximum 1024
+            characters.
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          description: |
+            User profiles found. In batch mode, returns `UserProfileList`.
+            In search mode, returns `UserProfileSearchResponse` with pagination metadata.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/UserProfileList"
+                  - $ref: "#/components/schemas/UserProfileSearchResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  # ---------------------------------------------------------------------------
+  # Resource Listing
+  # ---------------------------------------------------------------------------
+  /resources/{type}:
+    get:
+      operationId: listResources
+      summary: List resources by type, optionally filtered by parent
+      description: |
+        Returns resources of the specified type. Supports three modes:
+
+        **Filtered mode** (both `parentType` and `parentId` provided): Returns child
+        resources linked to the specified parent organization via a structural
+        relation in the authorization model. The handler determines the correct
+        structural relation by looking up which structural relation links the
+        resource type to the given parent type.
+
+        **Unfiltered mode** (both `parentType` and `parentId` omitted, no `search`):
+        Returns all known resources of the specified type. Each resource item
+        contains only the `resourceId` field — `structuralRelation` is omitted since
+        no parent context is specified. This mode is useful for populating parent
+        dropdowns in the guided selection UI.
+
+        **Search mode** (`search` provided, `parentType` and `parentId` omitted):
+        Returns resources of the specified type whose IDs contain the search
+        substring (case-insensitive). Each resource item contains only the
+        `resourceId` field.
+
+        The `parentType` and `parentId` parameters must both be provided or both
+        omitted. Providing only one returns a 400 validation error.
+
+        The `search` parameter is mutually exclusive with `parentType`/`parentId`.
+        Providing `search` alongside either parent parameter returns a 400 validation
+        error.
+
+        Results are paginated using continuation tokens from the underlying
+        authorization engine.
+      tags: [Resource Hierarchy]
+      parameters:
+        - $ref: "#/components/parameters/TypePath"
+        - name: parentType
+          in: query
+          required: false
+          description: |
+            The type of the parent organization (e.g., "study", "research_center").
+            Must match a structural relation's parentType for the resource type.
+            Required together with `parentId` — both must be provided or both omitted.
+          schema:
+            type: string
+          example: "study"
+        - name: parentId
+          in: query
+          required: false
+          description: |
+            The identifier of the parent organization.
+            Required together with `parentType` — both must be provided or both omitted.
+          schema:
+            type: string
+          example: "adrc"
+        - name: limit
+          in: query
+          required: false
+          description: |
+            Maximum number of resources to return per page. Must be between 1
+            and 100. Defaults to 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nextToken
+          in: query
+          required: false
+          description: |
+            Opaque pagination token from a previous response. Used to retrieve
+            the next page of results. Maximum 1024 characters.
+          schema:
+            type: string
+            maxLength: 1024
+        - name: search
+          in: query
+          required: false
+          description: |
+            Substring to match against resource IDs (case-insensitive). Mutually
+            exclusive with `parentType` and `parentId`. When provided, returns only
+            resources whose IDs contain this substring.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 256
+      responses:
+        "200":
+          description: |
+            Resources of the specified type. In filtered mode, returns child
+            resources for the given parent with structuralRelation. In unfiltered
+            mode, returns all resources of the type without structuralRelation.
+            In search mode, returns resources whose IDs match the search substring.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  # ---------------------------------------------------------------------------
+  # Resource Updates
+  # ---------------------------------------------------------------------------
+  /resources/{type}/{resourceId}:
+    patch:
+      operationId: updateResource
+      summary: Update a resource's display name
+      description: |
+        Sets or clears the display name for an existing resource in the resource
+        catalog. The resource must already exist (registered via a prior grant or
+        parent-set operation).
+
+        To set a display name, send `{"displayName": "Human Readable Name"}`.
+        To clear it, send `{"displayName": ""}`.
+
+        Display names must be non-empty (after trimming) if provided, and cannot
+        exceed 256 characters.
+      tags: [Resource Hierarchy]
+      parameters:
+        - $ref: "#/components/parameters/TypePath"
+        - $ref: "#/components/parameters/ResourceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateResourceRequest"
+      responses:
+        "200":
+          description: Resource updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateResourceResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  # ---------------------------------------------------------------------------
   # Health
   # ---------------------------------------------------------------------------
   /health:
@@ -443,11 +762,34 @@ components:
       in: path
       required: true
       description: |
-        Resource or organization identifier (e.g., "study1",
-        "study1-center1-clinical-ingest").
+        Resource or organization identifier. The format depends on the resource type:
+
+        - **Organizations** (study, research_center, community, etc.): plain identifier
+          (e.g., `adrc`, `washington`, `nacc`)
+        - **Data pipelines**: `{center}_{label}` where label is `{stage}-{datatype}-{study_id}`
+          (e.g., `washington_ingest-form-adrc`, `mayo_ingest-dicom-clariti`)
+        - **Dashboards**: center-scoped `{center}_dashboard-{name}{suffix}` or study-scoped
+          `dashboard-{name}{suffix}`
+        - **Pages**: center-scoped `{center}_page-{name}{suffix}` or study/community-scoped
+          `page-{name}{suffix}`
+
+        See ADR-016 for the pipeline identifier format rationale.
       schema:
         type: string
-        example: study1-center1-clinical-ingest
+        example: washington_ingest-form-adrc
+
+    ProfileUserIdPath:
+      name: profileUserId
+      in: path
+      required: true
+      description: |
+        User profile identifier in the format `RegistryNNNNNN@naccdata.org`.
+        This is distinct from the authorization user ID (e.g., "alice") used
+        by the permissions and access management endpoints.
+      schema:
+        type: string
+        pattern: "^Registry\\d{6}@naccdata\\.org$"
+        example: "Registry000001@naccdata.org"
 
   # ---------------------------------------------------------------------------
   # Responses
@@ -516,6 +858,13 @@ components:
           type: string
           enum: [organization, resource]
           description: Whether this is an organization type or a resource type.
+        catalogable:
+          type: boolean
+          description: |
+            Whether resources of this type are tracked in the resource catalog.
+            Catalogable types support enumeration, search, and display name
+            management via the resource listing and update endpoints.
+          default: false
         description:
           type: string
           description: Human-readable description of the type.
@@ -627,6 +976,79 @@ components:
             combinations that depend on the resource's characteristics.
           example: "pipeline_type is center-ingest"
 
+    # --- Resource Object schema ---
+
+    ResourceObject:
+      type: object
+      required: [type, id]
+      description: |
+        Structured resource identity with explicit parent fields. Replaces
+        opaque flat resource IDs at the API boundary while preserving them
+        internally for OpenFGA storage.
+
+        Parent fields vary by resource type based on the authorization model's
+        `validParentCombinations`. Organization types have no parent fields;
+        resource types require parents matching a valid combination.
+
+        During the transition period, this appears alongside legacy `type` and
+        `resourceId` fields. When both are present in a request, the `resource`
+        field takes precedence.
+      properties:
+        type:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: |
+            The resource or organization type as defined in the authorization model.
+          example: data_pipeline
+        id:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: |
+            The short, human-chosen identifier for the resource (not the composite
+            flat ID). For organization types, this is the full identifier.
+          example: ingest-form-adrc
+        flat_id:
+          type: string
+          readOnly: true
+          description: |
+            Computed flat resource ID derived from parent fields and short ID.
+            This is the internal identifier used for OpenFGA storage. For
+            organization types (no parents), equals `id`. For resource types,
+            concatenates parent IDs (ordered alphabetically by field name:
+            center, community, study) and the short ID with underscore separators.
+          example: washington_adrc_ingest-form-adrc
+        name:
+          type: ["string", "null"]
+          maxLength: 256
+          description: Optional human-readable display name for the resource.
+          example: "ADRC Ingest Form Pipeline"
+        study:
+          type: ["string", "null"]
+          minLength: 1
+          maxLength: 256
+          description: |
+            Parent study identifier. Required for resource types with a
+            `parent_study` structural relation in their valid parent combination.
+          example: adrc
+        center:
+          type: ["string", "null"]
+          minLength: 1
+          maxLength: 256
+          description: |
+            Parent research center identifier. Required for resource types with a
+            `parent_center` structural relation in their valid parent combination.
+          example: washington
+        community:
+          type: ["string", "null"]
+          minLength: 1
+          maxLength: 256
+          description: |
+            Parent community identifier. Required for resource types with a
+            `parent_community` structural relation in their valid parent combination.
+          example: nacc
+
     # --- Permission schemas ---
 
     UserPermissions:
@@ -647,45 +1069,49 @@ components:
             one resource the user can access with a specific relation.
           example:
             study:
-              - resourceId: study1
+              - resourceId: adrc
                 relation: admin
-                access: direct
+                resource:
+                  type: study
+                  id: adrc
+                  name: "Alzheimer's Disease Research Center"
             data_pipeline:
-              - resourceId: study1-center1-clinical-ingest
+              - resourceId: washington_adrc_ingest-form-adrc
                 relation: viewer
-                access: inherited
-                inheritedFrom:
-                  parentType: study
-                  parentId: study1
-                  parentRole: admin
+                resource:
+                  type: data_pipeline
+                  id: ingest-form-adrc
+                  name: "ADRC Ingest Form Pipeline"
+                  study: adrc
+                  center: washington
 
     PermissionEntry:
       type: object
-      required: [resourceId, relation, access]
+      required: [resourceId, relation]
       properties:
         resourceId:
           type: string
-          example: study1-center1-clinical-ingest
+          deprecated: true
+          description: |
+            Legacy flat resource ID. Deprecated — use the `resource` field instead.
+          example: washington_ingest-form-adrc
         relation:
           type: string
           example: viewer
-        access:
-          type: string
-          enum: [direct, inherited, both]
+        resource:
+          allOf:
+            - $ref: "#/components/schemas/ResourceObject"
           description: |
-            How the user has this access:
-            - direct: explicitly granted
-            - inherited: derived from a parent organization role
-            - both: both directly granted and inherited
-        inheritedFrom:
-          $ref: "#/components/schemas/InheritanceSource"
+            Structured resource identity with parent fields resolved from the
+            resource catalog. May be a fallback (id equals the flat ID, no
+            parent fields) if catalog data is unavailable.
 
     InheritanceSource:
       type: object
       required: [parentType, parentId, parentRole]
       description: |
         Describes why inherited access exists, in domain terms.
-        For example: "user is admin of study:study1, which is the parent study
+        For example: "user is admin of study:adrc, which is the parent study
         of this data pipeline."
       properties:
         parentType:
@@ -695,7 +1121,7 @@ components:
         parentId:
           type: string
           description: The ID of the parent organization.
-          example: study1
+          example: adrc
         parentRole:
           type: string
           description: The user's role on the parent organization that grants this access.
@@ -707,14 +1133,22 @@ components:
       properties:
         type:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
           example: data_pipeline
         resourceId:
           type: string
-          example: study1-center1-clinical-ingest
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+          example: washington_ingest-form-adrc
         users:
           type: array
           items:
             $ref: "#/components/schemas/ResourceAccessEntry"
+        resource:
+          allOf:
+            - $ref: "#/components/schemas/ResourceObject"
+          description: Structured resource identity for the queried resource.
 
     ResourceAccessEntry:
       type: object
@@ -734,7 +1168,11 @@ components:
 
     PermissionCheckRequest:
       type: object
-      required: [userId, relation, type, resourceId]
+      required: [userId, relation]
+      description: |
+        Permission check request. Supply either the `resource` field (preferred)
+        or legacy `type` + `resourceId` fields. If both are present, `resource`
+        takes precedence.
       properties:
         userId:
           type: string
@@ -744,10 +1182,16 @@ components:
           example: viewer
         type:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
           example: data_pipeline
         resourceId:
           type: string
-          example: study1-center1-clinical-ingest
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+          example: washington_ingest-form-adrc
+        resource:
+          $ref: "#/components/schemas/ResourceObject"
 
     PermissionCheckResponse:
       type: object
@@ -767,15 +1211,23 @@ components:
           example: alice
         type:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
           example: data_pipeline
         resourceId:
           type: string
-          example: study1-center1-clinical-ingest
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+          example: washington_ingest-form-adrc
         relations:
           type: array
           items:
             $ref: "#/components/schemas/EffectiveRelation"
           description: All relations the user effectively holds on this resource.
+        resource:
+          allOf:
+            - $ref: "#/components/schemas/ResourceObject"
+          description: Structured resource identity for the queried resource.
 
     EffectiveRelation:
       type: object
@@ -794,7 +1246,11 @@ components:
 
     GrantRequest:
       type: object
-      required: [userId, relation, type, resourceId]
+      required: [userId, relation]
+      description: |
+        Grant access request. Supply either the `resource` field (preferred)
+        or legacy `type` + `resourceId` fields. If both are present, `resource`
+        takes precedence.
       properties:
         userId:
           type: string
@@ -808,16 +1264,20 @@ components:
           example: viewer
         type:
           type: string
-          description: The resource or organization type.
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
           example: data_pipeline
         resourceId:
           type: string
-          description: The resource or organization ID.
-          example: study1-center1-clinical-ingest
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+          example: washington_ingest-form-adrc
+        resource:
+          $ref: "#/components/schemas/ResourceObject"
 
     GrantResponse:
       type: object
-      required: [userId, relation, type, resourceId]
+      required: [userId, relation]
       properties:
         userId:
           type: string
@@ -825,12 +1285,24 @@ components:
           type: string
         type:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
         resourceId:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+        resource:
+          allOf:
+            - $ref: "#/components/schemas/ResourceObject"
+          description: Structured resource identity, resolved from the catalog.
 
     RevokeRequest:
       type: object
-      required: [userId, relation, type, resourceId]
+      required: [userId, relation]
+      description: |
+        Revoke access request. Supply either the `resource` field (preferred)
+        or legacy `type` + `resourceId` fields. If both are present, `resource`
+        takes precedence.
       properties:
         userId:
           type: string
@@ -840,14 +1312,20 @@ components:
           example: viewer
         type:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
           example: data_pipeline
         resourceId:
           type: string
-          example: study1-center1-clinical-ingest
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+          example: washington_ingest-form-adrc
+        resource:
+          $ref: "#/components/schemas/ResourceObject"
 
     RevokeResponse:
       type: object
-      required: [userId, relation, type, resourceId]
+      required: [userId, relation]
       properties:
         userId:
           type: string
@@ -855,8 +1333,16 @@ components:
           type: string
         type:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
         resourceId:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+        resource:
+          allOf:
+            - $ref: "#/components/schemas/ResourceObject"
+          description: Structured resource identity, resolved from the catalog.
 
     # --- Resource hierarchy schemas ---
 
@@ -869,11 +1355,18 @@ components:
           example: data_pipeline
         resourceId:
           type: string
-          example: study1-center1-clinical-ingest
+          example: washington_ingest-form-adrc
         parents:
           type: array
           items:
             $ref: "#/components/schemas/ParentRelationship"
+        resource:
+          allOf:
+            - $ref: "#/components/schemas/ResourceObject"
+          description: |
+            Structured resource identity for the queried resource, with parent
+            fields derived from the parent relationships. May be a fallback if
+            the resource has no parents or catalog data is unavailable.
 
     ParentRelationship:
       type: object
@@ -890,7 +1383,7 @@ components:
         parentId:
           type: string
           description: The ID of the parent organization.
-          example: study1
+          example: adrc
 
     SetParentsRequest:
       type: object
@@ -906,10 +1399,10 @@ components:
           example:
             - structuralRelation: parent_study
               parentType: study
-              parentId: study1
+              parentId: adrc
             - structuralRelation: parent_center
               parentType: research_center
-              parentId: center1
+              parentId: washington
 
     # --- Batch schemas ---
 
@@ -925,7 +1418,10 @@ components:
 
     BatchOperation:
       type: object
-      required: [action, userId, relation, type, resourceId]
+      required: [action, userId, relation]
+      description: |
+        A single operation in a batch. Supply either the `resource` field
+        (preferred) or legacy `type` + `resourceId` fields.
       properties:
         action:
           type: string
@@ -939,10 +1435,16 @@ components:
           example: viewer
         type:
           type: string
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
           example: data_pipeline
         resourceId:
           type: string
-          example: study1-center1-clinical-ingest
+          deprecated: true
+          description: "Deprecated — use the `resource` field instead."
+          example: washington_ingest-form-adrc
+        resource:
+          $ref: "#/components/schemas/ResourceObject"
 
     BatchResponse:
       type: object
@@ -1013,3 +1515,188 @@ components:
           type: object
           additionalProperties: true
           description: Additional error context (optional).
+
+    # --- User Profile schemas ---
+
+    UserProfile:
+      type: object
+      required: [userId, firstName, lastName, authEmail, active]
+      properties:
+        userId:
+          type: string
+          example: "Registry000001@naccdata.org"
+        firstName:
+          type: string
+          example: "Jane"
+        lastName:
+          type: string
+          example: "Doe"
+        email:
+          type: ["string", "null"]
+          format: email
+        authEmail:
+          type: string
+          format: email
+        active:
+          type: boolean
+
+    UserProfileRequest:
+      type: object
+      required: [firstName, lastName, authEmail]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 256
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 256
+        email:
+          type: ["string", "null"]
+          format: email
+        authEmail:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 256
+        active:
+          type: ["boolean", "null"]
+
+    UserProfileList:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserProfile"
+
+    UserProfileSearchResponse:
+      type: object
+      required: [users, nextToken, total, limit]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserProfile"
+          description: Matching user profiles for this page (empty array if no results).
+        nextToken:
+          type: ["string", "null"]
+          maxLength: 1024
+          description: |
+            Opaque keyset cursor for retrieving the next page. Null when no
+            more results are available.
+        total:
+          type: integer
+          description: |
+            Total count of records matching the search query. Computed on
+            the first page and carried forward via the cursor on subsequent
+            pages. Because it is a point-in-time snapshot, it may drift
+            slightly under concurrent writes (inserts or deletes between
+            page fetches). Suitable for UI display but not for exact
+            record-count guarantees.
+          example: 42
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: The page size used for this response.
+          example: 25
+
+    ResourceListItem:
+      type: object
+      required: [resourceId]
+      properties:
+        resourceId:
+          type: string
+          maxLength: 256
+          deprecated: true
+          description: |
+            Legacy flat resource identifier. Deprecated — use the `resource`
+            field instead.
+          example: "washington_ingest-form-adrc"
+        structuralRelation:
+          type: ["string", "null"]
+          maxLength: 256
+          description: |
+            The structural relation name linking the resource to its parent.
+            Present in filtered listing responses (when parentType and parentId
+            are provided). Omitted or null in unfiltered listing responses.
+          example: "parent_study"
+        displayName:
+          type: ["string", "null"]
+          maxLength: 256
+          description: |
+            Human-readable display name for the resource. Null if no display
+            name has been set.
+          example: "ADRC Ingest Form Pipeline"
+        resource:
+          allOf:
+            - $ref: "#/components/schemas/ResourceObject"
+          description: |
+            Structured resource identity with parent fields resolved from the
+            resource catalog. May be a fallback if catalog parent data is
+            unavailable.
+
+    ResourceListResponse:
+      type: object
+      required: [resources, nextToken, limit]
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResourceListItem"
+          description: Child resources for the given parent (empty array if no results).
+        nextToken:
+          type: ["string", "null"]
+          maxLength: 1024
+          description: |
+            Opaque pagination token for retrieving the next page. Null when no
+            more results are available.
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: The page size used for this response.
+          example: 50
+        total:
+          type: ["integer", "null"]
+          description: |
+            Total count of matching resources. Present in search mode responses;
+            null or omitted in filtered and unfiltered listing modes.
+          example: 142
+
+    # --- Resource update schemas ---
+
+    UpdateResourceRequest:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          maxLength: 256
+          description: |
+            The new display name for the resource. Must contain at least one
+            non-whitespace character if non-empty. Send an empty string ("") to
+            clear the display name to null.
+          example: "ADRC Ingest Form Pipeline"
+
+    UpdateResourceResponse:
+      type: object
+      required: [resourceType, resourceId]
+      properties:
+        resourceType:
+          type: string
+          description: The type of the updated resource.
+          example: data_pipeline
+        resourceId:
+          type: string
+          description: The identifier of the updated resource.
+          example: washington_ingest-form-adrc
+        displayName:
+          type: ["string", "null"]
+          maxLength: 256
+          description: |
+            The updated display name, or null if cleared.
+          example: "ADRC Ingest Form Pipeline"
