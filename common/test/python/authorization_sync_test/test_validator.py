@@ -6,7 +6,7 @@ from authorization.models import (
     TypeMetadata,
 )
 from authorization_sync.translator import (
-    _check_assignable,
+    check_assignable,
     validate_activity_relation_map,
 )
 
@@ -45,13 +45,13 @@ class TestCheckAssignable:
             }
         )
 
-        assert _check_assignable(model, "data_pipeline", "viewer") is None
+        assert check_assignable(model, "data_pipeline", "viewer") is None
 
     def test_returns_reason_for_unknown_type(self) -> None:
         """Unknown type returns a reason string."""
         model = _build_model({})
 
-        result = _check_assignable(model, "nonexistent", "viewer")
+        result = check_assignable(model, "nonexistent", "viewer")
 
         assert result is not None
         assert "unknown type" in result
@@ -67,7 +67,7 @@ class TestCheckAssignable:
             }
         )
 
-        result = _check_assignable(model, "data_pipeline", "nonexistent")
+        result = check_assignable(model, "data_pipeline", "nonexistent")
 
         assert result is not None
         assert "unknown relation" in result
@@ -85,7 +85,7 @@ class TestCheckAssignable:
             }
         )
 
-        result = _check_assignable(model, "data_pipeline", "study_admin_access")
+        result = check_assignable(model, "data_pipeline", "study_admin_access")
 
         assert result is not None
         assert "not assignable" in result

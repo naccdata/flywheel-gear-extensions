@@ -129,7 +129,7 @@ def validate_activity_relation_map(
 
     for (action, resource_prefix), mapped_pairs in ACTIVITY_RELATION_MAP.items():
         for api_resource_type, relation in mapped_pairs:
-            reason = _check_assignable(model, api_resource_type, relation)
+            reason = check_assignable(model, api_resource_type, relation)
             if reason:
                 warnings.append(
                     f"ACTIVITY_RELATION_MAP ({action}, {resource_prefix}) "
@@ -139,7 +139,7 @@ def validate_activity_relation_map(
     return warnings
 
 
-def _check_assignable(
+def check_assignable(
     model: AuthorizationModelMetadata,
     resource_type: str,
     relation: str,
