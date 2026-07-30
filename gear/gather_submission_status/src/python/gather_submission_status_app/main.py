@@ -49,11 +49,11 @@ def _should_process_file(
     if not match:
         return False
 
-    ptid = match.group(1)
+    ptid = match.group("ptid")
     if ptid not in ptid_set:
         return False
 
-    module = match.group(3).upper()
+    module = match.group("module").upper()
     return module in modules
 
 
