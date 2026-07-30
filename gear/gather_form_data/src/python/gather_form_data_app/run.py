@@ -28,23 +28,23 @@ log = logging.getLogger(__name__)
 def _write_module_output(
     context: GearContext,
     gatherers: list[ModuleDataGatherer],
-    study_id: str,
+    output_prefix: str,
 ) -> None:
     """Writes the data content in each gatherer to one or more output files.
 
     For gatherers with ``split_by_formver=False`` (default), produces a single
-    CSV per module named ``{study_id}-{module}-{date}.csv``.
+    CSV per module named ``{output_prefix}-{module}-{date}.csv``.
 
     For gatherers with ``split_by_formver=True``, produces one CSV per
     (module, formver) pair, named
-    ``{study_id}-{module}-{formver_label}-{date}.csv`` (e.g.
+    ``{output_prefix}-{module}-{formver_label}-{date}.csv`` (e.g.
     ``adrc-UDS-v4-2026-05-29.csv``). The formver label is normalized via
     ``formver_label`` (e.g. "1.0" -> "v1", missing -> "unknown").
 
     Args:
       context: the gear context
       gatherers: a list of ModuleDataGatherer objects
-      study_id: the study identifier used in output filenames
+      output_prefix: the prefix used in output filenames
     """
     today = date.today().isoformat()
     for gatherer in gatherers:
@@ -60,7 +60,7 @@ def _write_module_output(
                 if not content:
                     continue
                 output_filename = (
-                    f"{study_id}-{gatherer.module_name}-"
+                    f"{output_prefix}-{gatherer.module_name}-"
                     f"{formver_label_value}-{today}.csv"
                 )
                 with context.open_output(
@@ -76,7 +76,7 @@ def _write_module_output(
             )
             continue
 
-        output_filename = f"{study_id}-{gatherer.module_name}-{today}.csv"
+        output_filename = f"{output_prefix}-{gatherer.module_name}-{today}.csv"
         with context.open_output(
             output_filename, mode="w", encoding="utf-8"
         ) as output_file:
@@ -94,6 +94,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         info_paths: list[str],
         modules: set[str],
         study_id: str,
+        output_prefix: str,
         formver_split: bool = False,
     ):
         super().__init__(client=client)
@@ -102,6 +103,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
+        self.__output_prefix = output_prefix
         self.__formver_split = formver_split
 
     @classmethod
@@ -133,6 +135,8 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
 
         study_id = options.get("study_id", "adrc")
         formver_split = options.get("formver_split", False)
+        output_file_prefix = options.get("output_file_prefix", "")
+        output_prefix = output_file_prefix if output_file_prefix else study_id
 
         return GatherFormDataVisitor(
             client=client,
@@ -141,6 +145,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             info_paths=info_paths,
             modules=modules,
             study_id=study_id,
+            output_prefix=output_prefix,
             formver_split=formver_split,
         )
 
@@ -180,7 +185,7 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 _write_module_output(
                     context=context,
                     gatherers=request_visitor.gatherers,
-                    study_id=self.__study_id,
+                    output_prefix=self.__output_prefix,
                 )
 
         context.metadata.add_qc_result(
