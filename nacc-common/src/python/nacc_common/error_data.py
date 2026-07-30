@@ -4,8 +4,6 @@ from typing import Any, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
-from pydantic import ValidationError
-
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import FileQCModel
 from nacc_common.qc_report import (
@@ -23,6 +21,7 @@ from nacc_common.visit_submission_status import (
     StatusReportModel,
     status_report_visitor_builder,
 )
+from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 
@@ -91,11 +90,11 @@ def _should_include_file(
     if not match:
         return False
 
-    ptid = match.group(1)
+    ptid = match.group("ptid")
     if ptids is not None and ptid not in ptids:
         return False
 
-    module = match.group(3).upper()
+    module = match.group("module").upper()
     return modules is None or module in modules
 
 
