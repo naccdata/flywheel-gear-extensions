@@ -30,14 +30,10 @@ def create_proxy_with_mock_fw(find_results=None):
     else:
         mock_fw.subjects.find.return_value = []
 
-    # Access the private __fw attribute by using the mangled name
-    proxy = FlywheelProxy.__new__(FlywheelProxy)
-    # Set private attributes directly via name mangling
-    object.__setattr__(proxy, "_FlywheelProxy__fw", mock_fw)
-    object.__setattr__(proxy, "_FlywheelProxy__fw_client", None)
-    object.__setattr__(proxy, "_FlywheelProxy__dry_run", False)
-    object.__setattr__(proxy, "_FlywheelProxy__project_roles", None)
-    object.__setattr__(proxy, "_FlywheelProxy__project_admin_role", None)
+    # Pass the mock directly as the client argument to the constructor.
+    # FlywheelProxy.__init__ simply assigns it to self.__fw without calling
+    # any methods on it during construction.
+    proxy = FlywheelProxy(client=mock_fw, dry_run=False)
 
     return proxy, mock_fw
 
