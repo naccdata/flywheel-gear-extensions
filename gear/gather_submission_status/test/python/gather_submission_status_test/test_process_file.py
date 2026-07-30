@@ -173,31 +173,15 @@ class TestProcessReloadedFileSkipped:
         assert len(results) == 0
         mock_builder.assert_not_called()
 
-    @patch("gather_submission_status_app.main.FileQCModel.model_validate")
-    def test_invalid_qc_data_validation_error_skipped(
-        self, mock_validate: Mock
-    ) -> None:
+    def test_invalid_qc_data_validation_error_skipped(self) -> None:
         """A file with invalid QC data (ValidationError) is skipped (logs
         warning).
 
         **Validates: Requirements 3.3**
         """
-        from pydantic import ValidationError
-
-        mock_validate.side_effect = ValidationError.from_exception_data(
-            title="FileQCModel",
-            line_errors=[
-                {
-                    "type": "missing",
-                    "loc": ("qc",),
-                    "input": {},
-                }
-            ],
-        )
-
-        file_entry = _create_mock_file_entry(
-            info={"qc": "invalid_structure_that_gets_past_guard"}
-        )
+        # Provide data that passes the guard (truthy 'qc' value) but fails
+        # Pydantic validation — qc must be Dict[str, GearQCModel], not a string
+        file_entry = _create_mock_file_entry(info={"qc": "not_a_dict"})
         table_visitor, results = _create_table_visitor()
         mock_builder = Mock()
 
@@ -251,15 +235,11 @@ class TestProcessReloadedFileSkipped:
 
         assert len(results) == 0
 
-    @patch("gather_submission_status_app.main.FileQCModel.model_validate")
-    def test_visit_details_none_skipped(self, mock_validate: Mock) -> None:
+    def test_visit_details_none_skipped(self) -> None:
         """A file where the visitor has visit_details=None is skipped.
 
         **Validates: Requirements 3.3**
         """
-        mock_qc_model = Mock()
-        mock_validate.return_value = mock_qc_model
-
         file_info = {
             "qc": {
                 "form-qc-checker": {
@@ -286,4 +266,3 @@ class TestProcessReloadedFileSkipped:
         )
 
         assert len(results) == 0
-        mock_qc_model.apply.assert_not_called()
