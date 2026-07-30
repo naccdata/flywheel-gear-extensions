@@ -74,6 +74,16 @@
       "description": "Prefix for output file names. Output files are named {prefix}-{module}-{date}.csv (or {prefix}-{module}-{formver}-{date}.csv when formver_split is enabled).",
       "type": "string",
       "default": ""
+    },
+    "batch_size": {
+      "description": "Number of NACCIDs per batch for OR-list queries (subject resolution and file queries)",
+      "type": "integer",
+      "default": 100
+    },
+    "reload_workers": {
+      "description": "Number of concurrent threads for reloading file metadata",
+      "type": "integer",
+      "default": 10
     }
   },
   "command": "/bin/run"
