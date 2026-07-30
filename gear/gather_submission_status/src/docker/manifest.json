@@ -79,6 +79,11 @@
       "description": "Name of the output file",
       "type": "string",
       "default": "submission-status.csv"
+    },
+    "reload_workers": {
+      "description": "Number of concurrent threads for reloading QC file metadata",
+      "type": "integer",
+      "default": 10
     }
   },
   "command": "/bin/run"
