@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.0
+
+* Updates `nacc-attribute-deriver` to `2.4.0` - adds D1c form variables and various bugfixes related to I4/FVP V4 behavior
+
 ## 1.3.11 - 1.3.12
 
 * Updates `nacc-attribute-deriver` to `2.3.6` - fixes bug with checking for legacy NCRAD biomarker rounds
