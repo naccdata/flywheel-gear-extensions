@@ -2,6 +2,7 @@
 
 import logging
 from csv import DictReader
+from dataclasses import dataclass, field
 from typing import TextIO
 
 from data_requests.data_request import (
@@ -18,18 +19,29 @@ from pydantic import ValidationError
 log = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class GatherConfig:
+    """Configuration for the gather form data process.
+
+    Groups study/project selection, module filtering, and performance-
+    tuning parameters into a single structured object.
+    """
+
+    study_id: str
+    project_names: list[str]
+    modules: set[str]
+    info_paths: list[str] = field(default_factory=lambda: ["forms.json"])
+    batch_size: int = 100
+    reload_workers: int = 10
+    formver_split: bool = False
+
+
 def run(
     *,
     request_file: TextIO,
     proxy: FlywheelProxy,
-    study_id: str,
-    project_names: list[str],
-    modules: set[str],
-    info_paths: list[str],
+    config: GatherConfig,
     error_writer: ErrorWriter,
-    batch_size: int = 100,
-    reload_workers: int = 10,
-    formver_split: bool = False,
 ) -> tuple[bool, list[ModuleDataGatherer]]:
     """Runs the two-phase gather form data process.
 
@@ -39,14 +51,8 @@ def run(
     Args:
         request_file: the data request file (open text stream)
         proxy: the Flywheel proxy
-        study_id: the study ID
-        project_names: list of project names to search
-        modules: set of module names to gather
-        info_paths: info paths for form data extraction
+        config: gather configuration (study, modules, performance tuning)
         error_writer: collects per-NACCID errors
-        batch_size: max NACCIDs per OR-list query batch
-        reload_workers: concurrent threads for file metadata reload
-        formver_split: whether to split output by form version
 
     Returns:
         Tuple of (success, gatherers) where success is False if any
@@ -70,9 +76,12 @@ def run(
             has_errors = True
 
     # --- Phase 1: Look up project IDs ---
-    project_matcher = create_project_matcher(study_id, project_names)
+    project_matcher = create_project_matcher(config.study_id, config.project_names)
     all_projects = proxy.find_projects_with_pattern(
-        "|".join(project_names + [f"{name}-{study_id}" for name in project_names])
+        "|".join(
+            config.project_names
+            + [f"{name}-{config.study_id}" for name in config.project_names]
+        )
     )
     project_ids = [p.id for p in all_projects if project_matcher.match(p.label)]
 
@@ -84,7 +93,7 @@ def run(
         subjects = proxy.find_subjects_by_labels(
             labels=deduplicated_naccids,
             project_id=project_id,
-            batch_size=batch_size,
+            batch_size=config.batch_size,
         )
         all_subjects.extend(subjects)
 
@@ -92,8 +101,13 @@ def run(
     resolved_labels = {subject.label for subject in all_subjects}
     unresolved = set(deduplicated_naccids) - resolved_labels
 
-    expected_studies = {study_id, "adrc"}
+    # Coenrollment: affiliated studies (e.g. allftd) share subjects with adrc,
+    # so "adrc" is always included in the expected set for error messaging.
+    expected_studies = {config.study_id, "adrc"}
     for naccid in unresolved:
+        # pyright doesn't understand Pydantic's populate_by_name=True config,
+        # which allows construction using the Python field name (error_code,
+        # error_type) instead of the alias (code, type).
         error_writer.write(
             FileError(
                 error_code="no-participant",  # pyright: ignore[reportCallIssue]
@@ -113,18 +127,18 @@ def run(
     subject_ids = [subject.id for subject in all_subjects]
 
     data_gatherers: list[ModuleDataGatherer] = []
-    for module_name in modules:
+    for module_name in config.modules:
         gatherer = ModuleDataGatherer(
             proxy=proxy,
             module_name=module_name,
-            info_paths=info_paths,
-            split_by_formver=formver_split,
+            info_paths=config.info_paths,
+            split_by_formver=config.formver_split,
         )
         if subject_ids:
             gatherer.gather_project_data(
                 subject_ids=subject_ids,
-                batch_size=batch_size,
-                reload_workers=reload_workers,
+                batch_size=config.batch_size,
+                reload_workers=config.reload_workers,
             )
         data_gatherers.append(gatherer)
 

@@ -18,7 +18,7 @@ from gear_execution.gear_execution import (
 from inputs.parameter_store import ParameterStore
 from outputs.error_writer import ListErrorWriter
 
-from gather_form_data_app.main import run
+from gather_form_data_app.main import GatherConfig, run
 
 log = logging.getLogger(__name__)
 
@@ -177,14 +177,16 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             success, data_gatherers = run(
                 request_file=request_file,
                 proxy=self.proxy,
-                study_id=self.__study_id,
-                project_names=self.__project_names,
-                modules=self.__modules,
-                info_paths=self.__info_paths,
+                config=GatherConfig(
+                    study_id=self.__study_id,
+                    project_names=self.__project_names,
+                    modules=self.__modules,
+                    info_paths=self.__info_paths,
+                    batch_size=self.__batch_size,
+                    reload_workers=self.__reload_workers,
+                    formver_split=self.__formver_split,
+                ),
                 error_writer=error_writer,
-                batch_size=self.__batch_size,
-                reload_workers=self.__reload_workers,
-                formver_split=self.__formver_split,
             )
 
             if success:
