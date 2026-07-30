@@ -5,16 +5,14 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from data_requests.data_request import (
-    DataRequestVisitor,
-    ModuleDataGatherer,
-)
+from data_requests.data_request import ModuleDataGatherer
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
@@ -96,6 +94,8 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         study_id: str,
         output_prefix: str,
         formver_split: bool = False,
+        batch_size: int = 100,
+        reload_workers: int = 10,
     ):
         super().__init__(client=client)
         self.__file_input = file_input
@@ -105,6 +105,8 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self.__study_id = study_id
         self.__output_prefix = output_prefix
         self.__formver_split = formver_split
+        self.__batch_size = batch_size
+        self.__reload_workers = reload_workers
 
     @classmethod
     def create(
@@ -120,9 +122,9 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         Returns:
           the execution environment
         Raises:
-          GearExecutionError if any expected inputs are missing
+          GearExecutionError if any expected inputs are missing or config
+          parameters are invalid
         """
-
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
@@ -138,6 +140,18 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         output_file_prefix = options.get("output_file_prefix", "")
         output_prefix = output_file_prefix if output_file_prefix else study_id
 
+        batch_size = options.get("batch_size", 100)
+        reload_workers = options.get("reload_workers", 10)
+
+        if batch_size <= 0:
+            raise GearExecutionError(
+                f"batch_size must be a positive integer, got {batch_size}"
+            )
+        if reload_workers <= 0:
+            raise GearExecutionError(
+                f"reload_workers must be a positive integer, got {reload_workers}"
+            )
+
         return GatherFormDataVisitor(
             client=client,
             file_input=file_input,
@@ -147,20 +161,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             study_id=study_id,
             output_prefix=output_prefix,
             formver_split=formver_split,
+            batch_size=batch_size,
+            reload_workers=reload_workers,
         )
 
     def run(self, context: GearContext) -> None:
-        data_gatherers: list[ModuleDataGatherer] = []
-        for module_name in self.__modules:
-            data_gatherers.append(
-                ModuleDataGatherer(
-                    proxy=self.proxy,
-                    module_name=module_name,
-                    info_paths=self.__info_paths,
-                    split_by_formver=self.__formver_split,
-                )
-            )
-
         input_path = Path(self.__file_input.filepath)
         with open(input_path, mode="r", encoding="utf-8-sig") as request_file:
             file_id = self.__file_input.file_id
@@ -168,23 +173,24 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 container_id=file_id,
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
-            request_visitor = DataRequestVisitor(
+
+            success, data_gatherers = run(
+                request_file=request_file,
                 proxy=self.proxy,
                 study_id=self.__study_id,
                 project_names=self.__project_names,
-                gatherers=data_gatherers,
+                modules=self.__modules,
+                info_paths=self.__info_paths,
                 error_writer=error_writer,
+                batch_size=self.__batch_size,
+                reload_workers=self.__reload_workers,
+                formver_split=self.__formver_split,
             )
 
-            success = run(
-                request_file=request_file,
-                request_visitor=request_visitor,
-                error_writer=error_writer,
-            )
             if success:
                 _write_module_output(
                     context=context,
-                    gatherers=request_visitor.gatherers,
+                    gatherers=data_gatherers,
                     output_prefix=self.__output_prefix,
                 )
 
