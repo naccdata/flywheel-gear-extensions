@@ -11,10 +11,10 @@ The new `center_form_export` gear iterates all subjects in a Flywheel group/proj
 - **Center_Form_Export_Gear**: The new Flywheel gear (`gear/center_form_export/`) that performs project-mode form data gathering and export
 - **Gather_Form_Data_Gear**: The existing Flywheel gear (`gear/gather_form_data/`) that gathers form data from a participant list CSV
 - **Gear_Manifest**: The `manifest.json` file defining a gear's metadata, inputs, and config fields
-- **Project_Mode**: The execution path that resolves a Flywheel group/project and iterates all subjects to gather form data
+- **Project_Mode**: The execution path that resolves a Flywheel group/project, iterates its subjects, and queries each module's files in batches of subject ids (not one query per subject, and not one unscoped query for the whole project)
 - **Participant_List_Mode**: The execution path that reads a CSV of NACCIDs and gathers form data for each listed participant
-- **Module_Data_Gatherer**: A shared library class in `common/` that collects file.info form data for a given module
-- **Data_Request_Match**: A shared library model representing a matched participant with subject_id and project_label
+- **Module_Data_Gatherer**: A shared library class in `common/` that collects file.info form data for a given module, via either a per-subject query (`gather_request_data`, used by Participant_List_Mode) or a batched-subject-id query (`gather_project_data`, used by Project_Mode)
+- **Data_Request_Match**: A shared library model representing a matched participant with subject_id and project_label; used by Participant_List_Mode only, not by Project_Mode
 - **Formver_Split**: An option to split output CSVs by form version, producing one file per (module, formver) pair
 - **BUILD_File**: A Pants build system configuration file defining targets for a directory
 - **Gear_Directory_Structure**: The standard layout for gears: `src/docker/` (Dockerfile, manifest.json, BUILD), `src/python/app_name/` (Python source), `test/python/` (tests)
@@ -50,28 +50,38 @@ The new `center_form_export` gear iterates all subjects in a Flywheel group/proj
 
 ### Requirement 3: Project-Mode Execution Logic
 
-**User Story:** As a data manager, I want the new gear to iterate all subjects in a Flywheel group/project and export form data per module, so that I can extract center-level form data without a participant list.
+**User Story:** As a data manager, I want the new gear to export form data per module for an entire Flywheel group/project without the number of queries scaling one-to-one with the number of subjects, so that I can extract center-level form data without a participant list and without excessive runtime for large centers.
 
 #### Acceptance Criteria
 
 1. WHEN the Center_Form_Export_Gear is executed, THE Center_Form_Export_Gear SHALL resolve the Flywheel group specified by `group_id` and find the project specified by `project_name` within that group
-2. WHEN the group and project are resolved, THE Center_Form_Export_Gear SHALL iterate all subjects in the project and create a Data_Request_Match for each subject using the subject label as the NACCID, the subject's Flywheel ID as the subject_id, and the resolved project label as the project_label
-3. WHEN subjects are found, THE Center_Form_Export_Gear SHALL parse the `modules` config field as a comma-separated list, create a Module_Data_Gatherer for each module name in that list, and call `gather_request_data` on each gatherer for each subject's Data_Request_Match
-4. IF the specified group is not found, THEN THE Center_Form_Export_Gear SHALL raise a gear execution error identifying the missing group
-5. IF the specified project is not found within the group, THEN THE Center_Form_Export_Gear SHALL raise a gear execution error identifying the missing project and group
-6. IF the project contains no subjects, THEN THE Center_Form_Export_Gear SHALL log a warning identifying the group and project, and complete without producing output files
-7. IF the `modules` config field is empty or contains no valid module names after parsing, THEN THE Center_Form_Export_Gear SHALL log a warning and complete without producing output files
+2. WHEN the group and project are resolved, THE Center_Form_Export_Gear SHALL iterate all subjects in the project and collect their subject ids
+3. WHEN subject ids are collected, THE Center_Form_Export_Gear SHALL parse the `modules` config field as a comma-separated list, create a Module_Data_Gatherer for each module name in that list, and call `gather_project_data` on each gatherer with the full list of subject ids
+4. WHEN `gather_project_data` is called, THE Module_Data_Gatherer SHALL partition the subject ids into batches (default 100, overridable via `batch_size` param/config field) and issue one Flywheel query per batch using an OR-list filter on subject id (`parents.subject=|[id1,id2,...]`) combined with the module's acquisition label — NOT one query per subject, and NOT a single unscoped query for the whole project
+5. WHEN a batch's file list is returned, THE Module_Data_Gatherer SHALL reload each file's `info` concurrently using a single, bounded worker pool shared across all batches in the call (default 10 workers, overridable via `reload_workers` param/config field), rather than reloading files one at a time or constructing a new pool per batch. The merge/write step for each reloaded file SHALL remain single-threaded, since the CSV writer is not thread-safe
+6. IF the specified group is not found, THEN THE Center_Form_Export_Gear SHALL raise a gear execution error identifying the missing group
+7. IF the specified project is not found within the group, THEN THE Center_Form_Export_Gear SHALL raise a gear execution error identifying the missing project and group
+8. IF the project contains no subjects, THEN THE Center_Form_Export_Gear SHALL log a warning identifying the group and project, and complete without producing output files
+9. IF a module's batched queries return no files, THEN THE Center_Form_Export_Gear SHALL skip output for that module and log a warning identifying the module name (see Requirement 5.3)
+10. IF the `modules` config field is empty or contains no valid module names after parsing, THEN THE Center_Form_Export_Gear SHALL log a warning and complete without producing output files
+11. WHEN a module finishes gathering, THE Center_Form_Export_Gear SHALL write that module's output file(s) immediately, before gathering the next module
 
-### Requirement 4: Resilient Subject Processing
+**Notes:** An unscoped project-wide query (no subject narrowing) was tried first and found to reliably time out on Flywheel's backend for large centers — hence the batching in 3.4. The `batch_size=100` and `reload_workers=10` defaults aren't guesses: concurrency was benchmarked at ~6.7x reload throughput before implementing, and `batch_size` was validated via a sweep (25/100/200) against both a small center and a large one (`retrospective-form`, ~25k files — a large legacy-import center used for testing) — 25 was slower everywhere; 200 was faster on the small center but a wash on the large one (reload volume dominates there, not query count) and, critically, didn't reproduce the timeout, confirming 100 has real margin. See `design.md` for the full history.
 
-**User Story:** As a data manager, I want the gear to continue processing remaining subjects when one subject fails, so that a single data issue does not block the entire export.
+### Requirement 4: Resilient File Processing
+
+**User Story:** As a data manager, I want the gear to continue processing remaining files when one file fails, so that a single data issue does not block the entire export.
 
 #### Acceptance Criteria
 
-1. WHEN a Module_Data_Gatherer raises a ModuleDataError for a subject, THE Center_Form_Export_Gear SHALL log a warning containing the subject identifier, the module name, and the error message
-2. WHEN a Module_Data_Gatherer raises a ModuleDataError for a subject, THE Center_Form_Export_Gear SHALL continue processing the remaining subject-gatherer combinations without interruption
-3. WHEN processing of all subject-gatherer combinations is complete, THE Center_Form_Export_Gear SHALL report successful completion regardless of how many individual ModuleDataError failures occurred
+1. WHEN a Module_Data_Gatherer raises a ModuleDataError while processing a file returned by one of its batched queries, THE Center_Form_Export_Gear SHALL log a warning containing the error message
+2. WHEN a Module_Data_Gatherer raises a ModuleDataError for a file, THE Center_Form_Export_Gear SHALL continue processing the remaining files in that batch, the remaining batches for that module, and the remaining modules without interruption
+3. WHEN processing of all modules is complete, THE Center_Form_Export_Gear SHALL report successful completion regardless of how many individual ModuleDataError failures occurred
 4. IF a Module_Data_Gatherer raises an unexpected error that is not a ModuleDataError, THEN THE Center_Form_Export_Gear SHALL propagate the error and halt processing
+5. THE Center_Form_Export_Gear SHALL log progress at least once per module (before starting) and once per subject batch processed, so that a running job's progress can be distinguished from a stalled one
+6. Concurrent `.reload()` calls within a batch share one Flywheel client/HTTP session across worker threads; this is a known, accepted assumption (not a verified guarantee) about thread-safety
+
+**Notes:** Because output is written per-module as soon as each module finishes (Requirement 3.11), a 4.4 failure while gathering module N no longer discards modules 1..N-1's already-written output — but N and any modules after it produce no output for that run. On 4.6: shared-client thread safety has been observed correct across all testing to date, including a full run against a large real center (`retrospective-form`), but isn't confirmed safe by the Flywheel SDK's own documentation.
 
 ### Requirement 5: Output File Production
 
