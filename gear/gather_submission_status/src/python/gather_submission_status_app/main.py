@@ -33,13 +33,14 @@ def _should_process_file(
 ) -> bool:
     """Check if a file should be processed based on ptid and module filters.
 
-    Replicates ProjectReportVisitor.__should_process_file logic.
+    Replicates ProjectReportVisitor.__should_process_file logic without the
+    Optional handling — callers must provide populated sets (not None).
 
     Args:
         filename: the filename to check
         matcher: compiled QC_FILENAME_PATTERN regex
-        ptid_set: set of participant IDs to include
-        modules: set of module names to include (uppercased)
+        ptid_set: set of participant IDs to include (must not be None)
+        modules: set of module names to include, uppercased (must not be None)
 
     Returns:
         True if the file matches pattern and passes ptid/module filters.
