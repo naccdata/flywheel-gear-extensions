@@ -6,13 +6,18 @@ Properties tested:
   5. Non-positive config parameters rejected (Req 3.3, 3.4)
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 from gather_form_data_app.main import run
+from gather_form_data_app.run import GatherFormDataVisitor
+from gear_execution.gear_execution import GearExecutionError
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from outputs.error_writer import ListErrorWriter
 
 from .conftest import (
+    create_gather_config,
     create_mock_project,
     create_mock_proxy,
     create_mock_subject,
@@ -69,14 +74,8 @@ def test_validation_separates_valid_from_invalid(valid_ids, invalid_ids):
     run(
         request_file=csv_content,
         proxy=proxy,
-        study_id="adrc",
-        project_names=["ingest-form"],
-        modules={"UDS"},
-        info_paths=["forms.json"],
+        config=create_gather_config(),
         error_writer=error_writer,
-        batch_size=100,
-        reload_workers=10,
-        formver_split=False,
     )
 
     errors = error_writer.errors()
@@ -129,14 +128,8 @@ def test_error_attribution_completeness(resolved_ids, unresolved_ids):
     success, _ = run(
         request_file=csv_content,
         proxy=proxy,
-        study_id="adrc",
-        project_names=["ingest-form"],
-        modules={"UDS"},
-        info_paths=["forms.json"],
+        config=create_gather_config(),
         error_writer=error_writer,
-        batch_size=100,
-        reload_workers=10,
-        formver_split=False,
     )
 
     errors = error_writer.errors()
@@ -155,9 +148,26 @@ def test_error_attribution_completeness(resolved_ids, unresolved_ids):
 
 
 # --- Property 5: Non-positive config parameters rejected ---
+#
+# These tests exercise the actual validation in GatherFormDataVisitor.create()
+# by mocking the dependencies that precede the config validation (GearBotClient,
+# InputFileWrapper) and providing a mock GearContext with controlled config opts.
 
 
-@settings(max_examples=100, deadline=None)
+def _create_mock_gear_context(opts: dict) -> Mock:
+    """Create a minimal mock GearContext with controlled config opts."""
+    context = Mock()
+    context.config.opts = {
+        "project_names": "ingest-form",
+        "modules": "UDS",
+        "study_id": "adrc",
+        "apikey_path_prefix": "/prod/flywheel/gearbot",
+        **opts,
+    }
+    return context
+
+
+@settings(max_examples=50, deadline=None)
 @given(
     batch_size=st.integers(max_value=0),
 )
@@ -165,23 +175,18 @@ def test_nonpositive_batch_size_rejected(batch_size):
     """Non-positive batch_size raises GearExecutionError before processing.
 
     Validates: Requirement 3.3
-
-    Note: The actual validation happens in run.py's GatherFormDataVisitor.create().
-    This test verifies the contract at the run.py level by importing and calling
-    the validation logic indirectly. Since we can't easily instantiate the full
-    gear context, we test the validation pattern directly.
     """
-    from gear_execution.gear_execution import GearExecutionError
+    context = _create_mock_gear_context({"batch_size": batch_size})
 
-    with pytest.raises(GearExecutionError, match="batch_size"):
-        # Simulate the validation that happens in GatherFormDataVisitor.create()
-        if batch_size <= 0:
-            raise GearExecutionError(
-                f"batch_size must be a positive integer, got {batch_size}"
-            )
+    with (
+        patch("gather_form_data_app.run.GearBotClient.create", return_value=Mock()),
+        patch("gather_form_data_app.run.InputFileWrapper.create", return_value=Mock()),
+        pytest.raises(GearExecutionError, match="batch_size"),
+    ):
+        GatherFormDataVisitor.create(context=context, parameter_store=Mock())
 
 
-@settings(max_examples=100, deadline=None)
+@settings(max_examples=50, deadline=None)
 @given(
     reload_workers=st.integers(max_value=0),
 )
@@ -190,10 +195,11 @@ def test_nonpositive_reload_workers_rejected(reload_workers):
 
     Validates: Requirement 3.4
     """
-    from gear_execution.gear_execution import GearExecutionError
+    context = _create_mock_gear_context({"reload_workers": reload_workers})
 
-    with pytest.raises(GearExecutionError, match="reload_workers"):
-        if reload_workers <= 0:
-            raise GearExecutionError(
-                f"reload_workers must be a positive integer, got {reload_workers}"
-            )
+    with (
+        patch("gather_form_data_app.run.GearBotClient.create", return_value=Mock()),
+        patch("gather_form_data_app.run.InputFileWrapper.create", return_value=Mock()),
+        pytest.raises(GearExecutionError, match="reload_workers"),
+    ):
+        GatherFormDataVisitor.create(context=context, parameter_store=Mock())

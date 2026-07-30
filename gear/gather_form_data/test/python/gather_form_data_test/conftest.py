@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 from flywheel.models.subject import Subject
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from gather_form_data_app.main import GatherConfig
 
 
 def create_mock_proxy(
@@ -67,3 +68,25 @@ def make_csv_content(naccids: list[str]) -> io.StringIO:
 def mock_proxy():
     """Fixture providing a basic mock FlywheelProxy."""
     return create_mock_proxy()
+
+
+def create_gather_config(
+    *,
+    study_id: str = "adrc",
+    project_names: list[str] | None = None,
+    modules: set[str] | None = None,
+    info_paths: list[str] | None = None,
+    batch_size: int = 100,
+    reload_workers: int = 10,
+    formver_split: bool = False,
+) -> GatherConfig:
+    """Create a GatherConfig with sensible defaults for testing."""
+    return GatherConfig(
+        study_id=study_id,
+        project_names=project_names or ["ingest-form"],
+        modules=modules or {"UDS"},
+        info_paths=info_paths or ["forms.json"],
+        batch_size=batch_size,
+        reload_workers=reload_workers,
+        formver_split=formver_split,
+    )

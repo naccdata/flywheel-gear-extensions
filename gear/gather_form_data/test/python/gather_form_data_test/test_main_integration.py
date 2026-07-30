@@ -10,6 +10,7 @@ from gather_form_data_app.main import run
 from outputs.error_writer import ListErrorWriter
 
 from .conftest import (
+    create_gather_config,
     create_mock_project,
     create_mock_proxy,
     create_mock_subject,
@@ -50,14 +51,8 @@ class TestHappyPath:
             success, gatherers = run(
                 request_file=csv_content,
                 proxy=proxy,
-                study_id="adrc",
-                project_names=["ingest-form"],
-                modules={"UDS"},
-                info_paths=["forms.json"],
+                config=create_gather_config(),
                 error_writer=error_writer,
-                batch_size=100,
-                reload_workers=10,
-                formver_split=False,
             )
 
         assert success is True
@@ -94,14 +89,8 @@ class TestHappyPath:
             success, _gatherers = run(
                 request_file=csv_content,
                 proxy=proxy,
-                study_id="adrc",
-                project_names=["ingest-form"],
-                modules={"UDS", "FTLD", "LBD"},
-                info_paths=["forms.json"],
+                config=create_gather_config(modules={"UDS", "FTLD", "LBD"}),
                 error_writer=error_writer,
-                batch_size=100,
-                reload_workers=10,
-                formver_split=False,
             )
 
         assert success is True
@@ -145,14 +134,8 @@ class TestMixedPath:
             success, _gatherers = run(
                 request_file=csv_content,
                 proxy=proxy,
-                study_id="adrc",
-                project_names=["ingest-form"],
-                modules={"UDS"},
-                info_paths=["forms.json"],
+                config=create_gather_config(),
                 error_writer=error_writer,
-                batch_size=100,
-                reload_workers=10,
-                formver_split=False,
             )
 
         # Success is False due to unresolved NACCIDs
@@ -185,14 +168,8 @@ class TestEmptyCSV:
         success, gatherers = run(
             request_file=csv_content,
             proxy=proxy,
-            study_id="adrc",
-            project_names=["ingest-form"],
-            modules={"UDS"},
-            info_paths=["forms.json"],
+            config=create_gather_config(),
             error_writer=error_writer,
-            batch_size=100,
-            reload_workers=10,
-            formver_split=False,
         )
 
         assert success is True
@@ -215,14 +192,8 @@ class TestAllInvalidCSV:
         success, _gatherers = run(
             request_file=csv_content,
             proxy=proxy,
-            study_id="adrc",
-            project_names=["ingest-form"],
-            modules={"UDS"},
-            info_paths=["forms.json"],
+            config=create_gather_config(),
             error_writer=error_writer,
-            batch_size=100,
-            reload_workers=10,
-            formver_split=False,
         )
 
         assert success is False
@@ -261,14 +232,8 @@ class TestBatchSizeAndWorkersPropagation:
             run(
                 request_file=csv_content,
                 proxy=proxy,
-                study_id="adrc",
-                project_names=["ingest-form"],
-                modules={"UDS"},
-                info_paths=["forms.json"],
+                config=create_gather_config(batch_size=50, reload_workers=5),
                 error_writer=error_writer,
-                batch_size=50,
-                reload_workers=5,
-                formver_split=False,
             )
 
         call_kwargs = mock_instance.gather_project_data.call_args[1]
