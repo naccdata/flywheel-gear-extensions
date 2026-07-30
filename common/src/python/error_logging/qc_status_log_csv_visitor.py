@@ -82,17 +82,23 @@ class QCStatusLogCSVVisitor(CSVVisitor):
             visit_metadata = self._extract_visit_keys(row)
         except (ValidationError, ValueError) as err:
             visit_metadata = None
-            log.debug(
+            log.warning(
                 f"Skipping row {line_num} - insufficient/incorrect visit data: {err}"
             )
 
         if not visit_metadata or not self._is_valid_visit(visit_metadata):
-            message = f"Failed to create QC status log for row {line_num}"
-            log.warning(message)
+            ptid = row.get(FieldNames.PTID)
+            date = row.get(self.__module_configs.date_field)
+            message = (
+                f"Failed to create QC status log for row {line_num} - "
+                f"PTID {ptid}, DATE {date}"
+            )
+            log.error(message)
             self.__misc_errors.append(
                 system_error(
                     message=message,
                     error_location=CSVLocation(line=line_num, column_name=""),
+                    visit_keys=visit_metadata,
                 )
             )
             return True  # Don't fail processing for incomplete visits
