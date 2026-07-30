@@ -30,7 +30,8 @@ The gear manifest config includes the following parameters:
 | `include_derived` | boolean | `false` | Whether to include derived variables or missingness information |
 | `modules` | string | `"UDS,FTLD,LBD"` | Comma-separated list of form module names to include. Valid values: `UDS`, `FTLD`, `LBD` |
 | `study_id` | string | `"adrc"` | The study ID. Should be set if any participants have data from an affiliated study |
-| `formver_split` | boolean | `false` | Split output CSVs by form version. When enabled, output is split by form version producing files named `{study_id}-{module}-{formver_label}-{date}.csv` |
+| `formver_split` | boolean | `false` | Split output CSVs by form version. When enabled, output is split by form version producing files named `{prefix}-{module}-{formver_label}-{date}.csv` |
+| `output_file_prefix` | string | `""` | Prefix for output file names. If empty, defaults to `study_id`. Output files are named `{prefix}-{module}-{date}.csv` (or `{prefix}-{module}-{formver}-{date}.csv` when `formver_split` is enabled) |
 | `dry_run` | boolean | `false` | Whether to do a dry run |
 | `apikey_path_prefix` | string | `"/prod/flywheel/gearbot"` | AWS parameter path prefix for apikey |
 
@@ -50,7 +51,7 @@ The gear updates the input file with the following metadata after processing. Se
 A file is written for each module for which participant data is found.
 Columns depend on the module and whether `include_derived` is `true`.
 
-File names have the format `{study_id}-{module_name}-{date}.csv`.
+File names have the format `{prefix}-{module_name}-{date}.csv`, where `{prefix}` is the value of `output_file_prefix` (or `study_id` if `output_file_prefix` is empty).
 For instance, `allftd-uds-10-20-2025.csv`.
 
-When `formver_split` is enabled, output is split by form version, producing one file per module/version pair: `{study_id}-{module_name}-{formver_label}-{date}.csv`. Each file has a column set restricted to that exact form version; rows are not column-unioned across versions.
+When `formver_split` is enabled, output is split by form version, producing one file per module/version pair: `{prefix}-{module_name}-{formver_label}-{date}.csv`. Each file has a column set restricted to that exact form version; rows are not column-unioned across versions.
