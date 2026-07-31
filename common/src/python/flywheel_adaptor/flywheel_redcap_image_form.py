@@ -77,25 +77,30 @@ class FlywheelREDCapImageForm:
     # keys are REDCap image form variables
     # values are DICOM tag names
     __pet_tag_for_variable: ClassVar[dict] = {
+        "emission_start_time": "AcquisitionTime",
         "tracer_dose_assay": "RadionuclideTotalDose",
         "tracer_inj_time": "RadiopharmaceuticalStartDateTime",
-        "emission_start_time": "AcquisitionTime",
     }
 
     # list of REDCap image form variables that could be assigned by this class
     all_types_variables_to_check = (
         "adcid",
+<<<<<<< Updated upstream
         "redcap_data_access_group",
         "uploader_fullname",
         "uploader_email",
         "upload_date",
+=======
+>>>>>>> Stashed changes
         "fw_session_label",
         "fwid",
         "imagetype",
-        "ptid",
         "naccid",
+        "ptid",
         "scandt",
         "scanstart",
+        "uploader_email",
+        "uploader_fullname",
     )
 
     def __find_flywheel_origin_user_id(
