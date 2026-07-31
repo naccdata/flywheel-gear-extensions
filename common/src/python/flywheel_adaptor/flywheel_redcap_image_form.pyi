@@ -4,6 +4,7 @@ from flywheel.models.acquisition_list_output import (
     AcquisitionListOutput as AcquisitionListOutput,
 )
 from flywheel.models.container_output import ContainerOutput as ContainerOutput
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy as FlywheelProxy
 
 log: Logger
