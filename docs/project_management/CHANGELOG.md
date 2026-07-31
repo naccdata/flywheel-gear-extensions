@@ -2,7 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## [Unreleased]
+## 2.7.1
+
+* Fixes `authorization_path` default from `/prod/authorization/api-endpoint` to `/production/authorization/api-endpoint`
 
 ## 2.7.0
 

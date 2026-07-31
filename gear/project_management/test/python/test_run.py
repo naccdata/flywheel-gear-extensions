@@ -77,13 +77,13 @@ class TestRunClientCreationSuccess:
             client=mock_client_wrapper,
             project_filepath=empty_project_file,
             parameter_store=mock_parameter_store,
-            authorization_path="/prod/authorization/api-endpoint",
+            authorization_path="/production/authorization/api-endpoint",
         )
 
         visitor.run(mock_gear_context)
 
         mock_parameter_store.get_url.assert_called_once_with(
-            "/prod/authorization/api-endpoint"
+            "/production/authorization/api-endpoint"
         )
         mock_create_client.assert_called_once_with(
             base_url="https://api.example.com/auth"
@@ -118,7 +118,7 @@ class TestRunClientCreationParameterError:
             client=mock_client_wrapper,
             project_filepath=empty_project_file,
             parameter_store=mock_parameter_store,
-            authorization_path="/prod/authorization/api-endpoint",
+            authorization_path="/production/authorization/api-endpoint",
         )
 
         visitor.run(mock_gear_context)
@@ -147,7 +147,7 @@ class TestRunClientCreationParameterError:
             client=mock_client_wrapper,
             project_filepath=empty_project_file,
             parameter_store=mock_parameter_store,
-            authorization_path="/prod/authorization/api-endpoint",
+            authorization_path="/production/authorization/api-endpoint",
         )
 
         with caplog.at_level(logging.ERROR):
