@@ -50,55 +50,43 @@ def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> None:
 
 # Names of REDCap variables that are common across session types
 all_types_variables_to_import: list[str] = [
-    "record_id",
-    "ptid",
-    "naccid",
     "adcid",
-    "display_loc_project",
-    "fw_session_label",
-    "scandt",
-    "scanstart",
-    "loc_imageheader",
-    "loc_project",
-    "study",
-    "uploader_email",
-    "uploader_fullname",
-    "uploader_role",
-    "uploader_rolex",
-    "imagetype",
-    "mpdtver",
-    "clnaccidver",
-    "clcnstver",
-    "project",
-    "protocol_confirm_scan",
-    "protocol_confirm_cl",
+    "clariti_edc_status",
     "file_reupload",
-    "visit_code",
     "fundsource",
     "fundsourcex",
+    "imagetype",
+    "naccid",
     "part_motion",
     "pass_criteria",
-    "general_complete",
+    "project",
+    "protocol_confirm_cl",
+    "protocol_confirm_scan",
+    "ptid",
+    "record_id",
+    "scandt",
+    "scanstart",
+    "session_confirm",
+    "visit_code",
 ]
 
 # Names of REDCap variables that are specific to PET sessions
 pet_variables_to_import: list[str] = [
+    "emission_start_time",
+    "pet_comments",
+    "residual_dose_time",
     "tracer",
-    "tracerx",
     "tracer_dose_assay",
     "tracer_dose_time",
     "tracer_inj_time",
-    "emission_start_time",
-    "residual_dose_time",
-    "pet_comments",
+    "tracerx",
 ]
 
 # Names of REDCap variables that are specific to MRI sessions
 mri_variables_to_import: list[str] = [
-    "mri_sedate",
-    "mri_eyesopen",
     "mri_comments",
-    "session_confirm",
+    "mri_eyesopen",
+    "mri_sedate",
 ]
 
 
@@ -277,7 +265,9 @@ def run(
     verify_import_permitted(dry_run, session, redcap_record, "pass_criteria", 2)
 
     # 2 for complete
-    verify_import_permitted(dry_run, session, redcap_record, "general_complete", 2)
+    verify_import_permitted(
+        dry_run, session, redcap_record, "image_submission_ecrf_complete", 2
+    )
 
     fw_record = FlywheelREDCapImageForm(session, proxy)
     fw_record_dict: dict[str, str] = {}
