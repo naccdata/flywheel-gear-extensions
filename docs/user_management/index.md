@@ -208,7 +208,7 @@ Authorization sync is optional and fault-isolated:
 
 ### Configuration
 
-The gear manifest includes an `authorization_path` config field (default: `/prod/authorization/api-endpoint`).
+The gear manifest includes an `authorization_path` config field (default: `/production/authorization/api-endpoint`).
 This is the SSM Parameter Store path where the Authorization API endpoint URL is stored.
 
 The integration activates automatically when:

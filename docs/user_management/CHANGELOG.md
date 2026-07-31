@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.1
+
+* Fixes `authorization_path` default from `/prod/authorization/api-endpoint` to `/production/authorization/api-endpoint`
+
 ## 4.4.0
 
 * Adds authorization sync to the user management pipeline
