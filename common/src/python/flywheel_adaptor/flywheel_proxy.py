@@ -136,7 +136,7 @@ class FlywheelProxy:
             user_id: the ID to search for
 
         Returns:
-            a list with the user, or None if not found
+            the user, or None if not found
         """
         return self.__fw.users.find_first(f"_id={user_id}")
 
@@ -833,6 +833,30 @@ class FlywheelProxy:
     def get_subject_by_label(self, label: str) -> list[Subject]:
         return self.__fw.subjects.find(f"label={label}")
 
+    def find_subjects_by_labels(
+        self,
+        labels: list[str],
+        project_id: str,
+        batch_size: int = 100,
+    ) -> list[Subject]:
+        """Resolve multiple subject labels in batches using OR-list syntax.
+
+        Issues one query per batch of labels, scoped to the given project.
+
+        Args:
+          labels: subject labels (e.g. NACCIDs) to resolve
+          project_id: Flywheel project ID to scope the query
+          batch_size: max labels per query batch
+        Returns:
+          flat list of all matched Subject objects across all batches
+        """
+        results: list[Subject] = []
+        for start in range(0, len(labels), batch_size):
+            batch = labels[start : start + batch_size]
+            query = f"label=|[{','.join(batch)}],parents.project={project_id}"
+            results.extend(self.__fw.subjects.find(query))
+        return results
+
     def delete_acquisition(self, acquisition_id: str) -> bool:
         """Deletes the acquisition with the given ID.
 
@@ -1498,14 +1522,15 @@ class ProjectAdaptor:
             permission.id for permission in permissions if permission.access == "admin"
         ]
         for user_id in admin_users:
+            if not user_id:
+                continue
             try:
                 self.add_user_role_assignments(
                     RolesRoleAssignment(id=user_id, role_ids=[admin_role.id])
                 )
             except ProjectError:
                 log.warning(
-                    "Unable to add admin user %s to project %s, user may not"
-                    " exist on this instance",
+                    "Unable to add admin user %s to project %s",
                     user_id,
                     self._project.label,
                 )

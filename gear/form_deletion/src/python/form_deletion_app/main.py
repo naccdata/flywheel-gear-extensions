@@ -77,6 +77,7 @@ def run(
     form_configs: FormProjectConfigs,
     identifiers_repo: IdentifierRepository,
     check_sbsq_visits: bool,
+    skip_accepted_project: bool,
     context: GearContext,
 ):
     """Process the form data delete request.
@@ -89,6 +90,7 @@ def run(
         form_configs: Form ingest configs
         identifiers_repo: Identifier repository
         check_sbsq_visits: Check whether there are any subsequent QC passed visits
+        skip_accepted_project: Skip deleting files from the accepted project
         context: Gear execution context
     """
 
@@ -110,6 +112,7 @@ def run(
         error_writer=error_writer,
         identifier=identifier,
         check_sbsq_visits=check_sbsq_visits,
+        skip_accepted_project=skip_accepted_project,
     )
 
     success = processor.process_request()

@@ -49,6 +49,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         study_id: str,
         file_visitor_builder: FileQCReportVisitorBuilder,
         fieldnames: List[str],
+        reload_workers: int,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -59,6 +60,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         self.__study_id = study_id
         self.__file_visitor_builder = file_visitor_builder
         self.__report_fieldnames = fieldnames
+        self.__reload_workers = reload_workers
 
     @classmethod
     def create(
@@ -89,6 +91,12 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
 
         study_id = options.get("study_id", "adrc")
 
+        reload_workers = int(options.get("reload_workers", 10))
+        if reload_workers <= 0:
+            raise GearExecutionError(
+                f"reload_workers must be a positive integer, got {reload_workers}"
+            )
+
         query_type_arg = options.get("query_type", "status")
         if query_type_arg not in ["error", "status"]:
             raise GearExecutionError(f"Invalid query_type: {query_type_arg}")
@@ -112,6 +120,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             study_id=study_id,
             file_visitor_builder=file_visitor_builder,
             fieldnames=fieldnames,
+            reload_workers=reload_workers,
         )
 
     def run(self, context: GearContext) -> None:
@@ -147,6 +156,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                     file_visitor_builder=self.__file_visitor_builder,
                     writer=writer,
                     error_writer=error_writer,
+                    reload_workers=self.__reload_workers,
                 )
 
             context.metadata.add_qc_result(

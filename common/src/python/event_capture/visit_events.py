@@ -10,7 +10,7 @@ Note: processes do not support issuing an explicit QC failure event.
 """
 
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Any, ClassVar, Literal, Self
 
 from keys.types import DatatypeNameType
 from nacc_common.data_identification import (
@@ -78,32 +78,36 @@ class VisitEvent(BaseModel):
                 f"'{type(self).__name__}' object has no attribute '{name}'"
             ) from error
 
+    # Fields from DataIdentification that are renamed in the serialized output.
+    # All other fields from data_identification are passed through as-is.
+    _RENAMED_FIELDS: ClassVar[dict[str, str]] = {
+        "adcid": "pipeline_adcid",
+        "date": "visit_date",
+        "visitnum": "visit_number",
+    }
+
     @model_serializer(mode="wrap")
     def serialize_model(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ) -> dict[str, Any]:
         data = handler(self)
 
-        # Extract and remove data_identification from serialized output
+        # Extract and remove data_identification from serialized output.
+        # DataIdentification's own serializer already flattens its nested
+        # participant/visit/data sub-objects into a single dict.
         data_identification = data.pop("data_identification")
 
-        # Map DataIdentification fields to VisitEvent field names
-        # adcid -> pipeline_adcid
-        if "adcid" in data_identification:
-            data["pipeline_adcid"] = data_identification["adcid"]
-
-        # date -> visit_date
-        if "date" in data_identification:
-            data["visit_date"] = data_identification["date"]
-
-        # visitnum -> visit_number
-        if "visitnum" in data_identification:
-            data["visit_number"] = data_identification["visitnum"]
-
-        # Pass through fields that have the same name
-        for field in ["ptid", "naccid", "module", "packet"]:
-            if field in data_identification:
-                data[field] = data_identification[field]
+        # Map renamed fields, then pass through everything else as-is.
+        # This approach is forward-compatible: new fields added to future
+        # DataIdentification data subclasses (e.g., EnrollmentIdentification)
+        # will automatically appear in the serialized VisitEvent without
+        # needing to update this serializer.
+        for field, value in data_identification.items():
+            renamed = self._RENAMED_FIELDS.get(field)
+            if renamed:
+                data[renamed] = value
+            else:
+                data[field] = value
 
         return data
 

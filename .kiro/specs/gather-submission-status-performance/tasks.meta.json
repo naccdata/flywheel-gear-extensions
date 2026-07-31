@@ -1,0 +1,174 @@
+{
+  "pbtResults": {
+    "3.1 Write tests for `_should_process_file` filter equivalence": {
+      "status": "passed",
+      "lastRunTimestamp": 1785442027597
+    }
+  },
+  "executionHistory": {
+    "1.1 Add `reload_workers` config field to manifest.json": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848489
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440857874
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441693072
+      }
+    ],
+    "1.2 Add `reload_workers` to `GatherSubmissionStatusVisitor` in `run.py`": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848515
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440857889
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441693980
+      }
+    ],
+    "2.1 Rewrite `main.py` with concurrent reload orchestration": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848550
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441698486
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441845822
+      }
+    ],
+    "3.1 Write tests for `_should_process_file` filter equivalence": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848576
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441850185
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442167506
+      }
+    ],
+    "3.2 Write tests for `_process_reloaded_file` processing logic": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848604
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441851044
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442168292
+      }
+    ],
+    "3.3 Write integration test for end-to-end `main.run()` flow": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848629
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441851868
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442169521
+      }
+    ],
+    "3.4 Write test for `reload_workers` validation in `run.py`": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848655
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441852806
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442170509
+      }
+    ],
+    "4.1 Run full quality check": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785440848678
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442175158
+      },
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442320770
+      }
+    ],
+    "1. Add `reload_workers` config to manifest and update `run.py`": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441694000
+      }
+    ],
+    "2. Rewrite `main.py` with concurrent file reloading": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785441845853
+      }
+    ],
+    "3. Write tests for the refactored gear": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442170533
+      }
+    ],
+    "4. Final verification": [
+      {
+        "executionId": "ae9fe956-182e-4919-8305-b558c6cb594d",
+        "chatSessionId": "sess_1b268725-cd62-4b19-a96c-e62544b46183",
+        "timestamp": 1785442320798
+      }
+    ]
+  }
+}

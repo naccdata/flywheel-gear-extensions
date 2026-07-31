@@ -35,4 +35,5 @@ def mock_context() -> MagicMock:
 
     context.output_files = {}
     context.open_output.side_effect = fake_open_output
+    context.manifest.name = "center-form-export"
     return context

@@ -214,7 +214,7 @@ class InputFileWrapper:
     @property
     def basename(self) -> str:
         """Returns the base name of the file name."""
-        (basename, extension) = os.path.splitext(self.filename)
+        (basename, _extension) = os.path.splitext(self.filename)
         return basename
 
     @property

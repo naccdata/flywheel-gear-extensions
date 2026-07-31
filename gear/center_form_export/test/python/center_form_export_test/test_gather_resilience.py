@@ -1,192 +1,175 @@
 """Property test for resilience of data gathering.
 
-Verifies that the gathering loop processes all subject-module combinations
-even when individual gatherers raise errors.
+Verifies that the gathering loop calls every configured gatherer exactly
+once for the project, and that an unexpected (non-ModuleDataError)
+exception from a gatherer propagates rather than being silently swallowed.
+
+Per-file resilience to ModuleDataError now lives inside
+``ModuleDataGatherer.gather_project_data`` (see
+``common/test/python/data_requests/test_data_request.py``), since that
+method — not ``main.run()`` — issues the batched, subject-scoped queries
+and iterates the returned files.
 
 **Feature: center-form-export,
-  Property 3: All subjects processed with resilience**
-**Validates: Requirements 8.2, 8.4**
+  Property 3: All modules processed with resilience**
+**Validates: Requirements 4.2, 4.3, 4.4**
 """
 
 from unittest.mock import Mock, patch
 
+import pytest
 from center_form_export_app.main import run
-from data_requests.data_request import (
-    DataRequestMatch,
-    ModuleDataError,
-    ModuleDataGatherer,
-)
+from data_requests.data_request import ModuleDataGatherer
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
-
-def data_request_match_strategy() -> st.SearchStrategy[DataRequestMatch]:
-    """Strategy to generate DataRequestMatch objects."""
-    return st.builds(
-        DataRequestMatch,
-        naccid=st.text(
-            alphabet=st.characters(whitelist_categories=("L", "N")),
-            min_size=1,
-            max_size=10,
-        ),
-        subject_id=st.text(
-            alphabet=st.characters(whitelist_categories=("L", "N")),
-            min_size=1,
-            max_size=20,
-        ),
-        project_label=st.text(
-            alphabet=st.characters(whitelist_categories=("L", "N", "Pd")),
-            min_size=1,
-            max_size=30,
-        ),
-    )
-
-
-def mock_gatherer(raises: bool, module_name: str) -> Mock:
-    """Create a mock ModuleDataGatherer that either succeeds or raises."""
-    mock = Mock(spec=ModuleDataGatherer)
-    mock.module_name = module_name
-    if raises:
-        mock.gather_request_data.side_effect = ModuleDataError(
-            f"Simulated error for {module_name}"
-        )
-    return mock
-
 
 MODULE_NAMES = ["UDS", "FTLD", "LBD"]
 
 
+def mock_gatherer(module_name: str) -> Mock:
+    """Create a mock ModuleDataGatherer."""
+    mock = Mock(spec=ModuleDataGatherer)
+    mock.module_name = module_name
+    return mock
+
+
 class TestGatherResilience:
-    """Property tests for data gathering resilience.
+    """Property tests for module-level data gathering."""
 
-    Verifies that run() always returns True regardless of whether
-    individual gatherers raise ModuleDataError, and that all request-
-    gatherer combinations are attempted.
-    """
+    @given(num_gatherers=st.integers(min_value=0, max_value=5))
+    @settings(max_examples=50)
+    def test_always_returns_true(self, num_gatherers: int):
+        """run() always returns True when no gatherer raises.
 
-    @given(
-        requests=st.lists(
-            data_request_match_strategy(),
-            min_size=0,
-            max_size=5,
-        ),
-        failure_mask=st.lists(
-            st.booleans(),
-            min_size=1,
-            max_size=3,
-        ),
-    )
-    @settings(max_examples=200)
-    def test_always_returns_true(
-        self,
-        requests: list[DataRequestMatch],
-        failure_mask: list[bool],
-    ):
-        """run() always returns True regardless of gatherer failures.
-
-        **Validates: Requirements 4.2, 5.1**
+        **Validates: Requirements 4.3**
         """
         gatherers = [
-            mock_gatherer(
-                raises=failure_mask[i % len(failure_mask)],
-                module_name=MODULE_NAMES[i % len(MODULE_NAMES)],
-            )
-            for i in range(len(failure_mask))
+            mock_gatherer(MODULE_NAMES[i % len(MODULE_NAMES)])
+            for i in range(num_gatherers)
         ]
 
         with patch("center_form_export_app.main.log"):
-            result = run(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
+            result = run(subject_ids=["sub-1"], gatherers=gatherers)  # type: ignore[arg-type]
 
         assert result is True
 
-    @given(
-        requests=st.lists(
-            data_request_match_strategy(),
-            min_size=1,
-            max_size=5,
-        ),
-        failure_mask=st.lists(
-            st.booleans(),
-            min_size=1,
-            max_size=3,
-        ),
-    )
-    @settings(max_examples=200)
-    def test_all_combinations_attempted(
-        self,
-        requests: list[DataRequestMatch],
-        failure_mask: list[bool],
-    ):
-        """All request-gatherer combinations are attempted even when some fail.
+    @given(num_gatherers=st.integers(min_value=1, max_value=5))
+    @settings(max_examples=50)
+    def test_every_gatherer_called_once_with_subject_ids(self, num_gatherers: int):
+        """Every gatherer's gather_project_data is called exactly once, with
+        the resolved subject ids.
 
-        **Validates: Requirements 5.3, 5.4, 8.2**
+        **Validates: Requirements 3.3**
         """
         gatherers = [
-            mock_gatherer(
-                raises=failure_mask[i % len(failure_mask)],
-                module_name=MODULE_NAMES[i % len(MODULE_NAMES)],
-            )
-            for i in range(len(failure_mask))
+            mock_gatherer(MODULE_NAMES[i % len(MODULE_NAMES)])
+            for i in range(num_gatherers)
         ]
+        subject_ids = ["sub-1", "sub-2"]
 
         with patch("center_form_export_app.main.log"):
-            run(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
+            run(subject_ids=subject_ids, gatherers=gatherers)  # type: ignore[arg-type]
 
-        # Every gatherer should be called once for every request
         for gatherer in gatherers:
-            assert gatherer.gather_request_data.call_count == len(requests)
+            gatherer.gather_project_data.assert_called_once_with(subject_ids)
 
-        # Verify each request was passed to each gatherer
-        for gatherer in gatherers:
-            called_requests = [
-                call.args[0] for call in gatherer.gather_request_data.call_args_list
-            ]
-            for request in requests:
-                assert request in called_requests
+    def test_unexpected_error_propagates(self):
+        """An unexpected (non-ModuleDataError) exception from a gatherer is not
+        swallowed by run().
 
-    @given(
-        requests=st.lists(
-            data_request_match_strategy(),
-            min_size=2,
-            max_size=5,
-        ),
-        num_gatherers=st.integers(min_value=1, max_value=3),
-    )
-    @settings(max_examples=200)
-    def test_exception_does_not_prevent_other_subjects(
-        self,
-        requests: list[DataRequestMatch],
-        num_gatherers: int,
-    ):
-        """Exceptions from one subject don't prevent processing of others.
-
-        All gatherers raise for the first request but succeed for the rest.
-        Verifies remaining subjects are still processed.
-
-        **Validates: Requirements 5.1, 5.4**
+        **Validates: Requirements 4.4**
         """
-        first_request = requests[0]
-        gatherers: list = []
+        failing = mock_gatherer("UDS")
+        failing.gather_project_data.side_effect = RuntimeError("boom")
+        ok = mock_gatherer("FTLD")
 
-        for i in range(num_gatherers):
-            m = Mock(spec=ModuleDataGatherer)
-            m.module_name = MODULE_NAMES[i % len(MODULE_NAMES)]
+        with (
+            patch("center_form_export_app.main.log"),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            run(subject_ids=["sub-1"], gatherers=[failing, ok])  # type: ignore[arg-type]
 
-            def make_side_effect(req_to_fail):
-                def side_effect(req):
-                    if req == req_to_fail:
-                        raise ModuleDataError("Simulated failure")
+        ok.gather_project_data.assert_not_called()
 
-                return side_effect
+    def test_on_module_gathered_called_once_per_gatherer_in_order(self):
+        """The callback fires once per gatherer, immediately after that
+        gatherer's data is gathered, in gatherer order -- not batched until the
+        end.
 
-            m.gather_request_data.side_effect = make_side_effect(first_request)
-            gatherers.append(m)
+        **Validates: Requirements written re: incremental output writing**
+        """
+        gatherers = [mock_gatherer("UDS"), mock_gatherer("FTLD"), mock_gatherer("LBD")]
+        calls = []
+
+        def record_call(gatherer):
+            calls.append(gatherer.module_name)
+            # Assert the gatherer this callback fired for has already been
+            # gathered, but nothing later in the list has been touched yet.
+            gatherer.gather_project_data.assert_called_once()
+            for later in gatherers[len(calls) :]:
+                later.gather_project_data.assert_not_called()
 
         with patch("center_form_export_app.main.log"):
-            result = run(requests=requests, gatherers=gatherers)  # type: ignore[arg-type]
+            run(
+                subject_ids=["sub-1"],
+                gatherers=gatherers,  # type: ignore[arg-type]
+                on_module_gathered=record_call,
+            )
+
+        assert calls == ["UDS", "FTLD", "LBD"]
+
+    def test_on_module_gathered_error_propagates_and_halts(self):
+        """If the callback raises (e.g. a write failure), the exception
+        propagates and remaining gatherers are not processed."""
+        gatherers = [mock_gatherer("UDS"), mock_gatherer("FTLD")]
+
+        def failing_callback(gatherer):
+            raise OSError("disk full")
+
+        with (
+            patch("center_form_export_app.main.log"),
+            pytest.raises(OSError, match="disk full"),
+        ):
+            run(
+                subject_ids=["sub-1"],
+                gatherers=gatherers,  # type: ignore[arg-type]
+                on_module_gathered=failing_callback,
+            )
+
+        gatherers[1].gather_project_data.assert_not_called()
+
+    def test_on_module_gathered_is_optional(self):
+        """run() works with no callback at all (the default)."""
+        gatherers = [mock_gatherer("UDS")]
+
+        with patch("center_form_export_app.main.log"):
+            result = run(subject_ids=["sub-1"], gatherers=gatherers)  # type: ignore[arg-type]
 
         assert result is True
 
-        # All gatherers should still be called for all requests
-        for gatherer in gatherers:
-            assert gatherer.gather_request_data.call_count == len(requests)
+    def test_batch_size_and_reload_workers_passed_through_when_given(self):
+        """When batch_size/reload_workers are provided, they're forwarded to
+        gather_project_data."""
+        gatherer = mock_gatherer("UDS")
+
+        with patch("center_form_export_app.main.log"):
+            run(
+                subject_ids=["sub-1"],
+                gatherers=[gatherer],  # type: ignore[arg-type]
+                batch_size=250,
+                reload_workers=5,
+            )
+
+        gatherer.gather_project_data.assert_called_once_with(
+            ["sub-1"], batch_size=250, reload_workers=5
+        )
+
+    def test_batch_size_and_reload_workers_omitted_when_not_given(self):
+        """When batch_size/reload_workers are not provided, they're left out of
+        the call entirely, so gather_project_data's own defaults apply."""
+        gatherer = mock_gatherer("UDS")
+
+        with patch("center_form_export_app.main.log"):
+            run(subject_ids=["sub-1"], gatherers=[gatherer])  # type: ignore[arg-type]
+
+        gatherer.gather_project_data.assert_called_once_with(["sub-1"])

@@ -363,18 +363,20 @@ Event object logged to S3:
 
 ```python
 class VisitEvent(BaseModel):
-    action: str                    # "submit" or "pass-qc"
+    action: str                    # "submit", "pass-qc", "not-pass-qc", or "delete"
     study: str                     # Study identifier (extracted from project label)
     pipeline_adcid: int            # ADCID for event routing
     project_label: str             # Project name (e.g., "ingest-form", "ingest-form-dvcid")
     center_label: str              # Center name
     gear_name: str                 # "identifier-lookup" or "form-scheduler"
     ptid: str                      # Participant ID
+    naccid: Optional[str]          # NACC-assigned participant ID (optional)
     visit_date: date               # Visit date
     visit_number: str              # Visit number (optional for some modules)
-    datatype: str                  # "form"
-    module: str                    # "UDS", "FTLD", "LBD", etc.
-    packet: Optional[str]          # Packet type (optional)
+    datatype: str                  # "form" or "dicom"
+    module: Optional[str]          # "UDS", "FTLD", "LBD", etc. (form events only)
+    packet: Optional[str]          # Packet type (form events only, optional)
+    modality: Optional[str]        # Imaging modality, e.g. "MR" (dicom events only)
     timestamp: datetime            # When action occurred
 ```
 
@@ -474,22 +476,22 @@ Events are written to S3 in a flat structure organized by environment.
 ```text
 s3://event-bucket/
 ├── prod/
-│   ├── log-submit-{YYYYMMDD-HHMMSS}-{adcid}-{project}-{ptid}-{visitnum}.json
-│   └── log-pass-qc-{YYYYMMDD-HHMMSS}-{adcid}-{project}-{ptid}-{visitnum}.json
+│   ├── log-submit-{YYYYMMDD-HHMMSS}-{adcid}-{project}-{ptid}-{visit_date}.json
+│   └── log-pass-qc-{YYYYMMDD-HHMMSS}-{adcid}-{project}-{ptid}-{visit_date}.json
 └── dev/
     └── ...
 ```
 
-**Filename Format**: `log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visitnum}.json`
+**Filename Format**: `log-{action}-{timestamp}-{adcid}-{project}-{ptid}-{visit_date}.json`
 
 Where:
 
-- **action**: Event type (`submit`, `pass-qc`)
+- **action**: Event type (`submit`, `pass-qc`, `not-pass-qc`, `delete`)
 - **timestamp**: Event timestamp in format `YYYYMMDD-HHMMSS` (when action occurred)
 - **adcid**: Pipeline ADCID
 - **project**: Project label (sanitized)
 - **ptid**: Participant ID
-- **visitnum**: Visit number (if present)
+- **visit_date**: Visit date (YYYY-MM-DD)
 
 ### Example
 
@@ -499,26 +501,28 @@ For a visit with:
 - pipeline_adcid: `42`
 - project_label: `ingest-form` (ADRC study)
 - ptid: `110001`
-- visit_number: `01`
+- visit_date: `2024-01-15`
 - submit timestamp: `2024-01-15T10:00:00Z`
 - pass-qc timestamp: `2024-01-15T10:20:00Z`
 
 Events are written to:
 
 ```text
-s3://event-bucket/prod/log-submit-20240115-100000-42-ingest-form-110001-01.json
-s3://event-bucket/prod/log-pass-qc-20240115-102000-42-ingest-form-110001-01.json
+s3://event-bucket/prod/log-submit-20240115-100000-42-ingest-form-110001-2024-01-15.json
+s3://event-bucket/prod/log-pass-qc-20240115-102000-42-ingest-form-110001-2024-01-15.json
 ```
 
 For a DVCID study visit:
 
 ```text
-s3://event-bucket/prod/log-submit-20240115-100000-44-ingest-form-dvcid-110003-01.json
+s3://event-bucket/prod/log-submit-20240115-100000-44-ingest-form-dvcid-110003-2024-01-15.json
 ```
 
 ### Event File Format
 
-Each event file contains a JSON object with the complete VisitEvent data:
+Each event file contains a JSON object with the complete VisitEvent data.
+
+**Form event example:**
 
 ```json
 {
@@ -529,6 +533,7 @@ Each event file contains a JSON object with the complete VisitEvent data:
   "center_label": "alpha",
   "gear_name": "identifier-lookup",
   "ptid": "110001",
+  "naccid": "NACC000001",
   "visit_date": "2024-01-15",
   "visit_number": "01",
   "datatype": "form",
@@ -537,6 +542,28 @@ Each event file contains a JSON object with the complete VisitEvent data:
   "timestamp": "2024-01-15T10:00:00Z"
 }
 ```
+
+**DICOM event example:**
+
+```json
+{
+  "action": "submit",
+  "study": "adrc",
+  "pipeline_adcid": 42,
+  "project_label": "ingest-dicom",
+  "center_label": "alpha",
+  "gear_name": "image-identifier-lookup",
+  "ptid": "110001",
+  "naccid": "NACC000001",
+  "visit_date": "2024-03-10",
+  "visit_number": "2",
+  "datatype": "dicom",
+  "modality": "MR",
+  "timestamp": "2024-03-10T14:30:00Z"
+}
+```
+
+Note: Fields with `null` values are excluded from the JSON output (`exclude_none=True`).
 
 ### Design Rationale
 

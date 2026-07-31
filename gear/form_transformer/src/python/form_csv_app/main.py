@@ -161,7 +161,9 @@ class CSVTransformVisitor(CSVVisitor):
         # Set transformer for the module
         if not self.__transformer:
             self.__transformer = self.__transformer_factory.create(
-                self.__module, self.__date_field, self.__error_writer
+                self.__module,
+                self.__error_writer,
+                self.__module_configs,
             )
 
         transformed_row = self.__transformer.transform(row, line_num)
@@ -260,13 +262,15 @@ class CSVTransformVisitor(CSVVisitor):
                     self.__module_configs.preprocess_checks
                     and PreprocessingChecks.VISIT_CONFLICT
                     in self.__module_configs.preprocess_checks
+                    and FieldNames.VISITNUM in self.__module_configs.required_fields
                 ):
-                    is_ivp = (
-                        transformed_row[FieldNames.PACKET]
-                        in self.__module_configs.initial_packets
-                    )
-                    visit_num = transformed_row[FieldNames.VISITNUM]
+                    if FieldNames.PACKET in self.__module_configs.required_fields:
+                        is_ivp = (
+                            transformed_row[FieldNames.PACKET]
+                            in self.__module_configs.initial_packets
+                        )
 
+                    visit_num = transformed_row[FieldNames.VISITNUM]
                     # check the validity of visit numbers within current batch
                     if visit_num not in prev_visit_nums:
                         prev_visit_nums.append(visit_num)
@@ -406,18 +410,27 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return None
 
+        ptid = input_record.get(FieldNames.PTID)
+        date = input_record.get(self.__date_field)
         # Create DataIdentification from CSV record
         # Note: Use visitor's module (self.module), not record's module,
         # to ensure consistent QC log filenames even when record has wrong module
-        data_id = DataIdentification.from_visit_metadata(
-            ptid=input_record.get(FieldNames.PTID),
-            date=input_record.get(self.__date_field),
-            module=self.module,  # Use visitor's module, not record's module
-            visitnum=input_record.get(FieldNames.VISITNUM),
-            packet=input_record.get(FieldNames.PACKET),
-            naccid=input_record.get(FieldNames.NACCID),
-            adcid=input_record.get(FieldNames.ADCID),
-        )
+        try:
+            data_id = DataIdentification.from_visit_metadata(
+                ptid=ptid,
+                date=date,
+                module=self.module,  # Use visitor's module, not record's module
+                visitnum=input_record.get(FieldNames.VISITNUM),
+                packet=input_record.get(FieldNames.PACKET),
+                naccid=input_record.get(FieldNames.NACCID),
+                adcid=input_record.get(FieldNames.ADCID),
+            )
+        except (ValidationError, ValueError, TypeError) as error:
+            log.error(
+                "Failed to create DataIdentification for visit "
+                f"{ptid} - {date}: {error}. Cannot update the error log file."
+            )
+            return None
 
         # Use QCStatusLogManager to get filename
         qc_manager = QCStatusLogManager(
@@ -441,11 +454,7 @@ class CSVTransformVisitor(CSVVisitor):
         )
 
         if not error_log_name:
-            log.error(
-                "Failed to update error log for visit %s, %s",
-                input_record[FieldNames.PTID],
-                input_record[self.__date_field],
-            )
+            log.error(f"Failed to update error log for visit {ptid} - {date}")
             return None
 
         return error_log_name

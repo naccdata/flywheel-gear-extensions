@@ -71,7 +71,8 @@
                         "b3",
                         "b5",
                         "b6",
-                        "b7"
+                        "b7",
+                        "d1c"
                     ],
                     "I4": [
                         "a1a",
@@ -80,7 +81,8 @@
                         "b3",
                         "b5",
                         "b6",
-                        "b7"
+                        "b7",
+                        "d1c"
                     ],
                     "F": [
                         "a1a",
@@ -89,8 +91,20 @@
                         "b3",
                         "b5",
                         "b6",
-                        "b7"
+                        "b7",
+                        "d1c"
                     ]
+                }
+            },
+            "release_dates": {
+                "I": {
+                    "d1c": "2026-07-14"
+                },
+                "I4": {
+                    "d1c": "2026-07-14"
+                },
+                "F": {
+                    "d1c": "2026-07-14"
                 }
             },
             "preprocess_checks": [
@@ -277,6 +291,7 @@
                 "duplicate-record",
                 "version",
                 "packet",
+                "visit-conflict",
                 "clinical-forms"
             ],
             "longitudinal": false
@@ -406,6 +421,7 @@
             "preprocess_checks": [
                 "duplicate-record",
                 "version",
+                "visit-conflict",
                 "supplement-module"
             ],
             "longitudinal": false

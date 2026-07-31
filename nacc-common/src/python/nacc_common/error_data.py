@@ -91,11 +91,11 @@ def _should_include_file(
     if not match:
         return False
 
-    ptid = match.group(1)
+    ptid = match.group("ptid")
     if ptids is not None and ptid not in ptids:
         return False
 
-    module = match.group(3).upper()
+    module = match.group("module").upper()
     return modules is None or module in modules
 
 

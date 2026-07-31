@@ -2,8 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
-## Unreleased
+## 1.4.1
 
+* Add concurrent file reloading with configurable `reload_workers` parameter (default 10) for significantly faster processing of large projects
+* Fix qc-status file discovery to match filenames that include a visitnum segment (e.g., `2851_2025-09-02_10.00_uds_qc-status.log`). Previously only legacy filenames without visitnum were found.
+
+## 1.4.0
+
+* Removes hardcoded module name restriction — any module name is now accepted without filtering or warnings
 * Updates to Python 3.12 and switches to use `fw-gear` instead of `flywheel-gear-toolkit` (now deprecated)
 
 ## 1.3.0

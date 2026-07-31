@@ -788,7 +788,7 @@ class TestRunDataIdentificationReturn:
         )
 
         # Act
-        success, data_identification = ImageIdentifierLookup(
+        _success, data_identification = ImageIdentifierLookup(
             lookup_context=lookup_context,
             project=mock_project,
             subject=mock_subject,

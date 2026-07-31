@@ -85,15 +85,13 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
                 f"Invalid preceding_hours configuration: {error}"
             ) from error
 
-        date_range = threshold_config.get_date_range()
+        date_range_begin = threshold_config.get_date_range_begin()
 
-        if date_range:
-            begin_str, end_str = date_range
+        if date_range_begin:
             log.info(
-                "Incremental pull: preceding_hours=%s, date range %s to %s",
+                "Incremental pull: preceding_hours=%s, dateRangeBegin=%s (Pacific)",
                 threshold_config.threshold,
-                begin_str,
-                end_str,
+                date_range_begin,
             )
         else:
             log.info("Pulling all records (no date filtering)")
@@ -101,12 +99,10 @@ class DirectoryPullVisitor(GearExecutionEnvironment):
         try:
             connection = REDCapConnection.create_from(params)
             project = REDCapProject.create(connection)
-            if date_range:
-                begin_str, end_str = date_range
+            if date_range_begin:
                 records = project.export_records(
                     fields=get_directory_field_names(),
-                    date_range_begin=begin_str,
-                    date_range_end=end_str,
+                    date_range_begin=date_range_begin,
                 )
             else:
                 records = project.export_records(fields=get_directory_field_names())
