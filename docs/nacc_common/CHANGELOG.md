@@ -4,6 +4,13 @@ Documentation of release versions of the `nacc-common` package.
 
 ## Unreleased
 
+## v3.1.2
+
+### Bug Fixes
+
+* Fix `QC_FILENAME_PATTERN` to match qc-status log files that include a visitnum segment (e.g., `2851_2025-09-02_10.00_uds_qc-status.log`). Files in the new format were previously invisible to all consumers of this pattern.
+* Switch pattern consumers (`extract_visit_keys`, `ProjectReportVisitor`, `_should_include_file`) to named capture groups for clarity.
+
 ## v3.1.1
 
 ### Bug Fixes
