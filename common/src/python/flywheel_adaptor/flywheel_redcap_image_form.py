@@ -85,20 +85,15 @@ class FlywheelREDCapImageForm:
     # list of REDCap image form variables that could be assigned by this class
     all_types_variables_to_check = (
         "adcid",
-<<<<<<< Updated upstream
-        "redcap_data_access_group",
-        "uploader_fullname",
-        "uploader_email",
-        "upload_date",
-=======
->>>>>>> Stashed changes
         "fw_session_label",
         "fwid",
         "imagetype",
         "naccid",
         "ptid",
+        "redcap_data_access_group",
         "scandt",
         "scanstart",
+        "upload_date",
         "uploader_email",
         "uploader_fullname",
     )
