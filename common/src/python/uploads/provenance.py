@@ -40,7 +40,7 @@ class FileProvenance(BaseModel):
         # date. this is done because the created date of the current
         # file only corresponds to that version, which may be a reupload
         versions = proxy.get_file_versions(parent.file_id)
-        if not len(versions) > 1:
+        if not versions:
             raise ValueError("parent file has no file version history")
 
         first_version = versions[0]

@@ -135,6 +135,10 @@ preprocess_errors = {
         "Multiple submissions not allowed for {0} module, "
         "delete the existing submissions for this participant with dates {1} and retry"
     ),
+    SysErrorCodes.DUPLICATE_LEGACY_VISIT: (
+        "Duplicate record with the same visit date exists in the legacy submissions "
+        "for this participant/module"
+    ),
 }
 
 
@@ -226,6 +230,29 @@ def empty_field_error(
         visitnum=visit_keys.visitnum if visit_keys else None,
         date=visit_keys.date if visit_keys else None,
         naccid=visit_keys.naccid if visit_keys else None,
+    )
+
+
+def date_parse_error(
+    field: str,
+    value: str,
+    line: int,
+) -> FileError:
+    """Creates a FileError for a date field that cannot be parsed.
+
+    Args:
+      field: the field name
+      value: the unparseable date value
+      line: the line number in the CSV
+    Returns:
+      a FileError for the date parse failure
+    """
+    return FileError(
+        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_code="date-parse-error",  # pyright: ignore[reportCallIssue]
+        location=CSVLocation(line=line, column_name=field),
+        value=value,
+        message=f"Unable to parse date value '{value}' for field '{field}'",
     )
 
 

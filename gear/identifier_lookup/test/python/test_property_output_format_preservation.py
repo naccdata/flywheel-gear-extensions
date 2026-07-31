@@ -114,8 +114,8 @@ def test_output_format_preservation_property(
     for i, (baseline_call, event_call) in enumerate(
         zip(baseline_result["qc_calls"], event_logging_result["qc_calls"], strict=False)
     ):
-        baseline_args, baseline_kwargs = baseline_call
-        event_args, event_kwargs = event_call
+        _baseline_args, baseline_kwargs = baseline_call
+        _event_args, event_kwargs = event_call
 
         # Compare status (most important QC metadata)
         assert baseline_kwargs["status"] == event_kwargs["status"], (

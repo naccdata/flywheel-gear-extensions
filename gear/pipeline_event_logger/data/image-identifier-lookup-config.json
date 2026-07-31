@@ -1,0 +1,20 @@
+{
+  "upstream_gear_name": "image-identifier-lookup",
+  "error_configs": [
+    {
+      "check_name": "validation",
+      "field_mapping": {
+        "type": "list",
+        "message": "message",
+        "error_type": "type",
+        "error_code": "code"
+      }
+    }
+  ],
+  "event_actions": {
+    "pass": "pass-qc",
+    "fail": "not-pass-qc"
+  },
+  "event_environment": "prod",
+  "event_bucket": "submission-events"
+}

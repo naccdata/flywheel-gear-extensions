@@ -2,6 +2,15 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.0
+
+* Adds authorization sync to the user management pipeline
+  * Syncs user permission grants to the Authorization Service after Flywheel role assignment
+  * Translates Flywheel activity/role pairs into Authorization Service grant operations
+  * Supports both center-scoped (study) and general authorizations
+  * Gracefully disables sync when authorization client is unavailable
+* Adds `authorization_path` config parameter for specifying the Authorization API endpoint URL via SSM
+
 ## 4.3.3
 
 * Fixes case-sensitive email matching in `UserRegistry` that caused duplicate skeleton records

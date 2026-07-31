@@ -16,7 +16,7 @@ from test_mocks.mock_configs import milestone_ingest_configs
 from test_mocks.mock_flywheel import MockProjectAdaptor
 from test_mocks.mock_forms_store import MockFormsStore
 from transform.transformer import (
-    FieldTransformations,
+    TransformationSchema,
     TransformerFactory,
 )
 
@@ -48,10 +48,10 @@ def create_mlst_visitor(
     # transformer
     if transform_schema:
         transformer_factory = TransformerFactory(
-            FieldTransformations.model_validate_json(json.dumps(transform_schema))
+            TransformationSchema.model_validate_json(json.dumps(transform_schema))
         )
     else:
-        transformer_factory = TransformerFactory(FieldTransformations())
+        transformer_factory = TransformerFactory(TransformationSchema())
 
     form_store = MockFormsStore(date_field=date_field)
     project = MockProjectAdaptor(label="mlst-project")
@@ -133,14 +133,14 @@ class TestMilestonesTransform:
 
     def test_valid_milestones_record(self):
         """Test valid milestones record."""
-        visitor, project, _ = create_mlst_visitor()
+        visitor, _project, _ = create_mlst_visitor()
         record = create_milestones_record({})
         assert visitor.visit_row(record, 0)
 
     def test_invalid_milestones_record(self):
         """Test missing required fields."""
 
-        visitor, project, _ = create_mlst_visitor()
+        visitor, _project, _ = create_mlst_visitor()
         record = create_milestones_record({})
         record.pop(FieldNames.FORMVER)
         assert not visitor.visit_row(record, 0)

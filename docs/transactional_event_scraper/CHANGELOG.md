@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.2
+
+* Rebuilt for VisitEvent serialization fix (forward-compatible field passthrough)
+
+## 1.2.1
+
+* Pins flywheel-sdk to 22.0.0 to fix deserialization crash caused by missing `Avatars` model in SDK 22.1.0+
+
 ## 1.2.0
 
 * Adds new optional input file `form_configs_file` to resolve module-specific date fields when extracting visit metadata

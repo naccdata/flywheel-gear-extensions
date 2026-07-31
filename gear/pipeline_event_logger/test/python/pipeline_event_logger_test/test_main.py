@@ -137,7 +137,7 @@ class TestQCMetadataReading:
             event_actions={},
         )
 
-        with pytest.raises(GearExecutionError, match="file.info is empty"):
+        with pytest.raises(GearExecutionError, match=r"file\.info is empty"):
             logger.run()
 
     def test_missing_qc_section_raises(self) -> None:
@@ -148,7 +148,7 @@ class TestQCMetadataReading:
         }
         logger = _make_logger(upstream_gear_name="gear", file_info=info)
 
-        with pytest.raises(GearExecutionError, match="file.info.qc not found"):
+        with pytest.raises(GearExecutionError, match=r"file\.info\.qc not found"):
             logger.run()
 
     def test_missing_upstream_gear_in_qc_raises(self) -> None:
@@ -157,7 +157,7 @@ class TestQCMetadataReading:
         info = _build_full_info("other-gear", status="PASS")
         logger = _make_logger(upstream_gear_name="my-gear", file_info=info)
 
-        with pytest.raises(GearExecutionError, match="not found in file.info.qc"):
+        with pytest.raises(GearExecutionError, match=r"not found in file\.info\.qc"):
             logger.run()
 
     def test_invalid_qc_structure_raises(self) -> None:
@@ -168,7 +168,7 @@ class TestQCMetadataReading:
         }
         logger = _make_logger(upstream_gear_name="gear", file_info=info)
 
-        with pytest.raises(GearExecutionError, match="file.info.qc not found"):
+        with pytest.raises(GearExecutionError, match=r"file\.info\.qc not found"):
             logger.run()
 
 
@@ -189,7 +189,7 @@ class TestDataIdentificationReading:
         logger = _make_logger(upstream_gear_name=gear, file_info=info)
 
         with pytest.raises(
-            GearExecutionError, match="file.info.data_identification not found"
+            GearExecutionError, match=r"file\.info\.data_identification not found"
         ):
             logger.run()
 
@@ -676,5 +676,5 @@ class TestDryRun:
             dry_run=True,
         )
 
-        with pytest.raises(GearExecutionError, match="file.info.qc not found"):
+        with pytest.raises(GearExecutionError, match=r"file\.info\.qc not found"):
             logger.run()

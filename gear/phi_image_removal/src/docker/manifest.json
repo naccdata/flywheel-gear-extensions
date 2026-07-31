@@ -1,0 +1,55 @@
+{
+    "name": "phi-image-removal",
+    "label": "PHI Image Removal",
+    "description": "Replaces a PHI-confirmed image file with a JSON tombstone recording its details.",
+    "version": "0.0.1",
+    "author": "NACC",
+    "maintainer": "NACC <nacchelp@uw.edu>",
+    "cite": "",
+    "license": "MPL-2.0",
+    "url": "https://naccdata.github.io/flywheel-gear-extensions",
+    "source": "https://github.com/naccdata/flywheel-gear-extensions",
+    "environment": {
+        "FLYWHEEL": "/flywheel/v0"
+    },
+    "custom": {
+        "gear-builder": {
+            "category": "utility",
+            "image": "naccdata/phi-image-removal:0.0.1"
+        },
+        "flywheel": {
+            "suite": "NACC Data Gears",
+            "show-job": true
+        }
+    },
+    "inputs": {
+        "api-key": {
+            "base": "api-key"
+        },
+        "input_file": {
+            "description": "The image file to remove if it is confirmed to contain PHI",
+            "base": "file",
+            "type": {
+                "enum": ["dicom"]
+            }
+        }
+    },
+    "config": {
+        "dry_run": {
+            "description": "Log intended changes without applying them",
+            "type": "boolean",
+            "default": false
+        },
+        "confirmed_tag": {
+            "description": "Tag marking a file as confirmed to contain PHI; required for removal",
+            "type": "string",
+            "default": "PHI-Confirmed"
+        },
+        "tombstone_tag": {
+            "description": "Tag added to the JSON tombstone file left in place of the removed image",
+            "type": "string",
+            "default": "PHI-Tombstone"
+        }
+    },
+    "command": "/bin/run"
+}

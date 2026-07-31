@@ -131,13 +131,13 @@ class TestProperty1RequestConstruction:
     @settings(max_examples=100)
     @given(
         user_id=user_ids,
-        type_filter=optional_type_filter,
+        type_filter=resource_types,
         relation_filter=optional_relation_filter,
     )
     def test_get_user_permissions_request_construction(
         self,
         user_id: str,
-        type_filter: str | None,
+        type_filter: str,
         relation_filter: str | None,
     ) -> None:
         """get_user_permissions sends GET to /users/{userId}/permissions.
@@ -168,17 +168,12 @@ class TestProperty1RequestConstruction:
         # No body for GET requests
         assert body is None
 
-        # Query params match filters
-        expected_params: dict[str, str] = {}
-        if type_filter is not None:
-            expected_params["type"] = type_filter
+        # Query params always include type (required)
+        expected_params: dict[str, str] = {"type": type_filter}
         if relation_filter is not None:
             expected_params["relation"] = relation_filter
 
-        if expected_params:
-            assert query_params == expected_params
-        else:
-            assert query_params is None
+        assert query_params == expected_params
 
     @settings(max_examples=100)
     @given(
@@ -295,7 +290,7 @@ class TestProperty5RetryOn503:
         )
 
         with pytest.raises(ServiceUnavailableError):
-            client.get_user_permissions(user_id=user_id)
+            client.get_user_permissions(user_id=user_id, type_filter="study")
 
         # Total requests: 1 initial + max_retries retries
         assert len(transport.requests) == 1 + max_retries
@@ -389,7 +384,7 @@ class TestProperty5RetryOn503:
             sleep=no_sleep,
         )
 
-        result = client.get_user_permissions(user_id=user_id)
+        result = client.get_user_permissions(user_id=user_id, type_filter="study")
         assert result.user_id == user_id
 
 
@@ -433,7 +428,7 @@ class TestProperty6ImmediateFailure:
         )
 
         with pytest.raises((UnexpectedError, Exception)):
-            client.get_user_permissions(user_id=user_id)
+            client.get_user_permissions(user_id=user_id, type_filter="study")
 
         # Only one request was made — no retries
         assert len(transport.requests) == 1

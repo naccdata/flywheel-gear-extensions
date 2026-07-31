@@ -247,7 +247,7 @@ class TestDirectoryPullVisitorCreateDateRange:
         mock_parameter_store: MockParameterStore,
     ) -> None:
         """When preceding_hours > 0, export_records receives date_range_begin
-        and date_range_end kwargs.
+        but not date_range_end (REDCap uses server time as end).
 
         Validates: Requirements 3.3
         """
@@ -268,7 +268,7 @@ class TestDirectoryPullVisitorCreateDateRange:
 
             call_kwargs = mocks["project"].export_records.call_args
             assert "date_range_begin" in call_kwargs.kwargs
-            assert "date_range_end" in call_kwargs.kwargs
+            assert "date_range_end" not in call_kwargs.kwargs
             assert call_kwargs.kwargs["fields"] == get_directory_field_names()
 
     def test_export_records_called_without_date_range_when_preceding_hours_zero(
@@ -458,7 +458,8 @@ class TestDirectoryPullVisitorCreateLogging:
         log_messages = " ".join(caplog.messages)
         assert "Incremental pull" in log_messages
         assert "preceding_hours=6" in log_messages
-        assert "date range" in log_messages
+        assert "dateRangeBegin=" in log_messages
+        assert "(Pacific)" in log_messages
 
     def test_logs_full_pull_when_preceding_hours_zero(
         self,

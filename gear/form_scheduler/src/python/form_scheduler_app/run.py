@@ -103,7 +103,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
                     raise GearExecutionError(
                         "No portal URL found, required " + "to send emails"
                     )
-                portal_url = parameter_store.get_portal_url(portal_path)  # type: ignore
+                portal_url = parameter_store.get_url(portal_path)  # type: ignore
             except ParameterError as error:
                 raise GearExecutionError(f"Parameter error: {error}") from error
 

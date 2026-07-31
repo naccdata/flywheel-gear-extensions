@@ -25,7 +25,7 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
 )
-from inputs.parameter_store import ParameterStore
+from inputs.parameter_store import ParameterError, ParameterStore
 from inputs.yaml import YAMLReadError, load_all_from_stream
 from projects.study import StudyModel
 
@@ -37,10 +37,19 @@ log = logging.getLogger(__name__)
 class ProjectCreationVisitor(GearExecutionEnvironment):
     """Defines the project management gear."""
 
-    def __init__(self, admin_id: str, client: ClientWrapper, project_filepath: Path):
+    def __init__(
+        self,
+        admin_id: str,
+        client: ClientWrapper,
+        project_filepath: Path,
+        parameter_store: Optional[ParameterStore] = None,
+        authorization_path: Optional[str] = None,
+    ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__project_filepath = project_filepath
+        self.__parameter_store = parameter_store
+        self.__authorization_path = authorization_path
 
     @classmethod
     def create(
@@ -65,7 +74,11 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
         admin_id = context.config.opts.get("admin_group", "nacc")
 
         return ProjectCreationVisitor(
-            admin_id=admin_id, client=client, project_filepath=project_filepath
+            admin_id=admin_id,
+            client=client,
+            project_filepath=project_filepath,
+            parameter_store=parameter_store,
+            authorization_path=context.config.opts.get("authorization_path"),
         )
 
     def __get_study_list(self, project_filepath: Path) -> List[StudyModel]:
@@ -91,12 +104,22 @@ class ProjectCreationVisitor(GearExecutionEnvironment):
             AssertionError: If admin group ID or project list is not provided.
         """
         authorization_client: Optional[AuthorizationClient] = None
-        try:
-            authorization_client = create_authorization_client()
-        except ConfigurationError as error:
-            log.error(
-                "Authorization client creation failed, hierarchy seeding disabled: %s",
-                error,
+        if self.__parameter_store and self.__authorization_path:
+            try:
+                url_param = self.__parameter_store.get_url(self.__authorization_path)
+                authorization_client = create_authorization_client(
+                    base_url=url_param["url"]
+                )
+            except (ParameterError, ConfigurationError) as error:
+                log.error(
+                    "Authorization client creation failed, "
+                    "hierarchy seeding disabled: %s",
+                    error,
+                )
+        else:
+            log.warning(
+                "Authorization hierarchy seeding is disabled "
+                "(no parameter store or authorization_path configured)"
             )
 
         run(

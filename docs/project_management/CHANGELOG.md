@@ -4,6 +4,20 @@ All notable changes to this gear are documented in this file.
 
 ## [Unreleased]
 
+## 2.7.0
+
+* Adds authorization resource hierarchy seeding to the project management gear
+  * Seeds parent relationships for pipelines, dashboards, and pages via the Authorization Service
+  * Enables inherited permissions through OpenFGA computed relations
+  * Skips redundant writes when parents already match, reducing unnecessary API calls
+  * Gracefully disables seeding when authorization client is unavailable
+* Adds `authorization_path` config parameter for specifying the Authorization API endpoint URL via SSM
+* Uses center-prefixed resource IDs in hierarchy seeder calls for consistent resource identification
+
+## 2.6.1
+
+* Skips disabled or deleted admin users when assigning admin roles to projects, preventing stale permissions from being propagated
+
 ## 2.6.0
 
 * Adds flexible configuration support for page projects with center/study levels

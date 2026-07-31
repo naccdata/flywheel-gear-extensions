@@ -37,7 +37,8 @@ study-id: <string-identifier>
 study_type: <'primary' or 'affiliated'>
 centers: <list of center details>
 datatypes: <list of datatype identifiers>
-dashboards: <optional list of dashboard names>
+dashboards: <optional list of dashboard configs>
+pages: <optional list of page configs>
 mode: <whether data should be aggregated or distributed>
 published: <whether the data is published>
 ```
@@ -51,7 +52,9 @@ In the `centers` list, a center identifier is assumed to represent a center-stud
 The mode is a string that is either `aggregation` or `distribution`.
 The mode may be omitted for aggregating studies to support older project formats.
 
-The `dashboards` field is an optional list of dashboard names. When provided, dashboard projects will be created for each active center in the study. Dashboard projects are used as placeholders for managing access to dashboard pages within the ADRC portal. The portal uses Flywheel project roles to determine what content is shown to users.
+The `dashboards` field is an optional list of dashboard configurations. Each entry can be either a plain string (dashboard name, defaults to center level) or an object with `name` and `level` fields. Valid levels are `center` and `study`. Center-level dashboards are created for each active center in the study. Study-level dashboards exist at the study scope without a center association. Dashboard projects are used as placeholders for managing access to dashboard pages within the ADRC portal. The portal uses Flywheel project roles to determine what content is shown to users.
+
+The `pages` field is an optional list of page configurations. Each entry is an object with `name` and `level` fields. Valid levels are `center`, `study`, and `community`. Center-level pages are created for each active center. Study-level pages exist at the study scope. Community-level pages exist at the community scope (parent: "nacc"). Page projects are used to manage access to portal pages.
 
 Running on the file will create a group for each center that does not already exist, which includes
 
@@ -70,6 +73,10 @@ Additional projects will be added if the study is either primary or it is affili
    Dashboard projects will have a name of the form `dashboard-<dashboard-name>-<study-id>`.
    For the primary study, the study-id is dropped like `dashboard-enrollment`.
    Dashboard projects are only created for active centers and are used to manage access to portal dashboard pages.
+4. Page projects (if `pages` field is provided) for each page configuration.
+   Center-level page projects will have a name of the form `page-<page-name>-<study-id>`.
+   For the primary study, the study-id is dropped like `page-enrollment`.
+   Study-level and community-level pages are not created as Flywheel projects but are registered in the authorization hierarchy.
 
 
 Notes:
@@ -100,8 +107,19 @@ datatypes:
   - form
   - dicom
 dashboards:
-  - enrollment
-  - qc-status
+  - name: enrollment
+    level: center
+  - name: qc-status
+    level: center
+  - name: summary
+    level: study
+pages:
+  - name: enrollment
+    level: center
+  - name: reports
+    level: study
+  - name: announcements
+    level: community
 mode: aggregation  
 published: True
 ---
@@ -121,3 +139,44 @@ published: False
 ## Running the App
 
 For testing, see the gear wrangling directions in the development documentation.
+
+## Authorization API Integration
+
+When the `authorization_path` config is set and the API endpoint URL can be read from AWS SSM Parameter Store, the gear seeds the resource hierarchy in the NACC Authorization API.
+This establishes parent relationships that enable inherited permissions in the Portal.
+
+### What it does
+
+For each resource the gear creates or visits, it calls the Authorization API to set parent relationships:
+
+| Resource scope | Parents set |
+|----------------|------------|
+| Center pipeline (ingest, sandbox, retrospective, distribution, accepted) | `parent_study` + `parent_center` |
+| Center dashboard | `parent_study` + `parent_center` |
+| Center page | `parent_study` + `parent_center` |
+| Study dashboard | `parent_study` |
+| Study page | `parent_study` |
+| Community page | `parent_community` (id: "nacc") |
+
+The gear reads the current hierarchy before writing.
+If the parents already match the desired state, the write is skipped.
+This makes repeated runs efficient — only resources with changed or missing parents trigger API calls.
+
+### Failure behavior
+
+Authorization hierarchy seeding is optional and fault-isolated:
+
+- If the `authorization_path` config is not set or the parameter cannot be read from SSM, seeding is disabled and a warning is logged.
+- If any individual seeding call fails, the error is logged and the gear continues processing remaining resources.
+- Seeding failures do not affect Flywheel project creation or any other gear behavior.
+- A summary of failures (and skipped resources) is logged at the end of the run.
+
+### Configuration
+
+The gear manifest includes an `authorization_path` config field (default: `/prod/authorization/api-endpoint`).
+This is the SSM Parameter Store path where the Authorization API endpoint URL is stored.
+
+The integration activates automatically when:
+
+1. The SSM parameter at `authorization_path` contains a `url` value with the API Gateway endpoint
+2. AWS credentials are available via the standard credential chain (environment variables, IAM role, etc.)
