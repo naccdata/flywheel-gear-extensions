@@ -382,9 +382,7 @@ class ParameterStore:
         try:
             parameter = self.__store.get_parameter(param_path)
         except self.__store.client.exceptions.ParameterNotFound as error:  # type: ignore
-            raise ParameterError(
-                f"No URL parameter found at {param_path}"
-            ) from error
+            raise ParameterError(f"No URL parameter found at {param_path}") from error
 
         url_value = parameter.get(parameter_name)
         if not url_value:
