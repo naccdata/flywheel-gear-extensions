@@ -7,6 +7,8 @@ from csv import DictWriter
 from typing import Any, Callable, List, Optional
 
 from flywheel.models.file_entry import FileEntry
+from pydantic import BaseModel, ValidationError
+
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     ClearedAlertModel,
@@ -17,7 +19,6 @@ from nacc_common.error_models import (
     QCVisitor,
     ValidationModel,
 )
-from pydantic import BaseModel, ValidationError
 
 ModuleName = str
 log = logging.getLogger(__name__)
