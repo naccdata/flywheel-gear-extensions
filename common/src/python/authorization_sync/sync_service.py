@@ -6,6 +6,7 @@ from typing import Protocol
 
 from authorization.exceptions import AuthorizationClientError
 from authorization.models import (
+    AuthorizationModelMetadata,
     BatchOperation,
     BatchResult,
     UserPermissions,
@@ -23,9 +24,23 @@ from users.event_models import (
 from users.user_entry import UserEntry
 
 from authorization_sync.models import DesiredGrant
-from authorization_sync.translator import translate
+from authorization_sync.translator import (
+    ACTIVITY_RELATION_MAP,
+    translate,
+    validate_activity_relation_map,
+)
 
 log = logging.getLogger(__name__)
+
+# Resource types queried during sync — derived from ACTIVITY_RELATION_MAP values.
+# The permissions endpoint requires one type per request (ADR-015).
+_SYNC_RESOURCE_TYPES: frozenset[str] = frozenset(
+    {
+        resource_type
+        for pairs in ACTIVITY_RELATION_MAP.values()
+        for resource_type, _ in pairs
+    }
+)
 
 
 class AuthorizationClientProtocol(Protocol):
@@ -34,7 +49,7 @@ class AuthorizationClientProtocol(Protocol):
     def get_user_permissions(
         self,
         user_id: str,
-        type_filter: str | None = None,
+        type_filter: str,
         relation_filter: str | None = None,
     ) -> UserPermissions: ...
 
@@ -48,6 +63,8 @@ class AuthorizationClientProtocol(Protocol):
         profile_user_id: str,
         request: UserProfileRequest,
     ) -> UserProfile: ...
+
+    def get_model(self) -> AuthorizationModelMetadata: ...
 
 
 class AuthorizationSyncService:
@@ -67,6 +84,43 @@ class AuthorizationSyncService:
         """
         self._client = client
         self._collector = collector
+
+    def validate_model(self) -> None:
+        """Validate the activity-relation map against the live model.
+
+        Fetches the model from the API and logs warnings for any
+        mappings that reference unknown types, unknown relations, or
+        non-assignable relations. Does not raise — validation failures
+        are informational only.
+        """
+        try:
+            model = self._client.get_model()
+        except AuthorizationClientError as error:
+            log.warning(
+                "Could not fetch authorization model for validation: %s. "
+                "Sync operations for resource types %s may fail at runtime "
+                "if the activity-relation map is stale.",
+                error,
+                sorted(_SYNC_RESOURCE_TYPES),
+            )
+            return
+
+        warnings = validate_activity_relation_map(model)
+        if warnings:
+            affected_types = sorted(
+                {w.split("-> (")[1].split(",")[0] for w in warnings if "-> (" in w}
+            )
+            log.warning(
+                "ACTIVITY_RELATION_MAP has %d invalid mapping(s) affecting "
+                "resource types %s. Grants to these types may be rejected "
+                "by the API at sync time.",
+                len(warnings),
+                affected_types,
+            )
+            for warning in warnings:
+                log.warning(warning)
+        else:
+            log.info("ACTIVITY_RELATION_MAP validated against live model: all OK")
 
     def sync_user(
         self,
@@ -95,10 +149,15 @@ class AuthorizationSyncService:
                 authorizations=authorizations,
                 center_group_id=center_group_id,
             )
-            permissions = self._client.get_user_permissions(
-                user_id=registry_id,
-            )
-            current = permissions.to_grants(DesiredGrant)
+
+            # Query current permissions per type (type is required per ADR-015)
+            current: set[DesiredGrant] = set()
+            for resource_type in _SYNC_RESOURCE_TYPES:
+                permissions = self._client.get_user_permissions(
+                    user_id=registry_id,
+                    type_filter=resource_type,
+                )
+                current |= permissions.to_grants(DesiredGrant)
 
             grants_to_add = desired - current
             grants_to_revoke = current - desired

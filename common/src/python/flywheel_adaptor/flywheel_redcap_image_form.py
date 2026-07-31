@@ -2,7 +2,7 @@ import logging
 import sys
 from typing import ClassVar, Optional
 
-from flywheel.models.acquisition_list_output import AcquisitionListOutput
+from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -77,23 +77,25 @@ class FlywheelREDCapImageForm:
     # keys are REDCap image form variables
     # values are DICOM tag names
     __pet_tag_for_variable: ClassVar[dict] = {
+        "emission_start_time": "AcquisitionTime",
         "tracer_dose_assay": "RadionuclideTotalDose",
         "tracer_inj_time": "RadiopharmaceuticalStartDateTime",
-        "emission_start_time": "AcquisitionTime",
     }
 
     # list of REDCap image form variables that could be assigned by this class
     all_types_variables_to_check = (
         "adcid",
-        "uploader_fullname",
-        "uploader_email",
         "fw_session_label",
         "fwid",
         "imagetype",
-        "ptid",
         "naccid",
+        "ptid",
+        "redcap_data_access_group",
         "scandt",
         "scanstart",
+        "upload_date",
+        "uploader_email",
+        "uploader_fullname",
     )
 
     def __find_flywheel_origin_user_id(
@@ -155,7 +157,7 @@ class FlywheelREDCapImageForm:
         self,
         fw_mri_series: list[str],
         conflicts: dict,
-        acq: AcquisitionListOutput,
+        acq: Acquisition,
         proxy: FlywheelProxy,
     ) -> None:
         """Inspects the given acquisition to extract information for the form.
@@ -192,10 +194,21 @@ class FlywheelREDCapImageForm:
             if file.modality == "PT":
                 for pet_var, pet_tag in self.__pet_tag_for_variable.items():
                     if pet_tag in file.info["header"]["dicom"]:
+                        variable_value = file.info["header"]["dicom"][pet_tag]
+                        # times given as HHMMSS or HHMMSS.ss... but need HH:MM:SS
+                        if pet_var.endswith("_time"):
+                            variable_value = variable_value.split(".")[0]
+                            variable_value = (
+                                variable_value[:2]
+                                + ":"
+                                + variable_value[2:4]
+                                + ":"
+                                + variable_value[4:6]
+                            )
                         self.__set_or_agree(
                             conflicts,
                             pet_var,
-                            file.info["header"]["dicom"][pet_tag],
+                            variable_value,
                             f"file.info['header']['dicom']['{pet_var}'] in {file.name}",
                         )
             elif file.modality == "MR":
@@ -260,6 +273,23 @@ class FlywheelREDCapImageForm:
                 f"from project {fw_proj.label} for session {session.label}"
             )
 
+        if "redcap_data_access_group" in fw_proj.info:
+            if isinstance(fw_proj.info["redcap_data_access_group"], str):
+                self["redcap_data_access_group"] = fw_proj.info[
+                    "redcap_data_access_group"
+                ]
+            else:
+                log.warning(
+                    "Expected redcap_data_access_group to be str, "
+                    f"not {type(fw_proj.info['redcap_data_access_group'])} "
+                    f"for {fw_proj.info['redcap_data_access_group']}"
+                )
+        else:
+            log.warning(
+                "Expected redcap_data_access_group key in custom information "
+                f"from project {fw_proj.label} for session {session.label}"
+            )
+
         subject = session.subject
         if "naccid" in subject.info:
             self["naccid"] = session.subject.info["naccid"]
@@ -267,6 +297,8 @@ class FlywheelREDCapImageForm:
             log.warning("Expected entry for naccid in subject.info")
         if session.timestamp:
             self["scanstart"] = session.timestamp.strftime("%H:%M:%S")
+        if session.created:
+            self["upload_date"] = session.created.strftime("%Y-%m-%d")
         self.update(
             {
                 "fw_session_label": session.label,

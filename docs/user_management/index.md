@@ -161,3 +161,57 @@ Users from these domains are not flagged for wrong-IdP usage.
 `fallback_idp` is the name of the fallback identity provider (defaults to `ORCID`).
 
 A domain may not appear in both `institutional_idp` and `fallback_domains`.
+
+## Authorization API Integration
+
+When the `authorization_path` config is set and the API endpoint URL can be read from AWS SSM Parameter Store, the gear synchronizes user permissions and profiles to the NACC Authorization API.
+This populates the authorization store that the Portal queries for access decisions.
+
+### What it does
+
+For each user processed, the gear performs two sync operations:
+
+**Grant synchronization** — translates the user's Flywheel authorizations into Authorization API grants using a fixed activity-to-relation mapping:
+
+| Gear activity | API grant |
+|---------------|-----------|
+| `submit-audit` on a datatype | `submitter` + `viewer` on `data_pipeline` |
+| `view` on a datatype | `viewer` on `data_pipeline` |
+| `view` on a dashboard | `viewer` on `dashboard` |
+| `view` on a page | `viewer` on `page` |
+
+The sync is diff-based: it queries the user's current grants, computes what to add and revoke, and applies changes via a batch API call.
+Grants that already exist are not re-sent.
+
+**Profile synchronization** — pushes the user's name, email, auth_email, and active status to the Authorization API's user profile store.
+
+### Scoping
+
+- For center-scoped authorizations (study-specific), the resource ID is `{center_group_id}_{resource_label}-{study_id}`
+- For general authorizations (not center-specific), the resource ID is `{resource_label}-{study_id}`
+
+The resource label depends on the resource type:
+
+- Data pipelines: `ingest-{datatype}` (e.g., `ingest-form`)
+- Dashboards: `dashboard-{name}` (e.g., `dashboard-reports`)
+- Pages: `page-{name}` (e.g., `page-enrollment`)
+
+For example, a center-scoped data pipeline for the `form` datatype in center `washington` and study `adrc` would have resource ID: `washington_ingest-form-adrc`.
+
+### Failure behavior
+
+Authorization sync is optional and fault-isolated:
+
+- If the `authorization_path` config is not set or the parameter cannot be read from SSM, sync is disabled and an info message is logged.
+- If any individual sync call fails, the error is logged and reported via the event collector, but the gear continues processing remaining users.
+- Sync failures do not affect Flywheel role assignment, CoManage registration, REDCap operations, or any other gear behavior.
+
+### Configuration
+
+The gear manifest includes an `authorization_path` config field (default: `/prod/authorization/api-endpoint`).
+This is the SSM Parameter Store path where the Authorization API endpoint URL is stored.
+
+The integration activates automatically when:
+
+1. The SSM parameter at `authorization_path` contains a `url` value with the API Gateway endpoint
+2. AWS credentials are available via the standard credential chain (environment variables, IAM role, etc.)
