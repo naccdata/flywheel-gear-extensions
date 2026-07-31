@@ -56,7 +56,9 @@ When bumping a package version, update these files:
 
 1. `{package-name}/pyproject.toml`
    - `version` field under `[project]`
-2. `docs/{package_name}/CHANGELOG.md`
+2. `{package-name}/BUILD`
+   - `version` argument in `python_artifact()` (nacc-common has this)
+3. `docs/{package_name}/CHANGELOG.md`
    - Add a new entry at the top (below the header), using the package's existing format
 
 ## Changelog Formats
