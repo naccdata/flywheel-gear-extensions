@@ -15,6 +15,8 @@ Three files must have matching versions:
 2. `nacc-common/BUILD` — `version` argument in `python_artifact()`
 3. Tag: `nacc-common/vX.Y.Z`
 
+Additionally, update the install URL example in `nacc-common/README.md` to reference the new version.
+
 ### Gears
 
 Three files must have matching versions:
@@ -51,11 +53,12 @@ Gears do not currently have automated release workflows. They are built and depl
 
 1. Update version in `nacc-common/pyproject.toml`
 2. Update version in `nacc-common/BUILD`
-3. Add changelog entry in `docs/nacc_common/CHANGELOG.md`
-4. Commit, push, and merge to main
-5. Tag the merge commit: `git tag nacc-common/vX.Y.Z <commit>`
-6. Push the tag: `git push origin nacc-common/vX.Y.Z`
-7. The release workflow runs automatically and creates the GitHub Release
+3. Update install URL in `nacc-common/README.md`
+4. Add changelog entry in `docs/nacc_common/CHANGELOG.md`
+5. Commit, push, and merge to main
+6. Tag the merge commit: `git tag nacc-common/vX.Y.Z <commit>`
+7. Push the tag: `git push origin nacc-common/vX.Y.Z`
+8. The release workflow runs automatically and creates the GitHub Release
 
 ### Gears
 
