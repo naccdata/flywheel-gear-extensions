@@ -12,9 +12,12 @@ from authorization.exceptions import (
     ValidationError,
 )
 from authorization.models import (
+    AuthorizationModelMetadata,
     BatchOperation,
     BatchResult,
     PermissionEntry,
+    RelationMetadata,
+    TypeMetadata,
     UserPermissions,
     UserProfile,
     UserProfileRequest,
@@ -173,10 +176,12 @@ api_relations_st = st.sampled_from(API_RELATIONS)
 
 # Resource IDs (can be center-scoped or general)
 resource_ids_st = st.one_of(
-    # Center-scoped: {center_group_id}/{project_label}
-    st.tuples(center_group_ids_st, project_labels_st).map(lambda t: f"{t[0]}/{t[1]}"),
-    # General: just project_label
-    project_labels_st,
+    # Center-scoped: {center_group_id}_{label}-{study_id}
+    st.tuples(center_group_ids_st, project_labels_st, study_ids_st).map(
+        lambda t: f"{t[0]}_{t[1]}-{t[2]}"
+    ),
+    # General: {label}-{study_id}
+    st.tuples(project_labels_st, study_ids_st).map(lambda t: f"{t[0]}-{t[1]}"),
 )
 
 # DesiredGrant instances
@@ -294,7 +299,7 @@ class MockAuthorizationClient:
     def get_user_permissions(
         self,
         user_id: str,
-        type_filter: str | None = None,
+        type_filter: str,
         relation_filter: str | None = None,
     ) -> UserPermissions:
         """Mock get_user_permissions that returns configured response."""
@@ -341,6 +346,40 @@ class MockAuthorizationClient:
             email=request.email,
             auth_email=request.auth_email,
             active=request.active if request.active is not None else True,
+        )
+
+    def get_model(self) -> AuthorizationModelMetadata:
+        """Mock get_model that returns a minimal valid model."""
+        if self.error_to_raise is not None:
+            raise self.error_to_raise
+        return AuthorizationModelMetadata(
+            version="1.0.0",
+            types={
+                "data_pipeline": TypeMetadata(
+                    name="data_pipeline",
+                    category="resource",
+                    relations={
+                        "viewer": RelationMetadata(name="viewer", assignable=True),
+                        "submitter": RelationMetadata(
+                            name="submitter", assignable=True
+                        ),
+                    },
+                ),
+                "dashboard": TypeMetadata(
+                    name="dashboard",
+                    category="resource",
+                    relations={
+                        "viewer": RelationMetadata(name="viewer", assignable=True),
+                    },
+                ),
+                "page": TypeMetadata(
+                    name="page",
+                    category="resource",
+                    relations={
+                        "viewer": RelationMetadata(name="viewer", assignable=True),
+                    },
+                ),
+            },
         )
 
 

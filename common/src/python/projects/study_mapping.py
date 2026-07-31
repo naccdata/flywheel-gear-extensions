@@ -29,6 +29,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional
 
+from authorization_sync.resource_ids import build_resource_id
 from centers.center_group import (
     CenterError,
     CenterGroup,
@@ -563,7 +564,9 @@ class StudyMappingVisitor(StudyVisitor):
         Returns:
             True if aggregation should be skipped.
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot check aggregation skip: study not set")
+            return False
         return (
             self.__study.study_type == "affiliated"
             and center_model.enrollment_pattern == "co-enrollment"
@@ -618,7 +621,7 @@ class StudyMappingVisitor(StudyVisitor):
 
             community_pages = study.get_pages_by_level("community")
             for page_name in community_pages:
-                page_label = self.__project_label(f"page-{page_name}")
+                page_label = self.__auth_resource_id_no_center(f"page-{page_name}")
                 self.__hierarchy_seeder.seed_community_page(
                     resource_id=page_label,
                 )
@@ -635,7 +638,9 @@ class StudyMappingVisitor(StudyVisitor):
         Args:
           center: the center study model
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot visit center: study not set")
+            return
 
         group_adaptor = self.__fw.find_group(center_model.center_id)
         if not group_adaptor:
@@ -691,6 +696,43 @@ class StudyMappingVisitor(StudyVisitor):
 
         center.update_project_info(portal_info)
 
+    def __auth_resource_id(self, label: str, center_id: str) -> str:
+        """Build an authorization resource ID with center prefix.
+
+        Delegates to the shared build_resource_id utility for consistent
+        format across the translator and hierarchy seeder.
+
+        Args:
+            label: the base label (e.g., "ingest-form", "accepted")
+            center_id: the research center identifier
+
+        Returns:
+            the authorization resource ID
+        """
+        if not self.__study:
+            log.error("Cannot build resource ID: study not set")
+            return ""
+        return build_resource_id(
+            label, center_id=center_id, study_id=self.__study.study_id
+        )
+
+    def __auth_resource_id_no_center(self, label: str) -> str:
+        """Build an authorization resource ID without center prefix.
+
+        Delegates to the shared build_resource_id utility for consistent
+        format across the translator and hierarchy seeder.
+
+        Args:
+            label: the base label (e.g., "dashboard-summary", "page-reports")
+
+        Returns:
+            the authorization resource ID
+        """
+        if not self.__study:
+            log.error("Cannot build resource ID: study not set")
+            return ""
+        return build_resource_id(label, study_id=self.__study.study_id)
+
     def __seed_center_pipelines(self, center_model: StudyCenterModel) -> None:
         """Seed hierarchy for center-scoped data pipelines.
 
@@ -700,8 +742,11 @@ class StudyMappingVisitor(StudyVisitor):
         Args:
             center_model: the center study model with center_id
         """
-        assert self.__study, "study must be set"
-        assert self.__hierarchy_seeder is not None
+        if not self.__study:
+            log.error("Cannot seed center pipelines: study not set")
+            return
+        if self.__hierarchy_seeder is None:
+            return
 
         study_id = self.__study.study_id
         center_id = center_model.center_id
@@ -712,9 +757,8 @@ class StudyMappingVisitor(StudyVisitor):
             center_model
         ):
             # accepted project
-            accepted_label = self.__project_label("accepted")
             self.__hierarchy_seeder.seed_center_pipeline(
-                resource_id=accepted_label,
+                resource_id=self.__auth_resource_id("accepted", center_id),
                 study_id=study_id,
                 center_id=center_id,
             )
@@ -722,11 +766,10 @@ class StudyMappingVisitor(StudyVisitor):
             # ingest and sandbox pipelines for each aggregation datatype
             for pipeline in ["ingest", "sandbox"]:
                 for datatype in self.__aggregation_datatypes:
-                    pipeline_label = self.__project_label(
-                        f"{pipeline}-{datatype.lower()}"
-                    )
                     self.__hierarchy_seeder.seed_center_pipeline(
-                        resource_id=pipeline_label,
+                        resource_id=self.__auth_resource_id(
+                            f"{pipeline}-{datatype.lower()}", center_id
+                        ),
                         study_id=study_id,
                         center_id=center_id,
                     )
@@ -734,11 +777,10 @@ class StudyMappingVisitor(StudyVisitor):
             # retrospective pipelines (if study has legacy)
             if self.__study.has_legacy():
                 for datatype in self.__aggregation_datatypes:
-                    retro_label = self.__project_label(
-                        f"retrospective-{datatype.lower()}"
-                    )
                     self.__hierarchy_seeder.seed_center_pipeline(
-                        resource_id=retro_label,
+                        resource_id=self.__auth_resource_id(
+                            f"retrospective-{datatype.lower()}", center_id
+                        ),
                         study_id=study_id,
                         center_id=center_id,
                     )
@@ -746,9 +788,10 @@ class StudyMappingVisitor(StudyVisitor):
         # Seed distribution pipelines
         if self.__distribution_mapper:
             for datatype in self.__distribution_datatypes:
-                dist_label = self.__project_label(f"distribution-{datatype.lower()}")
                 self.__hierarchy_seeder.seed_center_pipeline(
-                    resource_id=dist_label,
+                    resource_id=self.__auth_resource_id(
+                        f"distribution-{datatype.lower()}", center_id
+                    ),
                     study_id=study_id,
                     center_id=center_id,
                 )
@@ -762,14 +805,17 @@ class StudyMappingVisitor(StudyVisitor):
         Args:
             study: the study model
         """
-        assert self.__hierarchy_seeder is not None
+        if self.__hierarchy_seeder is None:
+            return
 
         study_id = study.study_id
 
         # Seed study-level dashboards
         study_dashboards = study.get_dashboards_by_level("study")
         for dashboard_name in study_dashboards:
-            dashboard_label = self.__project_label(f"dashboard-{dashboard_name}")
+            dashboard_label = self.__auth_resource_id_no_center(
+                f"dashboard-{dashboard_name}"
+            )
             self.__hierarchy_seeder.seed_study_dashboard(
                 resource_id=dashboard_label,
                 study_id=study_id,
@@ -778,7 +824,7 @@ class StudyMappingVisitor(StudyVisitor):
         # Seed study-level pages
         study_pages = study.get_pages_by_level("study")
         for page_name in study_pages:
-            page_label = self.__project_label(f"page-{page_name}")
+            page_label = self.__auth_resource_id_no_center(f"page-{page_name}")
             self.__hierarchy_seeder.seed_study_page(
                 resource_id=page_label,
                 study_id=study_id,
@@ -797,7 +843,9 @@ class StudyMappingVisitor(StudyVisitor):
             center: the center group
             study_info: the study metadata
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot handle dashboards and pages: study not set")
+            return
 
         if not center.is_active():
             return
@@ -814,11 +862,10 @@ class StudyMappingVisitor(StudyVisitor):
                     center=center, study_info=study_info, dashboard_name=dashboard_name
                 )
                 if self.__hierarchy_seeder is not None:
-                    dashboard_label = self.__project_label(
-                        f"dashboard-{dashboard_name}"
-                    )
                     self.__hierarchy_seeder.seed_center_dashboard(
-                        resource_id=dashboard_label,
+                        resource_id=self.__auth_resource_id(
+                            f"dashboard-{dashboard_name}", center.id
+                        ),
                         study_id=self.__study.study_id,
                         center_id=center.id,
                     )
@@ -835,9 +882,10 @@ class StudyMappingVisitor(StudyVisitor):
                     center=center, study_info=study_info, page_name=page_name
                 )
                 if self.__hierarchy_seeder is not None:
-                    page_label = self.__project_label(f"page-{page_name}")
                     self.__hierarchy_seeder.seed_center_page(
-                        resource_id=page_label,
+                        resource_id=self.__auth_resource_id(
+                            f"page-{page_name}", center.id
+                        ),
                         study_id=self.__study.study_id,
                         center_id=center.id,
                     )
@@ -855,10 +903,14 @@ class StudyMappingVisitor(StudyVisitor):
             study_info: the study metadata
             dashboard_name: the name of the dashboard
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot add dashboard: study not set")
+            return
 
         def update_dashboard(project: ProjectAdaptor) -> None:
-            assert self.__study, "study must be set"
+            if not self.__study:
+                log.error("Cannot update dashboard metadata: study not set")
+                return
             study_info.add_dashboard(
                 DashboardProjectMetadata(
                     study_id=self.__study.study_id,
@@ -888,10 +940,14 @@ class StudyMappingVisitor(StudyVisitor):
             study_info: the study metadata
             page_name: the name of the page
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot add page: study not set")
+            return
 
         def update_page(project: ProjectAdaptor) -> None:
-            assert self.__study, "study must be set"
+            if not self.__study:
+                log.error("Cannot update page metadata: study not set")
+                return
             study_info.add_page(
                 PageProjectMetadata(
                     study_id=self.__study.study_id,
@@ -939,7 +995,9 @@ class StudyMappingVisitor(StudyVisitor):
         Returns:
             the project label with study suffix
         """
-        assert self.__study, "study must be set"
+        if not self.__study:
+            log.error("Cannot create project label: study not set")
+            return label
         if self.__study.is_primary():
             return label
         return f"{label}-{self.__study.study_id}"

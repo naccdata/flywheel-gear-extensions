@@ -8,9 +8,14 @@ authorizations.
 
 import logging
 
-from users.authorizations import Authorizations
+from authorization.models import AuthorizationModelMetadata
+from users.authorizations import Authorizations, StudyAuthorizations
 
 from authorization_sync.models import DesiredGrant
+from authorization_sync.resource_ids import (
+    build_label_for_resource_prefix,
+    build_resource_id,
+)
 
 log = logging.getLogger(__name__)
 
@@ -40,9 +45,12 @@ def translate(
     Iterates activities in the authorizations and maps each to grants
     using ACTIVITY_RELATION_MAP.
 
-    Resource ID scoping depends on center_group_id:
-    - When provided: resource_id = "{center_group_id}/{project_label}"
-    - When None: resource_id = "{project_label}" (no prefix)
+    Resource ID format follows ADR-016:
+    - Center-scoped: "{center}_{label}-{study_id}"
+    - Non-center: "{label}-{study_id}"
+
+    The study_id is always explicit.  For data_pipeline resources the
+    label includes the ingest stage prefix (e.g., "ingest-form").
 
     Works with both Authorizations (general) and StudyAuthorizations
     (center-scoped) since StudyAuthorizations extends Authorizations.
@@ -57,12 +65,17 @@ def translate(
     Returns:
         Set of DesiredGrant objects.
     """
+    # Extract study_id from StudyAuthorizations if available
+    study_id: str | None = None
+    if isinstance(authorizations, StudyAuthorizations):
+        study_id = authorizations.study_id
+
     grants: set[DesiredGrant] = set()
 
     for resource, activity in authorizations.activities.items():
         action = activity.action
         resource_prefix = resource.prefix()
-        project_label = resource.name
+        resource_name = resource.name
 
         mapping_key = (action, resource_prefix)
         mapped_pairs = ACTIVITY_RELATION_MAP.get(mapping_key)
@@ -73,15 +86,16 @@ def translate(
                 "resource_name=%s — skipping",
                 action,
                 resource_prefix,
-                project_label,
+                resource_name,
             )
             continue
 
-        # Construct resource_id based on scoping
-        if center_group_id is not None:
-            resource_id = f"{center_group_id}/{project_label}"
-        else:
-            resource_id = project_label
+        label = build_label_for_resource_prefix(resource_prefix, resource_name)
+        resource_id = build_resource_id(
+            label,
+            center_id=center_group_id,
+            study_id=study_id,
+        )
 
         for api_resource_type, relation in mapped_pairs:
             grants.add(
@@ -94,3 +108,61 @@ def translate(
             )
 
     return grants
+
+
+def validate_activity_relation_map(
+    model: AuthorizationModelMetadata,
+) -> list[str]:
+    """Validate ACTIVITY_RELATION_MAP against the live authorization model.
+
+    Checks that every (resource_type, relation) pair referenced in the
+    map is a known, assignable relation in the model.
+
+    Args:
+        model: The authorization model metadata from the API.
+
+    Returns:
+        List of warning messages for invalid mappings. Empty if all
+        mappings are valid.
+    """
+    warnings: list[str] = []
+
+    for (action, resource_prefix), mapped_pairs in ACTIVITY_RELATION_MAP.items():
+        for api_resource_type, relation in mapped_pairs:
+            reason = check_assignable(model, api_resource_type, relation)
+            if reason:
+                warnings.append(
+                    f"ACTIVITY_RELATION_MAP ({action}, {resource_prefix}) "
+                    f"-> ({api_resource_type}, {relation}): {reason}"
+                )
+
+    return warnings
+
+
+def check_assignable(
+    model: AuthorizationModelMetadata,
+    resource_type: str,
+    relation: str,
+) -> str | None:
+    """Return a reason string if the relation is not assignable, else None.
+
+    Args:
+        model: The authorization model metadata.
+        resource_type: The type to check.
+        relation: The relation to check.
+
+    Returns:
+        A reason string if invalid, or None if valid.
+    """
+    type_meta = model.types.get(resource_type)
+    if type_meta is None:
+        return f"unknown type '{resource_type}'"
+
+    relation_meta = type_meta.relations.get(relation)
+    if relation_meta is None:
+        return f"unknown relation '{relation}' on type '{resource_type}'"
+
+    if not relation_meta.assignable:
+        return f"relation '{relation}' on type '{resource_type}' is not assignable"
+
+    return None
