@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
 
-
 class User:
 
     def __init__(
@@ -36,11 +35,6 @@ class User:
         ...
 
     @property
-    def firstname(self) -> Optional[str]:
-        ...
-
-    @property
-    def lastname(self) -> Optional[str]:
     def disabled(self) -> Optional[bool]:
         ...
 
