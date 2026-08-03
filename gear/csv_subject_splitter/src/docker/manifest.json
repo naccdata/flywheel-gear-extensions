@@ -61,6 +61,11 @@
       "description": "Comma-deliminated list of fields to normalize to YYYY-MM-DD format - these normalizations will also be applied to any hierarchy labels that use these fields.",
       "type": "string",
       "default": ""
+    },
+    "destination_project": {
+      "description": "The Flywheel project path (group/project) where split files should be uploaded. Defaults to the input file's parent project if empty.",
+      "type": "string",
+      "default": ""
     }
   },
   "command": "/bin/run"
