@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.0
+
+* Adds `destination_project` config option to specify a Flywheel project path (group/project) where split files should be uploaded, enabling cross-project splitting. Defaults to the input file's parent project when empty.
+
 ## 1.0.8
 
 * Adds `normalize_dates` option to normalize date fields in the record. Reports an error and and skips the row if a specified date value cannot be normalized
