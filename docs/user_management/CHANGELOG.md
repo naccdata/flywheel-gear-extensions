@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Fixes `portal_url_path` default from `/prod/flywheel/portal` to `/prod/flywheel/portal/url` to match actual SSM parameter name
+
 ## 4.4.2
 
 * Fixes `get_url` to fetch single SSM parameter by name instead of using path-based lookup (resolves authorization client creation failure)
