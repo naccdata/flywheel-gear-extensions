@@ -823,8 +823,8 @@ class UserRegistry:
 
         Indexes the person by registry ID (always), by email (if
         present), by parent domain (if domain_config available), and by
-        name (if present). Records without email that are claimed go to
-        __bad_claims.
+        name (if present). Records without email that have an oidcsub
+        (attempted claim) go to __bad_claims.
         """
         # Always index by registry ID regardless of email
         registry_id = person.registry_id()
@@ -846,7 +846,7 @@ class UserRegistry:
                 )
 
         if not person.email_addresses:
-            if not person.is_claimed():
+            if person.is_unclaimed():
                 return
 
             if name:
