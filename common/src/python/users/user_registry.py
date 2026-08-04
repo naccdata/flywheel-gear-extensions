@@ -19,7 +19,6 @@ from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
 from pydantic import ValidationError
-
 from users.domain_config import (
     DomainRelationshipConfig,
     canonicalize_domain,
@@ -823,8 +822,8 @@ class UserRegistry:
 
         Indexes the person by registry ID (always), by email (if
         present), by parent domain (if domain_config available), and by
-        name (if present). Records without email that are claimed go to
-        __bad_claims.
+        name (if present). Records without email that have an oidcsub
+        (attempted claim) go to __bad_claims.
         """
         # Always index by registry ID regardless of email
         registry_id = person.registry_id()
@@ -846,7 +845,7 @@ class UserRegistry:
                 )
 
         if not person.email_addresses:
-            if not person.is_claimed():
+            if not person._has_oidcsub():
                 return
 
             if name:
