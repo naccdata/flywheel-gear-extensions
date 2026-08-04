@@ -13,6 +13,8 @@ import pytest
 from center_form_export_app.run import CenterFormExportVisitor
 from gear_execution.gear_execution import GearExecutionError
 
+from .conftest import set_destination_group
+
 
 def create_visitor(
     mock_client: MagicMock,
@@ -21,6 +23,7 @@ def create_visitor(
     modules: set[str] | None = None,
     info_paths: list[str] | None = None,
     study_id: str = "adrc",
+    source_id: str = "ingest",
     formver_split: bool = False,
     run_id: str = "",
 ) -> CenterFormExportVisitor:
@@ -37,6 +40,7 @@ def create_visitor(
         info_paths=info_paths,
         modules=modules,
         study_id=study_id,
+        source_id=source_id,
         formver_split=formver_split,
         run_id=run_id,
     )
@@ -95,6 +99,9 @@ class TestErrorHandling:
     ):
         """When proxy.find_group returns None, raise GearExecutionError."""
         mock_proxy.find_group.return_value = None
+        # Keep the destination in the same group, so the run reaches the
+        # lookup under test rather than stopping at the cross-group guard.
+        set_destination_group(mock_proxy, "nonexistent-group")
 
         visitor = create_visitor(mock_client, group_id="nonexistent-group")
 
@@ -183,6 +190,146 @@ class TestErrorHandling:
         mock_context.open_output.assert_not_called()
 
 
+class TestCrossGroupGuard:
+    """A job may only write into the group it reads.
+
+    GearBot's key can read every center, and nothing in the job itself
+    constrains what the config names, so without this guard anyone able
+    to launch the gear could point it at another center's project and
+    have that center's records written somewhere they can download from.
+    """
+
+    def _gathering_visitor(self, mock_client: MagicMock, **kwargs):
+        return create_visitor(mock_client, modules={"UDS"}, **kwargs)
+
+    def test_destination_in_another_group_is_refused(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        set_destination_group(mock_proxy, "other-center")
+        visitor = self._gathering_visitor(mock_client, group_id="test-group")
+
+        with pytest.raises(
+            GearExecutionError, match="Refusing to export across groups"
+        ):
+            visitor.run(mock_context)
+
+    def test_refused_job_reads_nothing_and_writes_nothing(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """A rejected run must not resolve the source or gather any data --
+        otherwise it leaks the very records the guard exists to protect."""
+        setup_single_subject_project(mock_proxy)
+        set_destination_group(mock_proxy, "other-center")
+        visitor = self._gathering_visitor(mock_client, group_id="test-group")
+
+        with (
+            patch("center_form_export_app.run.run") as mock_run,
+            pytest.raises(GearExecutionError, match="Refusing to export"),
+        ):
+            visitor.run(mock_context)
+
+        mock_run.assert_not_called()
+        mock_proxy.find_group.assert_not_called()
+        mock_proxy.get_files.assert_not_called()
+        mock_context.open_output.assert_not_called()
+
+    def test_destination_in_the_same_group_proceeds(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        set_destination_group(mock_proxy, "test-group")
+        visitor = self._gathering_visitor(mock_client, group_id="test-group")
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS", content="header\ndata\n"
+            )
+            visitor.run(mock_context)
+
+        assert len(mock_context.output_files) == 1
+
+    def test_destination_project_without_parents_falls_back_to_group_attr(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """A project container carries its group directly; only nested
+        containers report it under `parents`."""
+        setup_single_subject_project(mock_proxy)
+        destination = MagicMock()
+        destination.parents = None
+        destination.group = "test-group"
+        mock_proxy.get_container_by_id.return_value = destination
+        visitor = self._gathering_visitor(mock_client, group_id="test-group")
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS", content="header\ndata\n"
+            )
+            visitor.run(mock_context)
+
+        assert len(mock_context.output_files) == 1
+
+    def test_missing_destination_is_refused(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """Fails closed: a job whose destination cannot be identified is
+        refused rather than allowed through unchecked."""
+        mock_context.config.destination = {}
+        visitor = self._gathering_visitor(mock_client)
+
+        with pytest.raises(
+            GearExecutionError, match="Unable to determine the job's destination"
+        ):
+            visitor.run(mock_context)
+
+    def test_unresolvable_destination_is_refused(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        mock_proxy.get_container_by_id.side_effect = ValueError("404 not found")
+        visitor = self._gathering_visitor(mock_client)
+
+        with pytest.raises(
+            GearExecutionError, match="Unable to resolve destination container"
+        ):
+            visitor.run(mock_context)
+
+    def test_groupless_destination_is_refused(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        destination = MagicMock()
+        destination.parents = None
+        destination.group = None
+        mock_proxy.get_container_by_id.return_value = destination
+        visitor = self._gathering_visitor(mock_client)
+
+        with pytest.raises(GearExecutionError, match="has no group"):
+            visitor.run(mock_context)
+
+
 class TestBatchSizeAndReloadWorkersConfig:
     """batch_size/reload_workers are read from gear config (with defaults of
     100/10) and passed through to main.run()."""
@@ -225,6 +372,7 @@ class TestBatchSizeAndReloadWorkersConfig:
             info_paths=["forms.json"],
             modules={"UDS"},
             study_id="adrc",
+            source_id="ingest",
             batch_size=250,
             reload_workers=5,
         )
@@ -246,6 +394,7 @@ class TestCreateValidation:
             "group_id": "test-group",
             "project_name": "test-project",
             "modules": "UDS",
+            "source_id": "ingest",
         }
         options.update(config)
         context = MagicMock()
@@ -309,6 +458,87 @@ class TestCreateValidation:
 
         assert isinstance(visitor, CenterFormExportVisitor)
 
+    @pytest.mark.parametrize(
+        "source_id",
+        [
+            "ingest-form",  # dash, as in a raw project label
+            "ingest.form",  # dot
+            "ingest_form",  # underscore
+            "ingest form",  # space
+            "ingest/form",  # path separator
+        ],
+    )
+    def test_malformed_source_id_rejected(self, source_id: str):
+        """A source_id sits before the date, so a delimiter inside it would
+        shift every following segment and make the name unparseable.
+
+        Rejecting at startup rules out the raw project label, which
+        contains dashes.
+        """
+        with pytest.raises(GearExecutionError, match="source_id must contain only"):
+            self._create(source_id=source_id)
+
+    def test_over_long_source_id_rejected(self):
+        with pytest.raises(GearExecutionError, match="source_id must be at most"):
+            self._create(source_id="a" * 17)
+
+    def test_well_formed_source_id_accepted(self):
+        visitor = self._create(source_id="legacy")
+
+        assert isinstance(visitor, CenterFormExportVisitor)
+
+    @pytest.mark.parametrize("study_id", ["adrc-v2", "adrc.v2", "adrc_v2", "my study"])
+    def test_malformed_study_id_rejected(self, study_id: str):
+        """study_id leads every filename, so a delimiter inside it shifts every
+        following segment just as one in source_id would."""
+        with pytest.raises(GearExecutionError, match="study_id must contain only"):
+            self._create(study_id=study_id)
+
+    @pytest.mark.parametrize("study_id", ["", "   "])
+    def test_empty_study_id_rejected(self, study_id: str):
+        with pytest.raises(GearExecutionError, match="study_id must not be empty"):
+            self._create(study_id=study_id)
+
+    def test_surrounding_whitespace_stripped_from_study_id(self):
+        """An unstripped study_id would emit a filename with a leading
+        space."""
+        visitor = self._create(study_id="  adrc  ")
+
+        assert isinstance(visitor, CenterFormExportVisitor)
+
+    @pytest.mark.parametrize("modules", ["UDS,FTLD-1", "UDS,LBD.x", "UDS,my module"])
+    def test_malformed_module_name_rejected(self, modules: str):
+        """Module names reach the filename too, and are not otherwise
+        constrained -- a typo in the config list would silently produce an
+        unparseable name."""
+        with pytest.raises(GearExecutionError, match="module name must contain only"):
+            self._create(modules=modules)
+
+    @pytest.mark.parametrize("source_id", ["", "   "])
+    def test_empty_source_id_rejected(self, source_id: str):
+        """source_id is required, not optional like run_id: every output
+        filename carries it, so an empty value would emit a name with a doubled
+        separator that no consumer can parse."""
+        with pytest.raises(GearExecutionError, match="source_id must not be empty"):
+            self._create(source_id=source_id)
+
+    def test_omitted_source_id_rejected(self):
+        """A config that never sets source_id at all fails the same way an
+        empty one does, rather than defaulting to a name without the
+        segment."""
+        context = MagicMock()
+        context.config.opts = {
+            "group_id": "test-group",
+            "project_name": "test-project",
+            "modules": "UDS",
+        }
+
+        with (
+            patch("center_form_export_app.run.GearBotClient.create"),
+            pytest.raises(GearExecutionError, match="source_id must not be empty"),
+        ):
+            CenterFormExportVisitor.create(context=context, parameter_store=MagicMock())
+
 
 class TestRunIdStamp:
     """A caller-supplied run_id is appended to output filenames after the run
@@ -335,7 +565,7 @@ class TestRunIdStamp:
                 visitor.run(mock_context)
 
         assert list(mock_context.output_files) == [
-            "adrc-UDS-2026-07-24-20260724T210431.csv"
+            "adrc-ingest-UDS-2026-07-24-20260724T210431.csv"
         ]
 
     def test_run_id_appended_to_formver_split_filenames(
@@ -364,18 +594,18 @@ class TestRunIdStamp:
                 visitor.run(mock_context)
 
         assert sorted(mock_context.output_files) == [
-            "adrc-UDS-v3-2026-07-24-20260724T210431.csv",
-            "adrc-UDS-v4-2026-07-24-20260724T210431.csv",
+            "adrc-ingest-UDS-v3-2026-07-24-20260724T210431.csv",
+            "adrc-ingest-UDS-v4-2026-07-24-20260724T210431.csv",
         ]
 
-    def test_omitted_run_id_reproduces_date_only_filenames(
+    def test_omitted_run_id_leaves_no_trailing_separator(
         self,
         mock_client: MagicMock,
         mock_proxy: MagicMock,
         mock_context: MagicMock,
     ):
-        """Ad-hoc callers that send no run_id keep the previous filenames
-        exactly, with no trailing separator."""
+        """Ad-hoc callers that send no run_id get a name ending at the date,
+        with no trailing separator."""
         setup_single_subject_project(mock_proxy)
         visitor = create_visitor(mock_client, modules={"UDS"})
 
@@ -389,7 +619,7 @@ class TestRunIdStamp:
                 mock_date.today.return_value.isoformat.return_value = "2026-07-24"
                 visitor.run(mock_context)
 
-        assert list(mock_context.output_files) == ["adrc-UDS-2026-07-24.csv"]
+        assert list(mock_context.output_files) == ["adrc-ingest-UDS-2026-07-24.csv"]
 
     def test_every_module_shares_one_date(
         self,
@@ -431,8 +661,8 @@ class TestRunIdStamp:
                 visitor.run(mock_context)
 
         assert sorted(mock_context.output_files) == [
-            "adrc-FTLD-2026-07-24.csv",
-            "adrc-UDS-2026-07-24.csv",
+            "adrc-ingest-FTLD-2026-07-24.csv",
+            "adrc-ingest-UDS-2026-07-24.csv",
         ]
 
     def test_every_module_shares_one_run_id(
@@ -462,6 +692,179 @@ class TestRunIdStamp:
         assert len(mock_context.output_files) == 2
         assert all(
             filename.endswith("-20260724T210431.csv")
+            for filename in mock_context.output_files
+        )
+
+
+class TestSourceIdSegment:
+    """Every output filename carries a source_id after the study id, so that
+    jobs reading different projects but writing to one shared destination
+    produce distinct filenames.
+
+    It goes before the module rather than after the date because the
+    trailing run_id is optional: a second optional trailing segment
+    would leave a consumer unable to tell which of the two it had read.
+    """
+
+    def test_source_id_in_default_filename(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(mock_client, modules={"UDS"}, source_id="ingest")
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS", content="header\ndata\n"
+            )
+            with patch("center_form_export_app.run.date") as mock_date:
+                mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+                visitor.run(mock_context)
+
+        assert list(mock_context.output_files) == ["adrc-ingest-UDS-2026-07-24.csv"]
+
+    def test_source_id_in_formver_split_filenames(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(
+            mock_client,
+            modules={"UDS"},
+            formver_split=True,
+            source_id="legacy",
+        )
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS",
+                content_by_formver={"v3": "naccid\nA\n", "v4": "naccid\nB\n"},
+            )
+            with patch("center_form_export_app.run.date") as mock_date:
+                mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+                visitor.run(mock_context)
+
+        assert sorted(mock_context.output_files) == [
+            "adrc-legacy-UDS-v3-2026-07-24.csv",
+            "adrc-legacy-UDS-v4-2026-07-24.csv",
+        ]
+
+    def test_source_id_precedes_the_date_and_run_id(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """With both segments supplied, source_id stays before the module and
+        run_id stays last, leaving exactly one trailing segment after the
+        date."""
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(
+            mock_client,
+            modules={"UDS"},
+            formver_split=True,
+            source_id="ingest",
+            run_id="20260724T210431",
+        )
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.return_value = create_mock_gatherer(
+                "UDS", content_by_formver={"v4": "naccid\nA\n"}
+            )
+            with patch("center_form_export_app.run.date") as mock_date:
+                mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+                visitor.run(mock_context)
+
+        assert list(mock_context.output_files) == [
+            "adrc-ingest-UDS-v4-2026-07-24-20260724T210431.csv"
+        ]
+
+    def test_two_sources_of_one_run_do_not_collide(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        """The case this segment exists for: one export fans out across a
+        study's two source projects, which hold the same module at the same
+        form version, and both jobs write into that study's one distribution
+        project.
+
+        Every other field is identical by design -- same study, date,
+        run id, module and form version -- so without the source segment
+        the second write would version over the first and one job's
+        output would vanish from the file list.
+        """
+        filenames: list[str] = []
+        for project_name, source_id in (
+            ("ingest-form", "ingest"),
+            ("retrospective-form", "legacy"),
+        ):
+            setup_single_subject_project(mock_proxy)
+            mock_context.output_files = {}
+            visitor = create_visitor(
+                mock_client,
+                project_name=project_name,
+                modules={"FTLD"},
+                formver_split=True,
+                source_id=source_id,
+                run_id="20260724T210431",
+            )
+
+            with patch(
+                "center_form_export_app.run.ModuleDataGatherer"
+            ) as mock_gatherer_cls:
+                mock_gatherer_cls.return_value = create_mock_gatherer(
+                    "FTLD", content_by_formver={"v3": "naccid\nA\n"}
+                )
+                with patch("center_form_export_app.run.date") as mock_date:
+                    mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+                    visitor.run(mock_context)
+
+            filenames.extend(mock_context.output_files)
+
+        assert filenames == [
+            "adrc-ingest-FTLD-v3-2026-07-24-20260724T210431.csv",
+            "adrc-legacy-FTLD-v3-2026-07-24-20260724T210431.csv",
+        ]
+
+    def test_every_module_shares_one_source_id(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(
+            mock_client, modules={"UDS", "FTLD"}, source_id="ingest"
+        )
+
+        gatherers = {
+            "UDS": create_mock_gatherer("UDS", content="header\nuds\n"),
+            "FTLD": create_mock_gatherer("FTLD", content="header\nftld\n"),
+        }
+
+        with patch(
+            "center_form_export_app.run.ModuleDataGatherer"
+        ) as mock_gatherer_cls:
+            mock_gatherer_cls.side_effect = (
+                lambda proxy, module_name, info_paths, **kwargs: gatherers[module_name]
+            )
+            visitor.run(mock_context)
+
+        assert len(mock_context.output_files) == 2
+        assert all(
+            filename.startswith("adrc-ingest-")
             for filename in mock_context.output_files
         )
 
@@ -584,7 +987,7 @@ class TestOutput:
         mock_context.open_output.assert_called_once()
         call_args = mock_context.open_output.call_args
         filename = call_args[0][0]
-        assert filename.startswith("adrc-UDS-")
+        assert filename.startswith("adrc-ingest-UDS-")
         assert filename.endswith(".csv")
 
     def test_output_filename_format(
@@ -593,7 +996,10 @@ class TestOutput:
         mock_proxy: MagicMock,
         mock_context: MagicMock,
     ):
-        """Output filename follows {study_id}-{module}-{date}.csv pattern."""
+        """Output filename follows {study_id}-{source_id}-{module}-
+
+        {date}.csv.
+        """
         mock_group = MagicMock()
         mock_project = MagicMock()
         mock_project.id = "proj-123"
@@ -605,7 +1011,9 @@ class TestOutput:
         mock_proxy.find_group.return_value = mock_group
         mock_group.find_project.return_value = mock_project
 
-        visitor = create_visitor(mock_client, modules={"FTLD"}, study_id="mystudy")
+        visitor = create_visitor(
+            mock_client, modules={"FTLD"}, study_id="mystudy", source_id="legacy"
+        )
 
         with patch(
             "center_form_export_app.run.ModuleDataGatherer"
@@ -622,7 +1030,7 @@ class TestOutput:
 
         call_args = mock_context.open_output.call_args
         filename = call_args[0][0]
-        assert filename == "mystudy-FTLD-2024-01-15.csv"
+        assert filename == "mystudy-legacy-FTLD-2024-01-15.csv"
 
     def test_skips_empty_modules(
         self,
@@ -694,6 +1102,7 @@ class TestFormverSplit:
             info_paths=["forms.json"],
             modules={"UDS"},
             study_id="adrc",
+            source_id="ingest",
             formver_split=True,
         )
 
@@ -735,14 +1144,14 @@ class TestFormverSplit:
         assert mock_context.open_output.call_count == 2
         filenames = sorted(mock_context.output_files.keys())
         assert filenames == [
-            "adrc-UDS-v3-2024-01-15.csv",
-            "adrc-UDS-v4-2024-01-15.csv",
+            "adrc-ingest-UDS-v3-2024-01-15.csv",
+            "adrc-ingest-UDS-v4-2024-01-15.csv",
         ]
         # Each output file contains its bucket's content
-        assert mock_context.output_files["adrc-UDS-v3-2024-01-15.csv"] == (
+        assert mock_context.output_files["adrc-ingest-UDS-v3-2024-01-15.csv"] == (
             "naccid\nNACC000001\n"
         )
-        assert mock_context.output_files["adrc-UDS-v4-2024-01-15.csv"] == (
+        assert mock_context.output_files["adrc-ingest-UDS-v4-2024-01-15.csv"] == (
             "naccid,extra\nNACC000002,x\n"
         )
 

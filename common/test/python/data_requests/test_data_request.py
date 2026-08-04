@@ -1,4 +1,5 @@
 import logging
+import re
 import threading
 from unittest.mock import MagicMock, patch
 
@@ -34,10 +35,74 @@ class TestFormverLabel:
             (None, "unknown"),
             (1.0, "v1"),  # numeric input — coerced via str()
             (3, "v3"),
+            ("3.1", "v3.1"),  # nonzero decimal is preserved (e.g. LBD v3.1)
+            ("3.10", "v3.10"),  # distinct from 3.1
         ],
     )
     def test_label(self, raw, expected):
         assert formver_label(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            ("v3", "vv3"),  # already labelled
+            ("V3", "vV3"),
+            ("unknown", "vunknown"),  # free text
+            ("draft", "vdraft"),
+            ("3a", "v3a"),
+            ("3.", "v3."),  # trailing dot
+            (".1", "v.1"),  # leading dot
+        ],
+    )
+    def test_odd_but_safe_values_pass_through_unchanged(self, raw, expected):
+        """A value that is merely odd, rather than unusable, keeps the label it
+        has always produced.
+
+        These names parse: the check is for filename safety, not for a
+        well-formed version number. Rejecting them would change labels a
+        released gear already emits and merge their rows into the
+        "unknown" bucket, for no parsing benefit.
+        """
+        assert formver_label(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "3.0-draft",  # '-' would read as a segment boundary
+            "3_1",  # '_'
+            "3 1",  # space
+            "3/1",  # path separator
+            "N/A",
+            "3\t1",  # tab
+        ],
+    )
+    def test_unusable_label_falls_back_to_unknown(
+        self, raw, caplog: pytest.LogCaptureFixture
+    ):
+        """A form version carrying a delimiter or whitespace cannot be a
+        filename segment, so it is refused rather than passed through.
+
+        Emitting it would shift or corrupt every following segment of a
+        '-'-delimited name; the value is logged so the underlying data
+        can be corrected.
+        """
+        with caplog.at_level(logging.WARNING):
+            assert formver_label(raw) == "unknown"
+
+        assert "unusable form version" in caplog.text
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["1", "1.0", "1.5", "3.1", "3.10", "12.34", "", "3a", "v3", "3.0-draft", "N/A"],
+    )
+    def test_label_is_always_a_usable_filename_segment(self, raw):
+        """Whatever the input, the label carries no character that could be
+        read as a segment boundary."""
+        label = formver_label(raw)
+
+        assert re.match(r"^(v[A-Za-z0-9.]+|unknown)$", label), label
+        for delimiter in ("-", "_", "/", " ", "\t"):
+            assert delimiter not in label
 
 
 def _make_file_mock(merged_data: dict, file_id: str = "fake-file-id"):
