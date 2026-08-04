@@ -14,7 +14,6 @@ from coreapi_client.models.identifier import Identifier
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 from redcap_api.redcap_connection import REDCapConnectionError
-
 from users.authorization_visitor import (
     CenterAuthorizationVisitor,
     GeneralAuthorizationVisitor,
@@ -1242,6 +1241,24 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             # Store the whole RegistryPerson object instead of just the ID
             entry.register(claimed[0])
             self.__claimed_queue.enqueue(entry)
+            return
+
+        # Check if there's an orphan claim record for this user.
+        # This catches the case where a user claimed via ORCiD (which
+        # returned no email), so COManage created a separate record with
+        # oidcsub but no email. The skeleton still looks unclaimed, but
+        # the user has already attempted to claim.
+        bad_claim = self.__env.user_registry.get_bad_claim(entry.full_name)
+        if bad_claim:
+            log.info(
+                "User %s has skeleton but also an orphan claim record",
+                entry.email,
+            )
+            incomplete_claim_event = self.failure_analyzer.detect_incomplete_claim(
+                entry, bad_claim
+            )
+            if incomplete_claim_event:
+                self.collector.collect(incomplete_claim_event)
             return
 
         self.__unclaimed_queue.enqueue(entry)
