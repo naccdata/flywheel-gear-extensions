@@ -14,6 +14,7 @@ from coreapi_client.models.identifier import Identifier
 from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 from redcap_api.redcap_connection import REDCapConnectionError
+
 from users.authorization_visitor import (
     CenterAuthorizationVisitor,
     GeneralAuthorizationVisitor,
