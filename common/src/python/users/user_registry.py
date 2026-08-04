@@ -846,7 +846,7 @@ class UserRegistry:
                 )
 
         if not person.email_addresses:
-            if not person._has_oidcsub():
+            if person.is_unclaimed():
                 return
 
             if name:
