@@ -155,9 +155,7 @@ class FlywheelREDCapImageForm:
                 conflicts[key_to_set] = conflict_str
 
     def __collect_classification(
-            self,
-            file: FileEntry,
-            fw_mri_series: list[str]
+        self, file: FileEntry, fw_mri_series: list[str]
     ) -> None:
         """Collects the classification output from the File Classifier gear.
 
@@ -189,8 +187,7 @@ class FlywheelREDCapImageForm:
                 )
         else:
             fw_mri_series.append(
-                "no_classification:"
-                + file.info["header"]["dicom"]["SeriesDescription"]
+                "no_classification:" + file.info["header"]["dicom"]["SeriesDescription"]
             )
 
     def __inspect_acquisition(
