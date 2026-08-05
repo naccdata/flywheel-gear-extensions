@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class FileOrigin:
 
     @property
@@ -6,4 +9,7 @@ class FileOrigin:
 
     @property
     def type(self) -> str:
+        ...
+
+    def __getitem__(self, key: str) -> Any:
         ...
