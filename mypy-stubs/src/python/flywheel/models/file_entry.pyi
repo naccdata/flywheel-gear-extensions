@@ -85,6 +85,14 @@ class FileEntry:
         ...
 
     @property
+    def modality(self) -> str:
+        ...
+
+    @property
+    def classification(self) -> Dict[str, List[str]]:
+        ...
+
+    @property
     def tags(self) -> List[str]:
         ...
 
