@@ -4,6 +4,7 @@ from typing import ClassVar, Optional
 
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
+from flywheel.models.file_entry import FileEntry
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
@@ -153,6 +154,45 @@ class FlywheelREDCapImageForm:
             else:
                 conflicts[key_to_set] = conflict_str
 
+    def __collect_classification(
+            self,
+            file: FileEntry,
+            fw_mri_series: list[str]
+    ) -> None:
+        """Collects the classification output from the File Classifier gear.
+
+        Args:
+            file: target file from Flywheel
+            fw_mri_series: list to store classifications for MRI series
+        """
+        if file.get("classification"):
+            classifications = []
+            # file.classification options: Features, Intent, and Measurement
+            for classification_key in ["Measurement", "Intent"]:
+                if file.classification.get(classification_key):
+                    classifications.extend(
+                        sorted(
+                            file.classification[classification_key],
+                            reverse=True,
+                        )
+                    )
+            if classifications:
+                fw_mri_series.append(
+                    ",".join(classifications)
+                    + ":"
+                    + file.info["header"]["dicom"]["SeriesDescription"]
+                )
+            else:
+                fw_mri_series.append(
+                    "no_classification_elements:"
+                    + file.info["header"]["dicom"]["SeriesDescription"]
+                )
+        else:
+            fw_mri_series.append(
+                "no_classification:"
+                + file.info["header"]["dicom"]["SeriesDescription"]
+            )
+
     def __inspect_acquisition(
         self,
         fw_mri_series: list[str],
@@ -212,15 +252,7 @@ class FlywheelREDCapImageForm:
                             f"file.info['header']['dicom']['{pet_var}'] in {file.name}",
                         )
             elif file.modality == "MR":
-                # file.classification options: Features, Intent, and Measurement
-                fw_mri_series.append(
-                    ",".join(
-                        file.classification["Measurement"]
-                        + sorted(file.classification["Features"], reverse=True)
-                    )
-                    + ":"
-                    + file.info["header"]["dicom"]["SeriesDescription"]
-                )
+                self.__collect_classification(file, fw_mri_series)
 
     def __inspect_acquisitions(
         self, session: ContainerOutput, proxy: FlywheelProxy
