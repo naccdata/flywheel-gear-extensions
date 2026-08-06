@@ -105,13 +105,15 @@ _ptid_strategy = st.text(alphabet=_ptid_alphabet, min_size=1, max_size=10)
 _date_strategy = st.dates(
     min_value=datetime.date(1000, 1, 1), max_value=datetime.date(9999, 12, 31)
 ).map(lambda d: d.strftime("%Y-%m-%d"))
-# module must match [a-zA-Z]+ — purely alphabetic.
+# module must match [A-Za-z0-9]+ — alphanumeric (e.g. uds, B1A).
 _module_alphabet = st.characters(
-    min_codepoint=65,
+    min_codepoint=48,
     max_codepoint=122,
-    whitelist_categories=("Ll", "Lu"),
+    whitelist_categories=("Ll", "Lu", "Nd"),
 )
-_module_strategy = st.text(alphabet=_module_alphabet, min_size=1, max_size=10)
+_module_strategy = st.text(alphabet=_module_alphabet, min_size=1, max_size=10).filter(
+    lambda s: s[0].isalpha()
+)
 
 
 @given(ptid=_ptid_strategy, date=_date_strategy, module=_module_strategy)
