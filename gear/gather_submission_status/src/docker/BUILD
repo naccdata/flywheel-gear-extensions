@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/gather_submission_status/src/python/gather_submission_status_app:bin",
     ],
-    image_tags=["1.4.1", "latest"],
+    image_tags=["1.4.4", "latest"],
 )

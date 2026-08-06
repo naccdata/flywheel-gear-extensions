@@ -40,25 +40,59 @@ class DataRequestMatch(BaseModel):
     project_label: str
 
 
+# Characters usable inside one segment of a '-'-delimited filename. A '.'
+# is included because real form versions carry one (LBD 3.1) and the label
+# occupies a fixed, non-final position, where a '.' cannot be read as a
+# segment boundary. A '-', '_', '/', or whitespace can be, so a value
+# containing one is refused rather than emitted.
+#
+# This is deliberately a check for filename safety, not for a well-formed
+# version number: a non-numeric but harmless value such as "3a" passes
+# through as it always has. If this check also rejects those, it changes
+# the labels a released gear already emits, and merges their rows into
+# the "unknown" bucket, for no parsing benefit.
+FORMVER_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9.]+$")
+FORMVER_UNKNOWN_LABEL = "unknown"
+
+
 def formver_label(formver: Any) -> str:
     """Normalize a form version value into a filename-safe label.
 
+    Callers place the result in a '-'-delimited filename parsed by anchored
+    regexes. This function therefore guarantees a label of ``v`` followed
+    by letters, digits, and dots, or ``unknown``.
+
+    A value can carry a segment delimiter or whitespace, as in
+    "3.0-draft", "3_1", or "N/A". Such a value shifts every following
+    segment of the name. This function refuses it and logs it, rather
+    than producing a filename no consumer can parse.
+
     Examples:
-        "1"   -> "v1"
-        "1.0" -> "v1"
-        "1.5" -> "v1.5"
-        "3.0" -> "v3"
-        ""    -> "unknown"
-        None  -> "unknown"
+        "1"         -> "v1"
+        "1.0"       -> "v1"
+        "1.5"       -> "v1.5"
+        "3.0"       -> "v3"
+        "3.1"       -> "v3.1"
+        ""          -> "unknown"
+        None        -> "unknown"
+        "3.0-draft" -> "unknown" (logged)
 
     Args:
       formver: the raw form version value (any type; coerced via str)
     Returns:
-      a label suitable for use in a filename, e.g. "v3" or "unknown"
+      a label safe to use as one segment of a filename: "v" followed by
+      letters, digits, and dots, for example "v3" or "v3.1", or "unknown"
     """
     s = str(formver if formver is not None else "").strip()
     if not s:
-        return "unknown"
+        return FORMVER_UNKNOWN_LABEL
+    if not FORMVER_SEGMENT_PATTERN.match(s):
+        log.warning(
+            "unusable form version %r: labelling as %s",
+            formver,
+            FORMVER_UNKNOWN_LABEL,
+        )
+        return FORMVER_UNKNOWN_LABEL
     if s.endswith(".0"):
         s = s[:-2]
     return f"v{s}"
