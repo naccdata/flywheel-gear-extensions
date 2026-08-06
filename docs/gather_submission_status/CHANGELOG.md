@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.4
+
+* Normalize PTIDs (strip leading zeros) when building the participant filter set, so QC log filenames like `947_...` match input rows like `0947`
+
 ## 1.4.3
 
 * Relax QC filename pattern: module accepts alphanumeric names (e.g. `B1A`), visitnum accepts any non-underscore characters (including dashes)
