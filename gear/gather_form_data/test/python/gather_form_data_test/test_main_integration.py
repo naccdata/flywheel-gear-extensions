@@ -101,8 +101,8 @@ class TestMixedPath:
     """Some NACCIDs resolve, some don't."""
 
     def test_mixed_resolution_reports_errors_for_unresolved(self):
-        """When some NACCIDs don't resolve, errors are reported and
-        success=False, but data is still gathered for resolved ones."""
+        """When some NACCIDs don't resolve, warnings are reported but
+        success=True, and data is still gathered for resolved ones."""
         resolved_naccids = ["NACC000001", "NACC000002"]
         unresolved_naccids = ["NACC000099"]
         all_naccids = resolved_naccids + unresolved_naccids
@@ -138,8 +138,8 @@ class TestMixedPath:
                 error_writer=error_writer,
             )
 
-        # Success is False due to unresolved NACCIDs
-        assert success is False
+        # Success is True — unresolved NACCIDs are warnings, not failures
+        assert success is True
 
         # Verify error was reported for unresolved NACCID
         errors = error_writer.errors()

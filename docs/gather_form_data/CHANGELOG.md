@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.3.1
+
+* Treat unresolved NACCIDs as warnings instead of errors — the gear now always writes output files for resolved participants rather than suppressing all output when any identifier is unrecognized
+
 ## 0.3.0
 
 * Refactors NACCID resolution from sequential per-row API calls to batched OR-list queries, reducing API calls by ~100x for large request files

@@ -189,12 +189,11 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 error_writer=error_writer,
             )
 
-            if success:
-                _write_module_output(
-                    context=context,
-                    gatherers=data_gatherers,
-                    output_prefix=self.__output_prefix,
-                )
+            _write_module_output(
+                context=context,
+                gatherers=data_gatherers,
+                output_prefix=self.__output_prefix,
+            )
 
         context.metadata.add_qc_result(
             self.__file_input.file_input,
