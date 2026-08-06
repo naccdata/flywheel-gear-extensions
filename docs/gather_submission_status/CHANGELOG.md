@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.0
+
+* Consolidate per-stage status rows into per-submission (ptid, visit, module) pass/fail
+* Split status output into two files: passed and failed submissions
+* Add configurable `passed_output_file` and `failed_output_file` config options
+* Remove `output_file` config (replaced by the two new options above)
+* Drop `stage` column from status output — rows now represent overall submission status
+
 ## 1.4.4
 
 * Normalize PTIDs (strip leading zeros) when building the participant filter set, so QC log filenames like `947_...` match input rows like `0947`
