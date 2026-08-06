@@ -105,12 +105,11 @@ _ptid_strategy = st.text(alphabet=_ptid_alphabet, min_size=1, max_size=10)
 _date_strategy = st.dates(
     min_value=datetime.date(1000, 1, 1), max_value=datetime.date(9999, 12, 31)
 ).map(lambda d: d.strftime("%Y-%m-%d"))
-# module must match \w+ — use ASCII letters and digits only to stay in the
-# ASCII subset that the regex expects.
+# module must match [a-zA-Z]+ — purely alphabetic.
 _module_alphabet = st.characters(
-    min_codepoint=48,
+    min_codepoint=65,
     max_codepoint=122,
-    whitelist_categories=("Ll", "Lu", "Nd"),
+    whitelist_categories=("Ll", "Lu"),
 )
 _module_strategy = st.text(alphabet=_module_alphabet, min_size=1, max_size=10)
 
