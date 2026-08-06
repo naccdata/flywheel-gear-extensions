@@ -7,8 +7,6 @@ from csv import DictWriter
 from typing import Any, Callable, List, Optional
 
 from flywheel.models.file_entry import FileEntry
-from pydantic import BaseModel, ValidationError
-
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     ClearedAlertModel,
@@ -19,6 +17,7 @@ from nacc_common.error_models import (
     QCVisitor,
     ValidationModel,
 )
+from pydantic import BaseModel, ValidationError
 
 ModuleName = str
 log = logging.getLogger(__name__)
@@ -27,7 +26,7 @@ log = logging.getLogger(__name__)
 # between ProjectReportVisitor and FileQCReportVisitor
 QC_FILENAME_PATTERN = (
     r"^(?P<ptid>[!-~]{1,10})_(?P<date>\d{4}-\d{2}-\d{2})"
-    r"_(?:(?P<visitnum>\d+\.\d+)_)?(?P<module>\w+)_qc-status.log$"
+    r"_(?:(?P<visitnum>\d+(?:\.\d+)?|[A-Za-z]+\d+)_)?(?P<module>[a-zA-Z]+)_qc-status\.log$"
 )
 
 
