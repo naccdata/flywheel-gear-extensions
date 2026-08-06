@@ -164,7 +164,9 @@ def run(
                 log.error("Expect ADCID: %s got %s", pipeline_adcid, request_adcid)
                 continue
 
-            ptid_set = {request.ptid for request in request_list}
+            ptid_set = {
+                request.ptid.strip().lstrip("0") for request in request_list
+            }
             for project in project_list:
                 log.info("visiting project %s/%s", pipeline_adcid, project.label)
 
