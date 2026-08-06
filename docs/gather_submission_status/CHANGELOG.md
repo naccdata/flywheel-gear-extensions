@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.2
+
+* Fix QC filename pattern to handle all visitnum formats (plain integers like `7`, zero-padded like `003`, and alphanumeric codes like `FU6`) via updated nacc-common dependency
+
 ## 1.4.1
 
 * Add concurrent file reloading with configurable `reload_workers` parameter (default 10) for significantly faster processing of large projects
