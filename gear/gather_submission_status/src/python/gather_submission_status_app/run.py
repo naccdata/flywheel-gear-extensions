@@ -3,7 +3,7 @@
 import logging
 from csv import DictWriter
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from data_requests.status_request import StatusRequestClusteringVisitor
 from fw_gear import GearContext
@@ -25,12 +25,15 @@ from nacc_common.visit_submission_error import (
     error_report_visitor_builder,
 )
 from nacc_common.visit_submission_status import (
-    StatusReportModel,
     status_report_visitor_builder,
 )
 from outputs.error_writer import ListErrorWriter
 
-from gather_submission_status_app.main import run
+from gather_submission_status_app.main import (
+    CONSOLIDATED_FIELDNAMES,
+    run,
+    run_consolidated,
+)
 
 log = logging.getLogger(__name__)
 
@@ -43,24 +46,28 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         client: ClientWrapper,
         admin_id: str,
         file_input: InputFileWrapper,
-        output_filename: str,
         project_names: List[str],
         modules: set[str],
         study_id: str,
         file_visitor_builder: FileQCReportVisitorBuilder,
         fieldnames: List[str],
         reload_workers: int,
+        query_type: str,
+        passed_output_file: str,
+        failed_output_file: str,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
         self.__file_input = file_input
-        self.__output_filename = output_filename
         self.__project_names = project_names
         self.__modules = modules
         self.__study_id = study_id
         self.__file_visitor_builder = file_visitor_builder
         self.__report_fieldnames = fieldnames
         self.__reload_workers = reload_workers
+        self.__query_type = query_type
+        self.__passed_output_file = passed_output_file
+        self.__failed_output_file = failed_output_file
 
     @classmethod
     def create(
@@ -84,7 +91,12 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         assert file_input, "create raises exception if missing input file"
 
         options = context.config.opts
-        output_filename = options.get("output_file", "submission-status.csv")
+        passed_output_file = options.get(
+            "passed_output_file", "submission-status-passed.csv"
+        )
+        failed_output_file = options.get(
+            "failed_output_file", "submission-status-failed.csv"
+        )
         admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
         project_names = options.get("project_names", "").split(",")
         modules = set(options.get("modules", "").split(","))
@@ -104,7 +116,7 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         query_type = query_type_arg if query_type_arg == "error" else "status"
 
         file_visitor_builder: FileQCReportVisitorBuilder = status_report_visitor_builder
-        fieldnames = list(StatusReportModel.model_fields.keys())
+        fieldnames = CONSOLIDATED_FIELDNAMES
 
         if query_type == "error":
             file_visitor_builder = error_report_visitor_builder
@@ -113,7 +125,6 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
         return GatherSubmissionStatusVisitor(
             client=client,
             file_input=file_input,
-            output_filename=output_filename,
             admin_id=admin_id,
             project_names=project_names,
             modules=modules,
@@ -121,6 +132,9 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
             file_visitor_builder=file_visitor_builder,
             fieldnames=fieldnames,
             reload_workers=reload_workers,
+            query_type=query_type,
+            passed_output_file=passed_output_file,
+            failed_output_file=failed_output_file,
         )
 
     def run(self, context: GearContext) -> None:
@@ -144,19 +158,20 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
                 project_names=self.__project_names,
                 error_writer=error_writer,
             )
-            with context.open_output(
-                self.__output_filename, mode="w", encoding="utf-8"
-            ) as status_file:
-                writer = DictWriter(status_file, fieldnames=self.__report_fieldnames)
-                writer.writeheader()
-                success = run(
-                    input_file=csv_file,
-                    modules=self.__modules,
-                    clustering_visitor=clustering,
-                    file_visitor_builder=self.__file_visitor_builder,
-                    writer=writer,
+
+            if self.__query_type == "error":
+                success = self._run_error_report(
+                    context=context,
+                    csv_file=csv_file,
+                    clustering=clustering,
                     error_writer=error_writer,
-                    reload_workers=self.__reload_workers,
+                )
+            else:
+                success = self._run_status_report(
+                    context=context,
+                    csv_file=csv_file,
+                    clustering=clustering,
+                    error_writer=error_writer,
                 )
 
             context.metadata.add_qc_result(
@@ -168,6 +183,94 @@ class GatherSubmissionStatusVisitor(GearExecutionEnvironment):
 
             gear_name = self.get_gear_name(context, "gather-submission-status")
             context.metadata.add_file_tags(self.__file_input.file_input, tags=gear_name)
+
+    def _run_error_report(
+        self,
+        *,
+        context: GearContext,
+        csv_file: Any,
+        clustering: StatusRequestClusteringVisitor,
+        error_writer: ListErrorWriter,
+    ) -> bool:
+        """Run the error report query type (writes a single output file).
+
+        Args:
+            context: the gear execution context
+            csv_file: the open CSV input file
+            clustering: the clustering visitor
+            error_writer: collects per-request errors
+
+        Returns:
+            True if processing succeeded
+        """
+        with context.open_output(
+            self.__passed_output_file, mode="w", encoding="utf-8"
+        ) as output_file:
+            writer = DictWriter(output_file, fieldnames=self.__report_fieldnames)
+            writer.writeheader()
+            return run(
+                input_file=csv_file,
+                modules=self.__modules,
+                clustering_visitor=clustering,
+                file_visitor_builder=self.__file_visitor_builder,
+                writer=writer,
+                error_writer=error_writer,
+                reload_workers=self.__reload_workers,
+            )
+
+    def _run_status_report(
+        self,
+        *,
+        context: GearContext,
+        csv_file: Any,
+        clustering: StatusRequestClusteringVisitor,
+        error_writer: ListErrorWriter,
+    ) -> bool:
+        """Run the status report query type (writes passed and failed files).
+
+        Consolidates per-stage rows into per-(ptid, visit, module) and
+        writes separate output files for passed and failed submissions.
+
+        Args:
+            context: the gear execution context
+            csv_file: the open CSV input file
+            clustering: the clustering visitor
+            error_writer: collects per-request errors
+
+        Returns:
+            True if processing succeeded
+        """
+        success, result = run_consolidated(
+            input_file=csv_file,
+            modules=self.__modules,
+            clustering_visitor=clustering,
+            file_visitor_builder=self.__file_visitor_builder,
+            error_writer=error_writer,
+            reload_workers=self.__reload_workers,
+        )
+
+        if not success:
+            return False
+
+        fieldnames = self.__report_fieldnames
+
+        with context.open_output(
+            self.__passed_output_file, mode="w", encoding="utf-8"
+        ) as passed_file:
+            writer = DictWriter(passed_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in result.passed:
+                writer.writerow(row)
+
+        with context.open_output(
+            self.__failed_output_file, mode="w", encoding="utf-8"
+        ) as failed_file:
+            writer = DictWriter(failed_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in result.failed:
+                writer.writerow(row)
+
+        return True
 
 
 def main():

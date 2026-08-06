@@ -2,7 +2,7 @@
   "name": "gather-submission-status",
   "label": "Gather Submission Status",
   "description": "A gear for gathering form submission status",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "author": "NACC",
   "maintainer": "NACC <nacchelp@uw.edu>",
   "cite": "",
@@ -15,7 +15,7 @@
   "custom": {
     "gear-builder": {
       "category": "utility",
-      "image": "naccdata/gather-submission-status:1.4.4"
+      "image": "naccdata/gather-submission-status:1.5.0"
     },
     "flywheel": {
       "suite": "Utility",
@@ -75,10 +75,15 @@
       "type": "string",
       "default": "adrc"
     },
-    "output_file": {
-      "description": "Name of the output file",
+    "passed_output_file": {
+      "description": "Name of the output file for submissions that passed QC",
       "type": "string",
-      "default": "submission-status.csv"
+      "default": "submission-status-passed.csv"
+    },
+    "failed_output_file": {
+      "description": "Name of the output file for submissions that did not pass QC",
+      "type": "string",
+      "default": "submission-status-failed.csv"
     },
     "reload_workers": {
       "description": "Number of concurrent threads for reloading QC file metadata",
