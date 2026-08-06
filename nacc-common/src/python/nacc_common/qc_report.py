@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 # between ProjectReportVisitor and FileQCReportVisitor
 QC_FILENAME_PATTERN = (
     r"^(?P<ptid>[!-~]{1,10})_(?P<date>\d{4}-\d{2}-\d{2})"
-    r"_(?:(?P<visitnum>\d+(?:\.\d+)?|[A-Za-z]+\d+)_)?(?P<module>[a-zA-Z]+)_qc-status\.log$"
+    r"_(?:(?P<visitnum>[^_]+)_)?(?P<module>[A-Za-z0-9]+)_qc-status\.log$"
 )
 
 
