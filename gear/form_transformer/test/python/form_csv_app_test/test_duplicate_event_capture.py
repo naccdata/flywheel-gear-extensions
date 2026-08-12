@@ -1,9 +1,10 @@
-"""Unit tests for run.py config handling and __capture_duplicate_event edge
-cases.
+"""Unit tests for event capture config initialization and duplicate event
+capture behavior.
 
 Tests cover:
 - Four config states for event capture initialization
   (both, only bucket, only env, neither)
+- S3 error raises GearExecutionError
 - Missing date field in row skips event capture (logs warning, doesn't raise)
 - Metadata copy failure does not trigger second event capture
 
@@ -12,130 +13,13 @@ Requirements: 3.2, 3.3, 3.4, 5.4, 2.7, 6.3
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from configs.ingest_configs import ModuleConfigs
 from event_capture.event_capture import VisitEventCapture
-from form_csv_app.main import CSVTransformVisitor
+from form_csv_app.run import initialize_event_capture
 from gear_execution.gear_execution import GearExecutionError
-from nacc_common.field_names import FieldNames
-from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3InterfaceError
-
-# ============================================================================
-# Helper fixtures and factories
-# ============================================================================
-
-
-def create_module_configs_with_duplicate_check() -> ModuleConfigs:
-    """Create ModuleConfigs that includes duplicate-record preprocess check."""
-    module_configs = {
-        "hierarchy_labels": {
-            "session": {"template": "FORMS-VISIT-${visitnum}", "transform": "upper"},
-            "acquisition": {"template": "${module}", "transform": "upper"},
-            "filename": {
-                "template": "${subject}_${session}_${acquisition}.json",
-                "transform": "upper",
-            },
-        },
-        "required_fields": [
-            "ptid",
-            "adcid",
-            "visitnum",
-            "visitdate",
-            "module",
-        ],
-        "initial_packets": ["I"],
-        "followup_packets": ["F"],
-        "versions": ["4.0"],
-        "date_field": "visitdate",
-        "preprocess_checks": [
-            "duplicate-record",
-        ],
-    }
-    return ModuleConfigs.model_validate(module_configs)
-
-
-def create_valid_row(
-    ptid: str = "110001",
-    visitdate: str = "2024-03-15",
-    module: str = "UDS",
-    visitnum: str = "2",
-    adcid: int = 42,
-    naccid: str = "NACC000001",
-) -> Dict[str, Any]:
-    """Create a valid CSV row with all expected fields."""
-    return {
-        FieldNames.PTID: ptid,
-        FieldNames.DATE_COLUMN: visitdate,
-        FieldNames.MODULE: module,
-        FieldNames.VISITNUM: visitnum,
-        FieldNames.ADCID: adcid,
-        FieldNames.NACCID: naccid,
-    }
-
-
-def create_visitor_with_mocks(
-    *,
-    event_capture: Optional[VisitEventCapture] = None,
-    center_label: str = "adrc42",
-    project_label: str = "ingest-form",
-    timestamp: Optional[datetime] = None,
-    is_existing_visit: bool = False,
-) -> Tuple[CSVTransformVisitor, Mock]:
-    """Create a CSVTransformVisitor with mocked dependencies for testing.
-
-    Uses a mocked transformer that returns the row as-is (bypassing
-    DateTransformer normalization) to allow testing edge cases.
-
-    Returns the visitor and the mock preprocessor.
-    """
-    module = "UDS"
-    module_configs = create_module_configs_with_duplicate_check()
-    error_writer = ListErrorWriter(container_id="test-id", fw_path="test/path")
-
-    # Use a mock preprocessor so we can control is_existing_visit behavior
-    mock_preprocessor = Mock()
-    mock_preprocessor.is_existing_visit.return_value = is_existing_visit
-    mock_preprocessor.preprocess.return_value = True
-
-    # Use a mock transformer factory that returns rows as-is
-    # This bypasses DateTransformer so we can test __capture_duplicate_event
-    # with invalid dates that would normally be caught by the transformer
-    mock_transformer = MagicMock()
-    mock_transformer.transform.side_effect = lambda row, line_num: dict(row)
-    mock_transformer_factory = MagicMock()
-    mock_transformer_factory.create.return_value = mock_transformer
-
-    visitor = CSVTransformVisitor(
-        id_column=FieldNames.NACCID,
-        module=module,
-        error_writer=error_writer,
-        transformer_factory=mock_transformer_factory,
-        preprocessor=mock_preprocessor,
-        module_configs=module_configs,
-        gear_name="form-transformer",
-        project=None,
-        event_capture=event_capture,
-        center_label=center_label,
-        project_label=project_label,
-        timestamp=timestamp,
-    )
-
-    header = [
-        FieldNames.NACCID,
-        FieldNames.DATE_COLUMN,
-        FieldNames.MODULE,
-        FieldNames.VISITNUM,
-        FieldNames.ADCID,
-        FieldNames.PTID,
-    ]
-    assert visitor.visit_header(header)
-
-    return visitor, mock_preprocessor
-
 
 # ============================================================================
 # Tests: Config state handling (Requirements 3.2, 3.3, 3.4, 5.4)
@@ -143,37 +27,25 @@ def create_visitor_with_mocks(
 
 
 class TestConfigStateHandling:
-    """Test the four config states for event capture in run.py."""
+    """Test initialize_event_capture with the four config states."""
 
-    def test_both_config_values_present_creates_event_capture(self):
+    @patch("form_csv_app.run.S3BucketInterface.create_from_environment")
+    def test_both_config_values_present_creates_event_capture(self, mock_s3):
         """When both event_bucket and event_environment are provided,
         VisitEventCapture should be created.
 
         Requirement 3.2: Both provided -> create VisitEventCapture
         """
-        with patch("s3.s3_bucket.S3BucketInterface.create_from_environment") as mock_s3:
-            mock_s3_instance = Mock()
-            mock_s3.return_value = mock_s3_instance
+        mock_s3.return_value = Mock()
 
-            config_opts = {
-                "event_bucket": "my-bucket",
-                "event_environment": "prod",
-            }
+        result = initialize_event_capture(
+            event_bucket="my-bucket",
+            event_environment="prod",
+        )
 
-            event_bucket = config_opts.get("event_bucket", "")
-            event_environment = config_opts.get("event_environment", "")
-
-            event_capture: Optional[VisitEventCapture] = None
-            if event_bucket and event_environment:
-                from s3.s3_bucket import S3BucketInterface
-
-                s3_bucket = S3BucketInterface.create_from_environment(event_bucket)
-                event_capture = VisitEventCapture(
-                    s3_bucket=s3_bucket, environment=event_environment
-                )
-
-            mock_s3.assert_called_once_with("my-bucket")
-            assert event_capture is not None
+        mock_s3.assert_called_once_with("my-bucket")
+        assert result is not None
+        assert isinstance(result, VisitEventCapture)
 
     def test_only_bucket_provided_disables_event_capture(self, caplog):
         """When only event_bucket is provided, event_capture should be None and
@@ -181,28 +53,13 @@ class TestConfigStateHandling:
 
         Requirement 5.4: Only one provided -> skip, log warning
         """
-        config_opts = {
-            "event_bucket": "my-bucket",
-            "event_environment": "",
-        }
-
-        event_bucket = config_opts.get("event_bucket", "")
-        event_environment = config_opts.get("event_environment", "")
-
-        event_capture = None
         with caplog.at_level(logging.WARNING):
-            if event_bucket and event_environment:
-                pass
-            elif event_bucket or event_environment:
-                logging.getLogger("form_csv_app.run").warning(
-                    "Both event_bucket and event_environment are required for "
-                    "event capture. Got event_bucket='%s', "
-                    "event_environment='%s'. Event capture will be disabled.",
-                    event_bucket,
-                    event_environment,
-                )
+            result = initialize_event_capture(
+                event_bucket="my-bucket",
+                event_environment="",
+            )
 
-        assert event_capture is None
+        assert result is None
         assert any("Both event_bucket" in r.message for r in caplog.records)
 
     def test_only_environment_provided_disables_event_capture(self, caplog):
@@ -211,28 +68,13 @@ class TestConfigStateHandling:
 
         Requirement 5.4: Only one provided -> skip, log warning
         """
-        config_opts = {
-            "event_bucket": "",
-            "event_environment": "prod",
-        }
-
-        event_bucket = config_opts.get("event_bucket", "")
-        event_environment = config_opts.get("event_environment", "")
-
-        event_capture = None
         with caplog.at_level(logging.WARNING):
-            if event_bucket and event_environment:
-                pass
-            elif event_bucket or event_environment:
-                logging.getLogger("form_csv_app.run").warning(
-                    "Both event_bucket and event_environment are required for "
-                    "event capture. Got event_bucket='%s', "
-                    "event_environment='%s'. Event capture will be disabled.",
-                    event_bucket,
-                    event_environment,
-                )
+            result = initialize_event_capture(
+                event_bucket="",
+                event_environment="prod",
+            )
 
-        assert event_capture is None
+        assert result is None
         assert any("Both event_bucket" in r.message for r in caplog.records)
 
     def test_neither_config_value_provided_disables_silently(self, caplog):
@@ -241,54 +83,29 @@ class TestConfigStateHandling:
 
         Requirement 3.4: Neither provided -> None, no error
         """
-        config_opts: Dict[str, str] = {}
-
-        event_bucket = config_opts.get("event_bucket", "")
-        event_environment = config_opts.get("event_environment", "")
-
-        event_capture = None
         with caplog.at_level(logging.WARNING):
-            if event_bucket and event_environment:
-                pass
-            elif event_bucket or event_environment:
-                logging.getLogger("form_csv_app.run").warning(
-                    "Both event_bucket and event_environment are required "
-                    "for event capture."
-                )
+            result = initialize_event_capture(
+                event_bucket="",
+                event_environment="",
+            )
 
-        assert event_capture is None
-        # No warning logged when both are empty
+        assert result is None
         assert not any("event_bucket" in r.message for r in caplog.records)
 
-    def test_s3_error_raises_gear_execution_error(self):
+    @patch("form_csv_app.run.S3BucketInterface.create_from_environment")
+    def test_s3_error_raises_gear_execution_error(self, mock_s3):
         """When S3BucketInterface.create_from_environment raises, a
         GearExecutionError should be raised.
 
         Requirement 3.3: S3InterfaceError -> GearExecutionError
         """
-        config_opts = {
-            "event_bucket": "bad-bucket",
-            "event_environment": "prod",
-        }
+        mock_s3.side_effect = S3InterfaceError("Bucket not found")
 
-        event_bucket = config_opts.get("event_bucket", "")
-        event_environment = config_opts.get("event_environment", "")
-
-        with patch("s3.s3_bucket.S3BucketInterface.create_from_environment") as mock_s3:
-            mock_s3.side_effect = S3InterfaceError("Bucket not found")
-
-            with pytest.raises(GearExecutionError):
-                if event_bucket and event_environment:
-                    try:
-                        from s3.s3_bucket import S3BucketInterface
-
-                        S3BucketInterface.create_from_environment(event_bucket)
-                    except S3InterfaceError as error:
-                        raise GearExecutionError(
-                            f"Failed to initialize visit event capture: "
-                            f"Unable to access S3 bucket '{event_bucket}'. "
-                            f"Error: {error}"
-                        ) from error
+        with pytest.raises(GearExecutionError, match="Unable to access S3 bucket"):
+            initialize_event_capture(
+                event_bucket="bad-bucket",
+                event_environment="prod",
+            )
 
 
 # ============================================================================
@@ -299,7 +116,9 @@ class TestConfigStateHandling:
 class TestCaptureDuplicateEventEdgeCases:
     """Test __capture_duplicate_event behavior through visit_row()."""
 
-    def test_invalid_date_field_skips_event_capture(self, caplog):
+    def test_invalid_date_field_skips_event_capture(
+        self, caplog, create_valid_row, create_visitor_with_mocks
+    ):
         """When the date field has an invalid format that can't be parsed by
         DataIdentification.from_form_record, __capture_duplicate_event should
         log a warning and skip, not raise.
@@ -330,7 +149,9 @@ class TestCaptureDuplicateEventEdgeCases:
         # Warning should be logged about DataIdentification failure
         assert any("Cannot construct" in r.message for r in caplog.records)
 
-    def test_empty_date_field_skips_event_capture(self, caplog):
+    def test_empty_date_field_skips_event_capture(
+        self, caplog, create_valid_row, create_visitor_with_mocks
+    ):
         """When the date field is empty string, event capture is skipped.
 
         Requirement 2.7: DataIdentification can't be constructed -> skip
@@ -355,7 +176,9 @@ class TestCaptureDuplicateEventEdgeCases:
         assert result is True
         mock_event_capture.capture_event.assert_not_called()
 
-    def test_no_event_capture_configured_skips_silently(self):
+    def test_no_event_capture_configured_skips_silently(
+        self, create_valid_row, create_visitor_with_mocks
+    ):
         """When event_capture is None, no event is captured and no error
         occurs.
 
@@ -372,7 +195,9 @@ class TestCaptureDuplicateEventEdgeCases:
 
         assert result is True
 
-    def test_no_timestamp_configured_skips_silently(self):
+    def test_no_timestamp_configured_skips_silently(
+        self, create_valid_row, create_visitor_with_mocks
+    ):
         """When timestamp is None, __capture_duplicate_event returns early."""
         mock_event_capture = Mock(spec=VisitEventCapture)
 
@@ -388,7 +213,9 @@ class TestCaptureDuplicateEventEdgeCases:
         assert result is True
         mock_event_capture.capture_event.assert_not_called()
 
-    def test_capture_event_failure_does_not_interrupt_processing(self, caplog):
+    def test_capture_event_failure_does_not_interrupt_processing(
+        self, caplog, create_valid_row, create_visitor_with_mocks
+    ):
         """When capture_event raises an exception, visit_row still returns True
         and the row is still added to __existing_visits.
 
@@ -416,7 +243,9 @@ class TestCaptureDuplicateEventEdgeCases:
         # Warning should have been logged
         assert any("Failed to capture" in r.message for r in caplog.records)
 
-    def test_metadata_copy_failure_does_not_trigger_second_event(self):
+    def test_metadata_copy_failure_does_not_trigger_second_event(
+        self, create_valid_row, create_visitor_with_mocks
+    ):
         """When metadata copy fails for a duplicate visit, causing re-addition
         to the current batch, no second duplicate-submit event is captured.
 
@@ -447,7 +276,9 @@ class TestCaptureDuplicateEventEdgeCases:
         # Still only one capture_event call
         assert mock_event_capture.capture_event.call_count == 1
 
-    def test_duplicate_event_captured_on_valid_row(self):
+    def test_duplicate_event_captured_on_valid_row(
+        self, create_valid_row, create_visitor_with_mocks
+    ):
         """When a valid duplicate row is detected, exactly one event is
         captured with correct fields.
 
@@ -477,7 +308,9 @@ class TestCaptureDuplicateEventEdgeCases:
         assert captured_event.center_label == "adrc42"
         assert captured_event.timestamp == timestamp
 
-    def test_non_duplicate_row_does_not_trigger_event(self):
+    def test_non_duplicate_row_does_not_trigger_event(
+        self, create_valid_row, create_visitor_with_mocks
+    ):
         """When is_existing_visit returns False, no event is captured.
 
         Requirement 6.2: Non-duplicates -> no events

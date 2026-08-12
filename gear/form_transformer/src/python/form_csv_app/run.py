@@ -35,6 +35,53 @@ from form_csv_app.main import run
 log = logging.getLogger(__name__)
 
 
+def initialize_event_capture(
+    event_bucket: str,
+    event_environment: str,
+) -> Optional[VisitEventCapture]:
+    """Initialize visit event capture from config values.
+
+    Args:
+        event_bucket: S3 bucket name for event storage.
+        event_environment: Environment prefix (e.g. "prod", "dev").
+
+    Returns:
+        VisitEventCapture instance if both values are provided and S3 is
+        accessible, None otherwise.
+
+    Raises:
+        GearExecutionError: If both values are provided but S3 bucket is
+            unreachable.
+    """
+    if event_bucket and event_environment:
+        try:
+            s3_bucket = S3BucketInterface.create_from_environment(event_bucket)
+            event_capture = VisitEventCapture(
+                s3_bucket=s3_bucket, environment=event_environment
+            )
+            log.info(
+                "Visit event capture initialized for environment "
+                f"'{event_environment}' with bucket '{event_bucket}'"
+            )
+            return event_capture
+        except (S3InterfaceError, ClientError) as error:
+            raise GearExecutionError(
+                f"Failed to initialize visit event capture: "
+                f"Unable to access S3 bucket '{event_bucket}'. Error: {error}"
+            ) from error
+
+    if event_bucket or event_environment:
+        log.warning(
+            "Both event_bucket and event_environment are required for "
+            "event capture. Got event_bucket='%s', "
+            "event_environment='%s'. Event capture will be disabled.",
+            event_bucket,
+            event_environment,
+        )
+
+    return None
+
+
 class FormCSVtoJSONTransformer(GearExecutionEnvironment):
     """Visitor for the templating gear."""
 
@@ -140,33 +187,9 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         gear_name = self.get_gear_name(context, "form-transformer")
 
         # Initialize visit event capture from config
-        event_capture: Optional[VisitEventCapture] = None
         event_bucket = context.config.opts.get("event_bucket", "")
         event_environment = context.config.opts.get("event_environment", "")
-
-        if event_bucket and event_environment:
-            try:
-                s3_bucket = S3BucketInterface.create_from_environment(event_bucket)
-                event_capture = VisitEventCapture(
-                    s3_bucket=s3_bucket, environment=event_environment
-                )
-                log.info(
-                    "Visit event capture initialized for environment "
-                    f"'{event_environment}' with bucket '{event_bucket}'"
-                )
-            except (S3InterfaceError, ClientError) as error:
-                raise GearExecutionError(
-                    f"Failed to initialize visit event capture: "
-                    f"Unable to access S3 bucket '{event_bucket}'. Error: {error}"
-                ) from error
-        elif event_bucket or event_environment:
-            log.warning(
-                "Both event_bucket and event_environment are required for "
-                "event capture. Got event_bucket='%s', "
-                "event_environment='%s'. Event capture will be disabled.",
-                event_bucket,
-                event_environment,
-            )
+        event_capture = initialize_event_capture(event_bucket, event_environment)
 
         downstream_gears = parse_string_to_list(
             context.config.opts.get("downstream_gears", None)
