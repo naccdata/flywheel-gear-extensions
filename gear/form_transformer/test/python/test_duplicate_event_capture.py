@@ -2,7 +2,8 @@
 cases.
 
 Tests cover:
-- Four config states for event capture initialization (both, only bucket, only env, neither)
+- Four config states for event capture initialization
+  (both, only bucket, only env, neither)
 - Missing date field in row skips event capture (logs warning, doesn't raise)
 - Metadata copy failure does not trigger second event capture
 
@@ -309,7 +310,7 @@ class TestCaptureDuplicateEventEdgeCases:
         mock_event_capture = Mock(spec=VisitEventCapture)
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
 
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
@@ -337,7 +338,7 @@ class TestCaptureDuplicateEventEdgeCases:
         mock_event_capture = Mock(spec=VisitEventCapture)
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
 
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
@@ -360,7 +361,7 @@ class TestCaptureDuplicateEventEdgeCases:
 
         Requirement 3.4: No event capture configured -> no events
         """
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=None,
             timestamp=datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc),
             is_existing_visit=True,
@@ -375,7 +376,7 @@ class TestCaptureDuplicateEventEdgeCases:
         """When timestamp is None, __capture_duplicate_event returns early."""
         mock_event_capture = Mock(spec=VisitEventCapture)
 
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=None,
             is_existing_visit=True,
@@ -398,7 +399,7 @@ class TestCaptureDuplicateEventEdgeCases:
         mock_event_capture.capture_event.side_effect = RuntimeError("S3 failure")
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
 
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
@@ -425,7 +426,7 @@ class TestCaptureDuplicateEventEdgeCases:
         mock_event_capture = Mock(spec=VisitEventCapture)
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
 
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
@@ -455,7 +456,7 @@ class TestCaptureDuplicateEventEdgeCases:
         mock_event_capture = Mock(spec=VisitEventCapture)
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
 
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
@@ -484,7 +485,7 @@ class TestCaptureDuplicateEventEdgeCases:
         mock_event_capture = Mock(spec=VisitEventCapture)
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
 
-        visitor, mock_preprocessor = create_visitor_with_mocks(
+        visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=False,
