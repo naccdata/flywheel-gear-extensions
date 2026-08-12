@@ -26,13 +26,16 @@ from pydantic import (
     model_validator,
 )
 
-VisitEventType = Literal["submit", "delete", "not-pass-qc", "pass-qc"]
+VisitEventType = Literal[
+    "submit", "delete", "not-pass-qc", "pass-qc", "duplicate-submit"
+]
 
 # Visit Event Action constants
 ACTION_SUBMIT: VisitEventType = "submit"
 ACTION_DELETE: VisitEventType = "delete"
 ACTION_NOT_PASS_QC: VisitEventType = "not-pass-qc"
 ACTION_PASS_QC: VisitEventType = "pass-qc"
+ACTION_DUPLICATE_SUBMIT: VisitEventType = "duplicate-submit"
 
 
 class VisitEvent(BaseModel):
