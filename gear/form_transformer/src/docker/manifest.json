@@ -65,6 +65,20 @@
       "description": "Comma-delimited list of downstream gears",
       "type": "string",
       "default": "form-qc-coordinator,form-qc-checker"
+    },
+    "event_bucket": {
+      "description": "S3 bucket for visit event transaction log",
+      "type": "string",
+      "optional": true
+    },
+    "event_environment": {
+      "description": "Environment prefix for event log files (prod or dev)",
+      "type": "string",
+      "optional": true,
+      "enum": [
+        "prod",
+        "dev"
+      ]
     }
   },
   "command": "/bin/run"

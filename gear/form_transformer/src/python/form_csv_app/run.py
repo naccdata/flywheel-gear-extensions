@@ -3,11 +3,13 @@
 import logging
 from typing import Optional
 
+from botocore.exceptions import ClientError
 from configs.ingest_configs import (
     FormProjectConfigs,
     load_form_ingest_configurations,
 )
 from datastore.forms_store import FormsStore
+from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from fw_gear import GearContext
@@ -24,6 +26,7 @@ from keys.keys import DefaultValues
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from preprocess.preprocessor import FormPreprocessor
 from pydantic import ValidationError
+from s3.s3_bucket import S3BucketInterface, S3InterfaceError
 from transform.transformer import TransformationSchema, TransformerFactory
 from utils.utils import parse_string_to_list
 
@@ -136,6 +139,35 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
 
         gear_name = self.get_gear_name(context, "form-transformer")
 
+        # Initialize visit event capture from config
+        event_capture: Optional[VisitEventCapture] = None
+        event_bucket = context.config.opts.get("event_bucket", "")
+        event_environment = context.config.opts.get("event_environment", "")
+
+        if event_bucket and event_environment:
+            try:
+                s3_bucket = S3BucketInterface.create_from_environment(event_bucket)
+                event_capture = VisitEventCapture(
+                    s3_bucket=s3_bucket, environment=event_environment
+                )
+                log.info(
+                    "Visit event capture initialized for environment "
+                    f"'{event_environment}' with bucket '{event_bucket}'"
+                )
+            except (S3InterfaceError, ClientError) as error:
+                raise GearExecutionError(
+                    f"Failed to initialize visit event capture: "
+                    f"Unable to access S3 bucket '{event_bucket}'. Error: {error}"
+                ) from error
+        elif event_bucket or event_environment:
+            log.warning(
+                "Both event_bucket and event_environment are required for "
+                "event capture. Got event_bucket='%s', "
+                "event_environment='%s'. Event capture will be disabled.",
+                event_bucket,
+                event_environment,
+            )
+
         downstream_gears = parse_string_to_list(
             context.config.opts.get("downstream_gears", None)
         )
@@ -152,6 +184,10 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             error_writer=error_writer,
         )
 
+        # Get file timestamp for event capture
+        file_entry = self.__file_input.file_entry(context)
+        timestamp = file_entry.created
+
         with open(
             self.__file_input.filepath, mode="r", encoding="utf-8-sig"
         ) as csv_file:
@@ -166,6 +202,10 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 error_writer=error_writer,
                 gear_name=gear_name,
                 downstream_gears=downstream_gears,
+                event_capture=event_capture,
+                center_label=prj_adaptor.group,
+                project_label=prj_adaptor.label,
+                timestamp=timestamp,
             )
 
             context.metadata.add_qc_result(
