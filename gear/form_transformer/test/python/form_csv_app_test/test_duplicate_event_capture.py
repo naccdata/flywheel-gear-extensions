@@ -19,6 +19,7 @@ import pytest
 from event_capture.event_capture import VisitEventCapture
 from form_csv_app.run import initialize_event_capture
 from gear_execution.gear_execution import GearExecutionError
+from nacc_common.data_identification import InvalidDateError
 from s3.s3_bucket import S3InterfaceError
 
 # ============================================================================
@@ -116,12 +117,15 @@ class TestConfigStateHandling:
 class TestCaptureDuplicateEventEdgeCases:
     """Test __capture_duplicate_event behavior through visit_row()."""
 
+    @patch(
+        "form_csv_app.main.DataIdentification.from_form_record",
+        side_effect=InvalidDateError("visitdate", "bad"),
+    )
     def test_invalid_date_field_skips_event_capture(
-        self, caplog, create_valid_row, create_visitor_with_mocks
+        self, mock_from_form_record, caplog, create_valid_row, create_visitor_with_mocks
     ):
-        """When the date field has an invalid format that can't be parsed by
-        DataIdentification.from_form_record, __capture_duplicate_event should
-        log a warning and skip, not raise.
+        """When DataIdentification.from_form_record fails during event capture,
+        __capture_duplicate_event should log a warning and skip, not raise.
 
         Requirement 2.7: DataIdentification can't be constructed ->
         skip, log
@@ -133,18 +137,19 @@ class TestCaptureDuplicateEventEdgeCases:
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
+            metadata_copy_succeeds=True,
         )
 
-        # Provide a date value that exists (passes required_fields check)
-        # but cannot be parsed by DataIdentification.from_form_record
-        row = create_valid_row(visitdate="not-a-valid-date")
-
-        with caplog.at_level(logging.WARNING):
-            result = visitor.visit_row(row, line_num=1)
-
-        # visit_row should still return True (duplicate detected and processed)
+        row = create_valid_row()
+        result = visitor.visit_row(row, line_num=1)
         assert result is True
-        # capture_event should NOT have been called (skipped due to bad date)
+
+        # Trigger event capture via update_existing_visits_error_log
+        with caplog.at_level(logging.WARNING):
+            visitor.update_existing_visits_error_log(downstream_gears=None)
+
+        # capture_event should NOT have been called (skipped due to
+        # from_form_record failure)
         mock_event_capture.capture_event.assert_not_called()
         # Warning should be logged about DataIdentification failure
         assert any("Cannot construct" in r.message for r in caplog.records)
@@ -216,8 +221,9 @@ class TestCaptureDuplicateEventEdgeCases:
     def test_capture_event_failure_does_not_interrupt_processing(
         self, caplog, create_valid_row, create_visitor_with_mocks
     ):
-        """When capture_event raises an exception, visit_row still returns True
-        and the row is still added to __existing_visits.
+        """When capture_event raises an exception,
+        update_existing_visits_error_log still completes and the failure is
+        logged as a warning.
 
         Requirement 7.1, 7.2, 7.3: Event capture failure -> continue
         processing
@@ -230,14 +236,17 @@ class TestCaptureDuplicateEventEdgeCases:
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
+            metadata_copy_succeeds=True,
         )
 
         row = create_valid_row()
-        with caplog.at_level(logging.WARNING):
-            result = visitor.visit_row(row, line_num=1)
-
-        # Processing continues despite capture failure
+        result = visitor.visit_row(row, line_num=1)
         assert result is True
+
+        # Event capture happens during update_existing_visits_error_log
+        with caplog.at_level(logging.WARNING):
+            visitor.update_existing_visits_error_log(downstream_gears=None)
+
         # capture_event was called (it just failed)
         mock_event_capture.capture_event.assert_called_once()
         # Warning should have been logged
@@ -246,43 +255,48 @@ class TestCaptureDuplicateEventEdgeCases:
     def test_metadata_copy_failure_does_not_trigger_second_event(
         self, create_valid_row, create_visitor_with_mocks
     ):
-        """When metadata copy fails for a duplicate visit, causing re-addition
-        to the current batch, no second duplicate-submit event is captured.
+        """When metadata copy fails for a duplicate visit, no duplicate-submit
+        event is captured. The visit is re-added to the current batch for
+        reprocessing instead.
 
-        Requirement 6.3: Only one event at detection point, not during
-        batch reprocessing.
+        Requirement 6.3: Event only fires when visit is truly skipped
+        (metadata copy succeeds).
         """
         mock_event_capture = Mock(spec=VisitEventCapture)
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
 
+        # metadata_copy_succeeds=False (default) means get_file returns None,
+        # so __copy_downstream_gears_metadata fails and visit is re-added
+        # to current batch
         visitor, _ = create_visitor_with_mocks(
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
+            metadata_copy_succeeds=False,
         )
 
         row = create_valid_row()
         result = visitor.visit_row(row, line_num=1)
         assert result is True
 
-        # At this point, capture_event was called once during visit_row
-        assert mock_event_capture.capture_event.call_count == 1
+        # No event during visit_row (event capture moved to
+        # update_existing_visits_error_log)
+        assert mock_event_capture.capture_event.call_count == 0
 
-        # Now call update_existing_visits_error_log which simulates what
-        # happens when metadata copy fails (re-adds to current_batch).
-        # The key: no second event is captured during this reprocessing.
+        # Metadata copy fails -> visit re-added to batch, no event captured
         visitor.update_existing_visits_error_log(downstream_gears=["form-qc-checker"])
 
-        # Still only one capture_event call
-        assert mock_event_capture.capture_event.call_count == 1
+        # Still no capture_event call since metadata copy failed
+        assert mock_event_capture.capture_event.call_count == 0
 
     def test_duplicate_event_captured_on_valid_row(
         self, create_valid_row, create_visitor_with_mocks
     ):
-        """When a valid duplicate row is detected, exactly one event is
-        captured with correct fields.
+        """When a valid duplicate row is detected and metadata copy succeeds,
+        exactly one event is captured with correct fields.
 
-        Requirement 2.1: is_existing_visit True -> capture event
+        Requirement 2.1: is_existing_visit True + metadata copy success
+        -> capture event
         """
         mock_event_capture = Mock(spec=VisitEventCapture)
         timestamp = datetime(2024, 3, 15, 11, 0, 0, tzinfo=timezone.utc)
@@ -291,12 +305,20 @@ class TestCaptureDuplicateEventEdgeCases:
             event_capture=mock_event_capture,
             timestamp=timestamp,
             is_existing_visit=True,
+            metadata_copy_succeeds=True,
         )
 
         row = create_valid_row()
         result = visitor.visit_row(row, line_num=1)
-
         assert result is True
+
+        # No event during visit_row
+        mock_event_capture.capture_event.assert_not_called()
+
+        # Event fires during update_existing_visits_error_log when metadata
+        # copy succeeds (no downstream_gears needed for copy to succeed)
+        visitor.update_existing_visits_error_log(downstream_gears=None)
+
         mock_event_capture.capture_event.assert_called_once()
 
         # Verify the event has correct action and fields

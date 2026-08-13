@@ -190,9 +190,6 @@ class CSVTransformVisitor(CSVVisitor):
             in self.__module_configs.preprocess_checks
             and self.__preprocessor.is_existing_visit(input_record=transformed_row)
         ):
-            # Capture duplicate-submit event BEFORE adding to existing_visits
-            self.__capture_duplicate_event(transformed_row)
-
             transformed_row["linenumber"] = line_num
             self.__existing_visits[subject_lbl].append(transformed_row)
             return True
@@ -238,6 +235,9 @@ class CSVTransformVisitor(CSVVisitor):
                     self.__add_to_current_batch(
                         subject_lbl=subject_lbl, input_record=visit
                     )
+                else:
+                    # Visit is truly skipped as duplicate — capture the event
+                    self.__capture_duplicate_event(visit)
                 success = copied and success
 
         return success
@@ -779,8 +779,6 @@ def run(
         gear_name=gear_name,
         project=destination,
         event_capture=event_capture,
-        center_label=center_label,
-        project_label=project_label,
         timestamp=timestamp,
     )
     result = read_csv(
