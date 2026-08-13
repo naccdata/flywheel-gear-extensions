@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.0
+* Captures duplicate-submit events to S3 when a visit is skipped as a duplicate
+* Adds `event_bucket` and `event_environment` config options for event capture
+* Adds `duplicate-submit` action type to visit event types
+* Refactors `CSVTransformVisitor` to remove redundant parameters
+
 ## 2.0.1
 * Prevents gear crashing on data identification errors
   
