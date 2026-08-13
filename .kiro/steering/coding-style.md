@@ -112,6 +112,18 @@ def execute_gear(
     pass
 ```
 
+**❌ Don't pass fields extracted from an object that's already available**
+
+```python
+# Bad - decomposing an object into fields the callee could access itself
+def process_visit(
+    adaptor: ProjectAdaptor,
+    center_label: str,   # already available as adaptor.center_label
+    project_label: str,  # already available as adaptor.project_label
+):
+    pass
+```
+
 **✅ Do pass structured data**
 
 ```python
@@ -127,6 +139,14 @@ class GearConfig(BaseModel):
 
 def execute_gear(config: GearConfig, data_stream: TextIO):
     pass
+```
+
+```python
+# Good - let the callee access fields from the object it already receives
+def process_visit(adaptor: ProjectAdaptor):
+    center = adaptor.center_label
+    project = adaptor.project_label
+    # ...
 ```
 
 ### processor.py (Optional)
@@ -207,6 +227,7 @@ See `AggregateCSVVisitor` in `common/src/python/inputs/csv_reader.py` which uses
 4. **Resource Management**: Handle file I/O in `run.py`, pass streams or loaded data to `main.py`
 5. **Import Discipline**: All imports at the top, no scattered imports throughout the file
 6. **Dependency Injection**: Use strategy patterns over boolean flags for configurable behavior
+7. **Don't Decompose Objects**: If an object is already passed to a function, don't also pass fields extracted from it as separate parameters — let the callee access those fields directly
 
 ## Testing Guidelines
 
