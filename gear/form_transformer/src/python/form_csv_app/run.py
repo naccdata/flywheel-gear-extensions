@@ -226,8 +226,6 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 gear_name=gear_name,
                 downstream_gears=downstream_gears,
                 event_capture=event_capture,
-                center_label=prj_adaptor.group,
-                project_label=prj_adaptor.label,
                 timestamp=timestamp,
             )
 

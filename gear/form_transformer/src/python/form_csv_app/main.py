@@ -59,8 +59,6 @@ class CSVTransformVisitor(CSVVisitor):
         gear_name: str,
         project: Optional[ProjectAdaptor] = None,
         event_capture: Optional[VisitEventCapture] = None,
-        center_label: str = "",
-        project_label: str = "",
         timestamp: Optional[datetime] = None,
     ) -> None:
         self.__module = module
@@ -72,8 +70,6 @@ class CSVTransformVisitor(CSVVisitor):
         self.__gear_name = gear_name
         self.__project = project
         self.__event_capture = event_capture
-        self.__center_label = center_label
-        self.__project_label = project_label
         self.__timestamp = timestamp
         self.__transformer: Optional[BaseRecordTransformer] = None
 
@@ -358,7 +354,7 @@ class CSVTransformVisitor(CSVVisitor):
 
         Failures are logged as warnings and do not interrupt processing.
         """
-        if not self.__event_capture or not self.__timestamp:
+        if not self.__event_capture or not self.__timestamp or not self.__project:
             return
 
         try:
@@ -376,8 +372,8 @@ class CSVTransformVisitor(CSVVisitor):
 
         event = VisitEvent(
             action=ACTION_DUPLICATE_SUBMIT,
-            project_label=self.__project_label,
-            center_label=self.__center_label,
+            project_label=self.__project.label,
+            center_label=self.__project.group,
             gear_name=self.__gear_name,
             data_identification=data_id,
             datatype="form",
@@ -751,8 +747,6 @@ def run(
     gear_name: str,
     downstream_gears: Optional[List[str]] = None,
     event_capture: Optional[VisitEventCapture] = None,
-    center_label: str = "",
-    project_label: str = "",
     timestamp: Optional[datetime] = None,
 ) -> bool:
     """Reads records from the input file and transforms each into a JSON file.
@@ -770,8 +764,6 @@ def run(
         gear_name: gear name
         downstream_gears: list of downstream gears
         event_capture: optional VisitEventCapture for logging duplicate events
-        center_label: center identifier label for event capture
-        project_label: project label for event capture
         timestamp: file entry created timestamp for event capture
 
     Returns:
