@@ -44,6 +44,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         preserve_case: bool,
         req_fields: Set[str],
         normalize_dates: Set[str],
+        destination_project: str,
     ) -> None:
         self.__client = client
         self.__device_key = device_key
@@ -52,6 +53,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         self.__preserve_case = preserve_case
         self.__req_fields = req_fields
         self.__normalize_dates = normalize_dates
+        self.__destination_project = destination_project
 
     @classmethod
     def create(
@@ -98,6 +100,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         preserve_case = options.get("preserve_case", False)
         req_fields = set(parse_string_to_list(options.get("required_fields", "")))
         normalize_dates = set(parse_string_to_list(options.get("normalize_dates", "")))
+        destination_project = options.get("destination_project", "")
 
         return CsvToJsonVisitor(
             client=client,
@@ -107,6 +110,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
             preserve_case=preserve_case,
             req_fields=req_fields,
             normalize_dates=normalize_dates,
+            destination_project=destination_project,
         )
 
     def run(self, context: GearContext) -> None:
@@ -126,7 +130,16 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
                 f"Failed to find the input file: {error}"
             ) from error
 
-        project = self.__file_input.get_parent_project(proxy, file=file)
+        if self.__destination_project:
+            fw_project = proxy.lookup(self.__destination_project)
+            if not fw_project:
+                raise GearExecutionError(
+                    f"Failed to find destination project: {self.__destination_project}"
+                )
+            project = fw_project
+        else:
+            project = self.__file_input.get_parent_project(proxy, file=file)
+
         destination = ProjectAdaptor(project=project, proxy=proxy)
         template_map = self.__load_template(self.__hierarchy_labels)
 

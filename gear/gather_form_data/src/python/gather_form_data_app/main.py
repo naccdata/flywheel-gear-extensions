@@ -111,7 +111,7 @@ def run(
         error_writer.write(
             FileError(
                 error_code="no-participant",  # pyright: ignore[reportCallIssue]
-                error_type="error",  # pyright: ignore[reportCallIssue]
+                error_type="warning",  # pyright: ignore[reportCallIssue]
                 location=CSVLocation(
                     line=naccid_line_map[naccid], column_name="naccid"
                 ),
@@ -121,7 +121,6 @@ def run(
                 ),
             )
         )
-        has_errors = True
 
     # --- Phase 2: Gather data using resolved subject IDs ---
     subject_ids = [subject.id for subject in all_subjects]

@@ -368,14 +368,27 @@ class ParameterStore:
         """Pulls a URL parameter from the SSM parameter store at the given
         path.
 
+        Fetches a single SSM parameter whose value is a URL string.
+
         Args:
-          param_path: the path in the parameter store
+          param_path: the path/name of the parameter in the store
         Returns:
           the URL parameter stored at the path
         Raises:
           ParameterError if the parameter is missing
         """
-        return self.get_parameters(param_type=URLParameter, parameter_path=param_path)
+        param_path = param_path[:-1] if param_path.endswith("/") else param_path
+        parameter_name = param_path.split("/")[-1]
+        try:
+            parameter = self.__store.get_parameter(param_path)
+        except self.__store.client.exceptions.ParameterNotFound as error:  # type: ignore
+            raise ParameterError(f"No URL parameter found at {param_path}") from error
+
+        url_value = parameter.get(parameter_name)
+        if not url_value:
+            raise ParameterError(f"No URL value found at {param_path}")
+
+        return URLParameter(url=url_value)
 
     def get_support_emails(self, param_path: str) -> List[str]:
         """Pulls support email addresses from the SSM parameter store at the

@@ -22,6 +22,7 @@ The only input is `api-key` (a Flywheel API key). No file input is required.
 | `project_name` | string | — | yes | Project label to iterate |
 | `modules` | string | `"UDS,FTLD,LBD"` | no | Comma-separated list of module names |
 | `study_id` | string | `"adrc"` | no | Study identifier used in output filenames |
+| `source_id` | string | — | yes | Identifier of the project being read, used in output filenames (see Source Identifiers) |
 | `include_derived` | boolean | `false` | no | Whether to include derived variables |
 | `formver_split` | boolean | `false` | no | Split output CSVs by form version |
 | `batch_size` | integer | `100` | no | Number of subject ids per query batch (see Performance) |
@@ -32,6 +33,10 @@ The only input is `api-key` (a Flywheel API key). No file input is required.
 
 A CSV file is written for each module for which subject data is found. Columns depend on the module and whether `include_derived` is `true`.
 
+Output is written through the gear context, so it lands in the **job's destination container**, which is independent of the project named by `group_id` / `project_name` — those name the project the gear *reads*. A caller can therefore point several jobs that read different projects at one shared destination project; `source_id` exists so their filenames stay distinct when it does (see Source Identifiers).
+
+The destination must be in the **same group** as the project being read (see Cross-Group Guard).
+
 Every output file is tagged with the gear name (`center-form-export`), so consumers can recognize export artifacts from file tags rather than by matching the filename. Tags are written through the gear context's metadata, which is only flushed when the gear exits cleanly — a failed run's partial output is untagged.
 
 ### Filename Patterns
@@ -39,20 +44,53 @@ Every output file is tagged with the gear name (`center-form-export`), so consum
 When `formver_split` is **disabled** (default), one file is produced per module:
 
 ```
-{study_id}-{module_name}-{stamp}.csv
+{study_id}-{source_id}-{module_name}-{stamp}.csv
 ```
 
-Example: `adrc-UDS-2025-06-15.csv`
+Example: `adrc-ingest-UDS-2025-06-15.csv`
 
 When `formver_split` is **enabled**, one file is produced per (module, form version) pair:
 
 ```
-{study_id}-{module_name}-{formver_label}-{stamp}.csv
+{study_id}-{source_id}-{module_name}-{formver_label}-{stamp}.csv
 ```
 
-Example: `adrc-UDS-v4-2025-06-15.csv`
+Example: `adrc-ingest-UDS-v4-2025-06-15.csv`
 
 `{stamp}` is the run date (`YYYY-MM-DD`), followed by `-{run_id}` when a `run_id` was supplied.
+
+### Segment Charsets
+
+Filenames are `-`-delimited and parsed by anchored patterns, so each segment is constrained:
+
+| Segment | Charset | Source |
+|---------|---------|--------|
+| `study_id` | `[A-Za-z0-9]+`, ≤16 | config, validated at startup |
+| `source_id` | `[A-Za-z0-9]+`, ≤16 | config, validated at startup |
+| `module_name` | `[A-Za-z0-9]+`, ≤16 | config, validated at startup |
+| `formver_label` | `v[A-Za-z0-9.]+` or `unknown` | form data, normalized by `formver_label` |
+| `run_date` | `\d{4}-\d{2}-\d{2}` | gear clock |
+| `run_id` | `[A-Za-z0-9]+`, ≤32 | config, validated at startup |
+
+A malformed config value fails the job at startup rather than producing output no consumer can attribute. Note this happens at job *runtime*, not at job creation — a caller sending a bad value sees a failed job, not a rejected request.
+
+`formver_label` is the one segment permitted a `.`, because real form versions carry one — LBD `v3.1`. It is safe there and only there: the segment is gear-derived, and sits in a fixed, non-final position where a `.` cannot be read as a segment boundary (a `-` or `_` could). Consumers should split the extension from the right (`os.path.splitext`), not on the first `.`.
+
+That segment may also contain letters. `formver_label` refuses only values that would break the name — anything carrying a `-`, `_`, `/`, or whitespace, such as `3.0-draft` — labelling those `unknown` and logging them. A value that is merely unusual rather than unusable, such as `3a`, passes through as `v3a`. The check is for filename safety, not for a well-formed version number, so consumers must accept `v` followed by any letters, digits, and dots.
+
+### Source Identifiers
+
+`source_id` names the project a job read — e.g. `ingest` or `legacy`. It is **required**, and appears in every output filename.
+
+It exists because the read source and the write destination are independent (see Output). When one user-facing export fans out across several source projects and all of those jobs write into one destination project, every other field of the filename is identical by construction: same study, same date, same `run_id`, and the same module and form version wherever the source projects overlap. Without a source segment those jobs write byte-identical names into one project, Flywheel versions the second write over the first, and one job's output is reachable only as an older file version — silently absent from any listing without a version selector.
+
+The value is supplied by the caller rather than derived from `project_name`, so that project-naming conventions stay outside the gear. Deriving it would give a wrong-but-plausible answer for any project whose label doesn't match an expected prefix.
+
+`source_id` sits before the module rather than after the date because the trailing `run_id` is optional. Two optional trailing segments would be unparseable: given `...-2025-06-15-abc123.csv`, nothing tells a consumer whether `abc123` is a run identifier or a source. Placing `source_id` in a fixed position ahead of the date keeps a single, anchorable shape.
+
+Its charset matches `run_id` — letters and digits only, at most 16 characters (see Segment Charsets). This rules out passing a raw project label such as `ingest-form-adrc`. A malformed or empty value fails the job at startup.
+
+`study_id` is kept in the filename even where a per-study destination project makes it redundant, because these CSVs are downloaded and spend the rest of their lives outside Flywheel, where the project name is gone and the filename is the only remaining label.
 
 ### Run Identifiers
 
@@ -65,6 +103,18 @@ Passing `run_id` adds a caller-chosen segment after the date. Two exports on the
 The run date and the `run_id` are both fixed once per gear run, not per output file. Output is written as each module finishes gathering, which on a large export can be minutes apart and can cross midnight — so a value read from the clock at write time would differ between modules and split one run's files across several apparent runs.
 
 Omitting `run_id` reproduces the date-only filenames exactly, with no trailing separator.
+
+## Cross-Group Guard
+
+Before resolving the source project or gathering anything, the gear compares the group owning the job's **destination container** with the `group_id` in config. If they differ, the job fails with a `GearExecutionError` and writes no output.
+
+This exists because the gear reads whatever `group_id` / `project_name` its config names, using GearBot's API key, which can read every center. Nothing in the job itself constrains that to the caller's own center. Without the check, anyone able to launch the gear could point it at another center's `ingest-form` project and have that center's records written as CSVs into a project they can download from.
+
+The check runs first, so a refused run resolves nothing, reads nothing, writes nothing, and reveals nothing about the project it was aimed at. It **fails closed**: a job whose destination cannot be identified or resolved, or whose destination container reports no group, is refused rather than allowed through unchecked.
+
+Only the group is compared. Study-level scoping — an `adrc` export landing in a `distribution-form-dvcid` project — is left to the caller, since only the caller knows which study a run belongs to.
+
+This is defense in depth, not a replacement for Flywheel permissions. It closes the cross-center path for every trigger mechanism, so it holds regardless of how job-launch rights are granted.
 
 ## Performance
 

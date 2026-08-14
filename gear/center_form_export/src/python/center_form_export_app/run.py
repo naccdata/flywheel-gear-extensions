@@ -6,6 +6,7 @@ from datetime import date
 from typing import Optional
 
 from data_requests.data_request import ModuleDataGatherer
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -22,12 +23,55 @@ log = logging.getLogger(__name__)
 
 DEFAULT_GEAR_NAME = "center-form-export"
 
-# A run_id becomes a filename segment in a '-'-delimited name, so it must
-# not contain a delimiter (or a '.', which would confuse the extension).
-# Consumers parse these names with anchored regexes; anything outside this
-# charset makes the trailing segments ambiguous.
-RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
+# A caller-supplied value that becomes a filename segment in a
+# '-'-delimited name must not contain a delimiter. It must not contain a
+# '.' either, which confuses the extension. Consumers parse these names
+# with anchored regexes. Anything outside this charset makes the
+# surrounding segments ambiguous.
+#
+# The formver segment is the one exception, and is not checked here: it is
+# derived from the form data rather than supplied by a caller, and can
+# carry a '.', as in LBD "v3.1". That segment sits in a fixed, non-final
+# position, where a '.' cannot be read as a segment boundary.
+# ``formver_label`` guarantees its charset at the point it is produced.
+FILENAME_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
+STUDY_ID_MAX_LENGTH = 16
 RUN_ID_MAX_LENGTH = 32
+SOURCE_ID_MAX_LENGTH = 16
+MODULE_NAME_MAX_LENGTH = 16
+
+
+def _validate_filename_segment(
+    name: str, value: str, max_length: int, required: bool = False
+) -> None:
+    """Validates a caller-supplied value used as an output filename segment.
+
+    Every config field that reaches a filename is checked here. If a value
+    corrupts the name, the job fails at startup with a clear message,
+    rather than producing output no consumer can attribute.
+
+    An empty value is rejected only when ``required``. An omitted optional
+    field contributes no segment at all, which leaves the name parseable.
+    An empty required field emits a doubled separator, which does not.
+
+    Args:
+      name: the config field name, used in error messages
+      value: the caller-supplied value, possibly empty
+      max_length: the maximum length permitted for this field
+      required: whether an empty value is an error
+    Raises:
+      GearExecutionError if the value is not usable as a filename segment
+    """
+    if required and not value:
+        raise GearExecutionError(f"{name} must not be empty")
+    if value and not FILENAME_SEGMENT_PATTERN.match(value):
+        raise GearExecutionError(
+            f"{name} must contain only letters and digits, got {value!r}"
+        )
+    if len(value) > max_length:
+        raise GearExecutionError(
+            f"{name} must be at most {max_length} characters, got {len(value)}"
+        )
 
 
 def _output_stamp(run_date: str, run_id: str) -> str:
@@ -41,6 +85,87 @@ def _output_stamp(run_date: str, run_id: str) -> str:
       followed by the run_id
     """
     return f"{run_date}-{run_id}" if run_id else run_date
+
+
+def _destination_group_id(context: GearContext, proxy: FlywheelProxy) -> str:
+    """Returns the group id of the container this job writes its output to.
+
+    Args:
+      context: the gear context
+      proxy: the Flywheel proxy used to resolve the container
+    Returns:
+      the group id owning the job's destination container
+    Raises:
+      GearExecutionError if the destination cannot be resolved to a group
+    """
+    destination = context.config.destination or {}
+    container_id = destination.get("id")
+    if not container_id:
+        raise GearExecutionError(
+            "Unable to determine the job's destination container; "
+            "refusing to run without one"
+        )
+
+    try:
+        container = proxy.get_container_by_id(container_id)
+    except Exception as error:
+        raise GearExecutionError(
+            f"Unable to resolve destination container {container_id}: {error}"
+        ) from error
+
+    parents = getattr(container, "parents", None)
+    group_id = getattr(parents, "group", None) or getattr(container, "group", None)
+    if not group_id:
+        raise GearExecutionError(
+            f"Destination container {container_id} has no group; refusing to run"
+        )
+
+    return str(group_id)
+
+
+def _check_destination_group(
+    context: GearContext, proxy: FlywheelProxy, group_id: str
+) -> None:
+    """Refuses a job whose destination is outside the group it reads.
+
+    The gear reads whatever group and project its config names, using
+    GearBot's key, which can read every center. Nothing in the job itself
+    constrains that to the caller's own center. Without this check, anyone
+    able to run the gear can point it at another center's project, and
+    have that center's records written as CSVs somewhere they can download
+    from.
+
+    Comparing the destination's group with the configured ``group_id``
+    closes that path for every trigger mechanism, rather than relying on
+    the caller to submit an honest config. It is defense in depth, not a
+    replacement for Flywheel permissions.
+
+    The check runs before the source group or project is resolved and
+    before any data is gathered, so a refused run reads nothing, writes
+    nothing, and reveals nothing about the project it was aimed at. It
+    fails closed: a destination whose group cannot be determined is
+    refused rather than allowed through unchecked.
+
+    A same-group check is deliberately all this does. Study-level scoping
+    -- an ``adrc`` export landing in a ``distribution-form-dvcid``
+    project -- is the caller's concern, since only the caller knows which
+    study a run belongs to.
+
+    Args:
+      context: the gear context
+      proxy: the Flywheel proxy used to resolve the destination
+      group_id: the group named in the gear config, which the gear reads
+    Raises:
+      GearExecutionError if the destination is in a different group
+    """
+    destination_group_id = _destination_group_id(context=context, proxy=proxy)
+    if destination_group_id != group_id:
+        raise GearExecutionError(
+            "Refusing to export across groups: this job reads group "
+            f"{group_id} but writes to group {destination_group_id}. "
+            "The destination must be in the same group as the project "
+            "being exported."
+        )
 
 
 def _tag_output(context: GearContext, output_filename: str, gear_name: str) -> None:
@@ -75,6 +200,7 @@ def _write_gatherer_output(
     context: GearContext,
     gatherer: ModuleDataGatherer,
     study_id: str,
+    source_id: str,
     run_date: str,
     run_id: str,
     gear_name: str,
@@ -87,30 +213,38 @@ def _write_gatherer_output(
     on disk before a later module has a chance to fail and halt the gear.
 
     For a gatherer with ``split_by_formver=False`` (default), produces a
-    single CSV named ``{study_id}-{module}-{stamp}.csv``.
+    single CSV named ``{study_id}-{source_id}-{module}-{stamp}.csv``.
 
     For a gatherer with ``split_by_formver=True``, produces one CSV per
     (module, formver) pair, named
-    ``{study_id}-{module}-{formver_label}-{stamp}.csv`` (e.g.
-    ``adrc-UDS-v4-2026-05-29.csv``). The formver label is normalized via
-    ``formver_label`` (e.g. "1.0" -> "v1", missing -> "unknown").
+    ``{study_id}-{source_id}-{module}-{formver_label}-{stamp}.csv``, for
+    example ``adrc-ingest-UDS-v4-2026-05-29.csv``. The formver label is
+    normalized via ``formver_label`` (e.g. "1.0" -> "v1", missing ->
+    "unknown").
+
+    ``source_id`` names the project this job read, and sits before the
+    module rather than after the date because the trailing ``run_id`` is
+    optional. If a second optional segment follows the date, a consumer
+    cannot tell which of the two it has read.
 
     ``stamp`` is the run date, plus the caller-supplied ``run_id`` when
     one was given (e.g. ``2026-05-29-20260529T210431``). Both are fixed
-    for the whole gear run and passed in rather than computed here: this
-    function runs once per module, minutes apart on a large export, so
-    deriving either from the clock at write time would give each module a
-    different stamp and split one run's output across several apparent
+    for the whole gear run and passed in rather than computed here. This
+    function runs once per module, minutes apart on a large export. If it
+    reads the date from the clock at write time, each module gets a
+    different stamp, and one run's output splits across several apparent
     runs.
 
     Args:
       context: the gear context
       gatherer: the ModuleDataGatherer to write output for
       study_id: the study identifier used in output filenames
+      source_id: the identifier of the project this job read
       run_date: the run's date, ISO formatted
       run_id: the caller-supplied run identifier, possibly empty
       gear_name: the tag to apply to each output file
     """
+    prefix = f"{study_id}-{source_id}"
     stamp = _output_stamp(run_date=run_date, run_id=run_id)
     if gatherer.split_by_formver:
         buckets = gatherer.content_by_formver
@@ -124,7 +258,7 @@ def _write_gatherer_output(
             if not content:
                 continue
             output_filename = (
-                f"{study_id}-{gatherer.module_name}-{formver_label_value}-{stamp}.csv"
+                f"{prefix}-{gatherer.module_name}-{formver_label_value}-{stamp}.csv"
             )
             with context.open_output(
                 output_filename, mode="w", encoding="utf-8"
@@ -142,7 +276,7 @@ def _write_gatherer_output(
         )
         return
 
-    output_filename = f"{study_id}-{gatherer.module_name}-{stamp}.csv"
+    output_filename = f"{prefix}-{gatherer.module_name}-{stamp}.csv"
     with context.open_output(
         output_filename, mode="w", encoding="utf-8"
     ) as output_file:
@@ -161,6 +295,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         info_paths: list[str],
         modules: set[str],
         study_id: str,
+        source_id: str,
         formver_split: bool = False,
         batch_size: int = 100,
         reload_workers: int = 10,
@@ -172,6 +307,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
+        self.__source_id = source_id
         self.__formver_split = formver_split
         self.__batch_size = batch_size
         self.__reload_workers = reload_workers
@@ -205,11 +341,12 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         modules = {m.strip() for m in modules_str.split(",") if m.strip()}
         include_derived = options.get("include_derived", False)
         info_paths = ["forms.json", "derived"] if include_derived else ["forms.json"]
-        study_id = options.get("study_id", "adrc")
+        study_id = options.get("study_id", "adrc").strip()
         formver_split = options.get("formver_split", False)
         batch_size = int(options.get("batch_size", 100))
         reload_workers = int(options.get("reload_workers", 10))
         run_id = options.get("run_id", "").strip()
+        source_id = options.get("source_id", "").strip()
 
         if not group_id:
             raise GearExecutionError("group_id must not be empty")
@@ -221,15 +358,37 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             raise GearExecutionError("batch_size must be a positive integer")
         if reload_workers <= 0:
             raise GearExecutionError("reload_workers must be a positive integer")
-        if run_id and not RUN_ID_PATTERN.match(run_id):
-            raise GearExecutionError(
-                f"run_id must contain only letters and digits, got {run_id!r}"
+
+        # Every config value that lands in an output filename, in the order
+        # the segments appear in the name.
+        _validate_filename_segment(
+            name="study_id",
+            value=study_id,
+            max_length=STUDY_ID_MAX_LENGTH,
+            required=True,
+        )
+        _validate_filename_segment(
+            name="source_id",
+            value=source_id,
+            max_length=SOURCE_ID_MAX_LENGTH,
+            required=True,
+        )
+        # Note: DefaultValues.MODULE_PATTERN in common/keys allows '_' in a
+        # module name. Every module NACC currently defines (UDS, FTLD, LBD,
+        # ENROLL, MDS, BDS, NP, MLST, CLS) is strictly alphanumeric, and
+        # consumers of these filenames anchor on that. If a module name
+        # carries an underscore, it fails here, rather than producing a
+        # name those consumers reject.
+        for module_name in sorted(modules):
+            _validate_filename_segment(
+                name="module name",
+                value=module_name,
+                max_length=MODULE_NAME_MAX_LENGTH,
+                required=True,
             )
-        if len(run_id) > RUN_ID_MAX_LENGTH:
-            raise GearExecutionError(
-                f"run_id must be at most {RUN_ID_MAX_LENGTH} characters, "
-                f"got {len(run_id)}"
-            )
+        _validate_filename_segment(
+            name="run_id", value=run_id, max_length=RUN_ID_MAX_LENGTH
+        )
 
         return CenterFormExportVisitor(
             client=client,
@@ -238,6 +397,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             info_paths=info_paths,
             modules=modules,
             study_id=study_id,
+            source_id=source_id,
             formver_split=formver_split,
             batch_size=batch_size,
             reload_workers=reload_workers,
@@ -247,7 +407,12 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
     def run(self, context: GearContext) -> None:
         """Runs the center form export.
 
-        Resolves the group/project, then gathers and writes each
+        Refuses the job outright if its destination is in a different
+        group than the project it reads (see
+        ``_check_destination_group``), before resolving the source or
+        gathering anything.
+
+        Otherwise resolves the group/project, then gathers and writes each
         configured module's data in turn: each module's output is written
         to disk as soon as that module finishes gathering, before moving
         on to the next module, so a later module's failure doesn't
@@ -258,8 +423,13 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         even when the run spans midnight.
 
         Raises:
-          GearExecutionError if the group or project cannot be found.
+          GearExecutionError if the destination is in a different group,
+          or if the group or project cannot be found.
         """
+        _check_destination_group(
+            context=context, proxy=self.proxy, group_id=self.__group_id
+        )
+
         run_date = date.today().isoformat()
         gear_name = self.get_gear_name(context, DEFAULT_GEAR_NAME)
 
@@ -299,6 +469,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
                 context=context,
                 gatherer=gatherer,
                 study_id=self.__study_id,
+                source_id=self.__source_id,
                 run_date=run_date,
                 run_id=self.__run_id,
                 gear_name=gear_name,

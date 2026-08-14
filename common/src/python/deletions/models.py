@@ -66,9 +66,12 @@ class DeleteInfoModel(BaseModel):
 
         # Log file name format: {ptid}_{YYYY-MM-DD}[_{visitnum}]_{module}_qc-status.log
         # Anchor on the fixed-format date to handle a ptid that contains "_".
+        # visitnum can be any non-underscore characters
+        # (digits, decimals, alphanumeric codes, etc.)
+        # module is alphanumeric (uds, mlst, ftld, B1A, etc.)
 
         pattern = re.compile(
-            r"^(.+)_(\d{4}-\d{2}-\d{2})_(?:(\w+)_)?(\w+)_qc-status\.log$"
+            r"^(.+)_(\d{4}-\d{2}-\d{2})_(?:([^_]+)_)?([A-Za-z0-9]+)_qc-status\.log$"
         )
 
         visits = []

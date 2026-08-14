@@ -2,6 +2,22 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.3
+
+* Fixes `portal_url_path` default from `/prod/flywheel/portal` to `/prod/flywheel/portal/url` to match actual SSM parameter name
+* Detects orphan ORCiD claim records (oidcsub present but no email) during active user processing
+  * Prevents users with incomplete ORCiD claims from being enqueued as unclaimed
+  * Reports an incomplete-claim event for support visibility
+* Uses `is_unclaimed()` instead of `is_claimed()` for bad-claim indexing in `UserRegistry`
+
+## 4.4.2
+
+* Fixes `get_url` to fetch single SSM parameter by name instead of using path-based lookup (resolves authorization client creation failure)
+
+## 4.4.1
+
+* Fixes `authorization_path` default from `/prod/authorization/api-endpoint` to `/production/authorization/api-endpoint`
+
 ## 4.4.0
 
 * Adds authorization sync to the user management pipeline

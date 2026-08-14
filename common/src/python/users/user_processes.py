@@ -1244,7 +1244,37 @@ class ActiveUserProcess(BaseUserProcess[ActiveUserEntry]):
             self.__claimed_queue.enqueue(entry)
             return
 
+        # Check if there's an orphan claim record for this user.
+        if self.__check_orphan_claim(entry):
+            return
+
         self.__unclaimed_queue.enqueue(entry)
+
+    def __check_orphan_claim(self, entry: ActiveUserEntry) -> bool:
+        """Check for orphan claim records and report if found.
+
+        This catches the case where a user claimed via ORCiD (which
+        returned no email), so COManage created a separate record with
+        oidcsub but no email. The skeleton still looks unclaimed, but
+        the user has already attempted to claim.
+
+        Returns:
+            True if an orphan claim was found (caller should stop processing).
+        """
+        bad_claim = self.__env.user_registry.get_bad_claim(entry.full_name)
+        if not bad_claim:
+            return False
+
+        log.info(
+            "User %s has skeleton but also an orphan claim record",
+            entry.email,
+        )
+        incomplete_claim_event = self.failure_analyzer.detect_incomplete_claim(
+            entry, bad_claim
+        )
+        if incomplete_claim_event:
+            self.collector.collect(incomplete_claim_event)
+        return True
 
     def __get_claimed(self, person_list: List[RegistryPerson]) -> List[RegistryPerson]:
         """Builds the sublist of claimed members of the person list.

@@ -2,7 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
-## [Unreleased]
+## 2.7.2
+
+* Fixes `get_url` to fetch single SSM parameter by name instead of using path-based lookup (resolves authorization client creation failure)
+
+## 2.7.1
+
+* Fixes `authorization_path` default from `/prod/authorization/api-endpoint` to `/production/authorization/api-endpoint`
 
 ## 2.7.0
 

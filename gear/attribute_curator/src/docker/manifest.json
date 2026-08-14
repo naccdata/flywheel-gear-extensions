@@ -2,7 +2,7 @@
     "name": "attribute-curator",
     "label": "Attribute Curator",
     "description": "Curates data for the data freeze",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "analysis",
-            "image": "naccdata/attribute-curator:1.4.0"
+            "image": "naccdata/attribute-curator:1.4.1"
         },
         "flywheel": {
             "suite": "Curation",

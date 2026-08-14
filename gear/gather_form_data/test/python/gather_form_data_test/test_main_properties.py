@@ -143,8 +143,8 @@ def test_error_attribution_completeness(resolved_ids, unresolved_ids):
     for nid in unresolved_ids:
         assert nid in error_messages
 
-    # Success should be False when there are unresolved NACCIDs
-    assert success is False
+    # Success should be True — unresolved NACCIDs are warnings, not failures
+    assert success is True
 
 
 # --- Property 5: Non-positive config parameters rejected ---

@@ -2,6 +2,26 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.0
+
+* Consolidate per-stage status rows into per-submission (ptid, visit, module) pass/fail
+* Split status output into two files: passed and failed submissions
+* Add configurable `passed_output_file` and `failed_output_file` config options
+* Remove `output_file` config (replaced by the two new options above)
+* Drop `stage` column from status output — rows now represent overall submission status
+
+## 1.4.4
+
+* Normalize PTIDs (strip leading zeros) when building the participant filter set, so QC log filenames like `947_...` match input rows like `0947`
+
+## 1.4.3
+
+* Relax QC filename pattern: module accepts alphanumeric names (e.g. `B1A`), visitnum accepts any non-underscore characters (including dashes)
+
+## 1.4.2
+
+* Fix QC filename pattern to handle all visitnum formats (plain integers like `7`, zero-padded like `003`, and alphanumeric codes like `FU6`) via updated nacc-common dependency
+
 ## 1.4.1
 
 * Add concurrent file reloading with configurable `reload_workers` parameter (default 10) for significantly faster processing of large projects
