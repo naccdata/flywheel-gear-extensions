@@ -1,4 +1,7 @@
-from unittest.mock import MagicMock
+import logging
+import re
+import threading
+from unittest.mock import MagicMock, patch
 
 import pytest
 from data_requests.data_request import (
@@ -32,10 +35,74 @@ class TestFormverLabel:
             (None, "unknown"),
             (1.0, "v1"),  # numeric input — coerced via str()
             (3, "v3"),
+            ("3.1", "v3.1"),  # nonzero decimal is preserved (e.g. LBD v3.1)
+            ("3.10", "v3.10"),  # distinct from 3.1
         ],
     )
     def test_label(self, raw, expected):
         assert formver_label(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            ("v3", "vv3"),  # already labelled
+            ("V3", "vV3"),
+            ("unknown", "vunknown"),  # free text
+            ("draft", "vdraft"),
+            ("3a", "v3a"),
+            ("3.", "v3."),  # trailing dot
+            (".1", "v.1"),  # leading dot
+        ],
+    )
+    def test_odd_but_safe_values_pass_through_unchanged(self, raw, expected):
+        """A value that is merely odd, rather than unusable, keeps the label it
+        has always produced.
+
+        These names parse: the check is for filename safety, not for a
+        well-formed version number. Rejecting them would change labels a
+        released gear already emits and merge their rows into the
+        "unknown" bucket, for no parsing benefit.
+        """
+        assert formver_label(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "3.0-draft",  # '-' would read as a segment boundary
+            "3_1",  # '_'
+            "3 1",  # space
+            "3/1",  # path separator
+            "N/A",
+            "3\t1",  # tab
+        ],
+    )
+    def test_unusable_label_falls_back_to_unknown(
+        self, raw, caplog: pytest.LogCaptureFixture
+    ):
+        """A form version carrying a delimiter or whitespace cannot be a
+        filename segment, so it is refused rather than passed through.
+
+        Emitting it would shift or corrupt every following segment of a
+        '-'-delimited name; the value is logged so the underlying data
+        can be corrected.
+        """
+        with caplog.at_level(logging.WARNING):
+            assert formver_label(raw) == "unknown"
+
+        assert "unusable form version" in caplog.text
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["1", "1.0", "1.5", "3.1", "3.10", "12.34", "", "3a", "v3", "3.0-draft", "N/A"],
+    )
+    def test_label_is_always_a_usable_filename_segment(self, raw):
+        """Whatever the input, the label carries no character that could be
+        read as a segment boundary."""
+        label = formver_label(raw)
+
+        assert re.match(r"^(v[A-Za-z0-9.]+|unknown)$", label), label
+        for delimiter in ("-", "_", "/", " ", "\t"):
+            assert delimiter not in label
 
 
 def _make_file_mock(merged_data: dict, file_id: str = "fake-file-id"):
@@ -182,3 +249,229 @@ class TestModuleDataGathererFormverSplit:
             split_by_formver=True,
         )
         assert gatherer.content_by_formver == {}
+
+
+class TestModuleDataGathererProjectQuery:
+    """gather_project_data batches subject ids into OR-list-filtered queries,
+    instead of one query per subject or one unscoped query for the whole
+    project."""
+
+    def test_single_batch_query_uses_or_list_filter(self):
+        proxy = MagicMock()
+        proxy.get_files.return_value = []
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        gatherer.gather_project_data(["sub-1", "sub-2", "sub-3"])
+
+        proxy.get_files.assert_called_once_with(
+            "parent_ref.type=acquisition,parents.subject=|[sub-1,sub-2,sub-3],"
+            "acquisition.label=UDS"
+        )
+
+    def test_batches_subjects_by_batch_size(self):
+        """More subjects than batch_size results in multiple queries, each
+        scoped to its own batch."""
+        proxy = MagicMock()
+        proxy.get_files.return_value = []
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+        subject_ids = [f"sub-{i}" for i in range(5)]
+
+        gatherer.gather_project_data(subject_ids, batch_size=2)
+
+        assert proxy.get_files.call_count == 3
+        calls = [call.args[0] for call in proxy.get_files.call_args_list]
+        assert "parents.subject=|[sub-0,sub-1]" in calls[0]
+        assert "parents.subject=|[sub-2,sub-3]" in calls[1]
+        assert "parents.subject=|[sub-4]" in calls[2]
+
+    def test_processes_every_returned_file_across_batches(self):
+        proxy = MagicMock()
+        proxy.get_files.side_effect = [
+            [_make_file_mock({"naccid": "NACC0001", "field_a": "x"}, "file-1")],
+            [_make_file_mock({"naccid": "NACC0002", "field_a": "y"}, "file-2")],
+        ]
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        gatherer.gather_project_data(["sub-1", "sub-2"], batch_size=1)
+
+        content = gatherer.content
+        assert "NACC0001" in content
+        assert "NACC0002" in content
+
+    def test_skips_and_logs_files_that_fail_without_halting(self, caplog):
+        """A file that raises ModuleDataError is logged and skipped; the
+        remaining files (including in later batches) are still processed.
+
+        **Validates: Requirements 4.1, 4.2**
+        """
+        good_file = _make_file_mock({"naccid": "NACC0001", "field_a": "x"}, "file-1")
+        bad_file = MagicMock()
+        bad_file.file_id = "file-2"
+        bad_reloaded = MagicMock()
+        bad_reloaded.info = {}  # missing "forms.json" -> ModuleDataError
+        bad_reloaded.file_id = "file-2"
+        bad_file.reload.return_value = bad_reloaded
+
+        proxy = MagicMock()
+        proxy.get_files.return_value = [bad_file, good_file]
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        with caplog.at_level(logging.WARNING):
+            gatherer.gather_project_data(["sub-1"])
+
+        assert "NACC0001" in gatherer.content
+        assert "Failed to load data" in caplog.text
+
+    def test_reloads_files_within_a_batch_concurrently(self):
+        """Reloads within a batch genuinely overlap: every reload blocks on a
+        shared barrier that only releases once all of them are in flight at
+        once, so a serial implementation can never get past it.
+
+        Unlike a wall-clock assertion, this doesn't fail on a slow-but-correct
+        run -- only on one that isn't actually concurrent.
+        """
+        workers = 4
+        barrier = threading.Barrier(workers)
+
+        def make_blocking_file(file_id: str) -> MagicMock:
+            file_mock = MagicMock()
+            file_mock.file_id = file_id
+
+            def blocking_reload():
+                # Raises BrokenBarrierError -- propagating out of
+                # gather_project_data and failing the test -- unless all
+                # `workers` reloads run at the same time.
+                barrier.wait(timeout=10)
+                reloaded = MagicMock()
+                reloaded.info = {"forms.json": {"naccid": file_id}}
+                reloaded.file_id = file_id
+                return reloaded
+
+            file_mock.reload.side_effect = blocking_reload
+            return file_mock
+
+        proxy = MagicMock()
+        proxy.get_files.return_value = [
+            make_blocking_file(f"file-{i}") for i in range(workers)
+        ]
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        gatherer.gather_project_data(["sub-1"], reload_workers=workers)
+
+        content = gatherer.content
+        for i in range(workers):
+            assert f"file-{i}" in content
+
+    def test_unexpected_reload_error_propagates(self):
+        """An error raised by file.reload() itself (not a ModuleDataError) is
+        not swallowed.
+
+        **Validates: Requirements 4.4**
+        """
+        bad_file = MagicMock()
+        bad_file.file_id = "file-1"
+        bad_file.reload.side_effect = ConnectionError("network broke")
+
+        proxy = MagicMock()
+        proxy.get_files.return_value = [bad_file]
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        with pytest.raises(ConnectionError, match="network broke"):
+            gatherer.gather_project_data(["sub-1"])
+
+    def test_no_subjects_issues_no_queries(self):
+        proxy = MagicMock()
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        gatherer.gather_project_data([])
+
+        proxy.get_files.assert_not_called()
+
+    def test_reload_workers_is_configurable(self):
+        """The reload_workers param controls the thread pool's max_workers, not
+        just an internal, unconfigurable constant."""
+        proxy = MagicMock()
+        proxy.get_files.return_value = []
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        with patch("data_requests.data_request.ThreadPoolExecutor") as mock_pool_cls:
+            mock_pool_cls.return_value.__enter__.return_value.map.return_value = []
+            gatherer.gather_project_data(["sub-1"], reload_workers=3)
+
+        mock_pool_cls.assert_called_once_with(max_workers=3)
+
+    def test_thread_pool_reused_across_batches_not_recreated_per_batch(self):
+        """One ThreadPoolExecutor is created for the whole gather_project_data
+        call, not once per batch."""
+        proxy = MagicMock()
+        proxy.get_files.return_value = []
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+        subject_ids = [f"sub-{i}" for i in range(25)]
+
+        with patch("data_requests.data_request.ThreadPoolExecutor") as mock_pool_cls:
+            mock_pool_cls.return_value.__enter__.return_value.map.return_value = []
+            gatherer.gather_project_data(subject_ids, batch_size=10)
+
+        # 3 batches (10, 10, 5), but only one pool for the whole call.
+        assert proxy.get_files.call_count == 3
+        mock_pool_cls.assert_called_once()
+
+    def test_error_during_file_listing_propagates_without_processing_batch(self):
+        """A file-list iterable that raises partway through (e.g. a paginated
+        query's cursor timing out) surfaces immediately: ThreadPoolExecutor.map
+        fully consumes its input iterable to submit futures before returning
+        any results, so nothing from that batch -- not even files listed before
+        the failure -- gets processed."""
+
+        def raising_files():
+            yield _make_file_mock({"naccid": "NACC0001", "field_a": "x"}, "file-1")
+            raise ConnectionError("pagination cursor timeout")
+
+        proxy = MagicMock()
+        proxy.get_files.return_value = raising_files()
+        gatherer = ModuleDataGatherer(
+            proxy=proxy,
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+
+        with pytest.raises(ConnectionError, match="pagination cursor timeout"):
+            gatherer.gather_project_data(["sub-1"])
+
+        assert gatherer.content == ""

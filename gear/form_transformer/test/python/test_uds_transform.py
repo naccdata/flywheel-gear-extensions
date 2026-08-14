@@ -20,7 +20,7 @@ from test_mocks.mock_configs import uds_ingest_configs
 from test_mocks.mock_flywheel import MockProjectAdaptor
 from test_mocks.mock_forms_store import MockFormsStore
 from transform.transformer import (
-    FieldTransformations,
+    TransformationSchema,
     TransformerFactory,
 )
 
@@ -56,10 +56,10 @@ def create_uds_visitor(
     # transformer
     if transform_schema:
         transformer_factory = TransformerFactory(
-            FieldTransformations.model_validate_json(json.dumps(transform_schema))
+            TransformationSchema.model_validate_json(json.dumps(transform_schema))
         )
     else:
-        transformer_factory = TransformerFactory(FieldTransformations())
+        transformer_factory = TransformerFactory(TransformationSchema())
 
     # just use UDS for testing
     module_configs = uds_ingest_configs()
@@ -208,17 +208,20 @@ class TestUDSTransform:
         """Test bad transform - does a simple one just to check
         the errors."""
         schema = {
-            "UDS": [
-                {
-                    "version_map": {
-                        "fieldname": "transform",
-                        "value_map": {"1": "do_transform"},
-                        "default": "no_transform",
-                    },
-                    "nofill": True,
-                    "fields": {"do_transform": ["bad1", "bad2", "bad3"]},
-                }
-            ]
+            "UDS": {
+                "field_transformations": [
+                    {
+                        "transform_type": "version_map",
+                        "version_map": {
+                            "fieldname": "transform",
+                            "value_map": {"1": "do_transform"},
+                            "default": "no_transform",
+                        },
+                        "nofill": True,
+                        "fields": {"do_transform": ["bad1", "bad2", "bad3"]},
+                    }
+                ]
+            }
         }
         visitor, project, _ = create_uds_visitor(transform_schema=schema)
         record = create_record(
@@ -242,7 +245,7 @@ class TestUDSTransform:
 
     def test_already_exists(self):
         """Test that the subject already exists - this is allowed"""
-        visitor, project, form_store = create_uds_visitor()
+        visitor, _project, form_store = create_uds_visitor()
         record = create_record({})
         form_store.add_subject(
             subject_lbl=record["naccid"],
@@ -360,7 +363,7 @@ class TestUDSTransform:
 
     def test_non_numeric_visitnum(self):
         """Tests non-numeric visit numbers."""
-        visitor, project, _ = create_uds_visitor()
+        visitor, _project, _ = create_uds_visitor()
         record = create_record(
             {
                 "ptid": "new-ptid1",

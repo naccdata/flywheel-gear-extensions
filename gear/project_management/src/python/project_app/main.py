@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from authorization.client import AuthorizationClient
 from centers.nacc_group import NACCGroup
+from flywheel.models.access_permission import AccessPermission
 from flywheel.models.group_role import GroupRole
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from projects.hierarchy_seeder import ResourceHierarchySeeder
@@ -12,6 +13,51 @@ from projects.study import StudyModel
 from projects.study_mapping import StudyMappingVisitor
 
 log = logging.getLogger(__name__)
+
+
+def get_active_admin_permissions(
+    proxy: FlywheelProxy, permissions: List[AccessPermission]
+) -> List[AccessPermission]:
+    """Filters admin permissions to only include active (non-disabled, non-
+    deleted) users.
+
+    Looks up each admin user once and excludes any that are disabled or
+    deleted in Flywheel.
+
+    Args:
+      proxy: the flywheel proxy for user lookups
+      permissions: the group access permissions
+
+    Returns:
+      the filtered list of permissions for active admin users
+    """
+    active_permissions: List[AccessPermission] = []
+    for permission in permissions:
+        if permission.access != "admin":
+            active_permissions.append(permission)
+            continue
+
+        if not permission.id:
+            continue
+
+        user = proxy.find_user(permission.id)
+        if not user:
+            log.warning(
+                "Admin user %s not found on this instance, excluding",
+                permission.id,
+            )
+            continue
+
+        if user.disabled or user.deleted:
+            log.info(
+                "Excluding disabled/deleted admin user %s",
+                permission.id,
+            )
+            continue
+
+        active_permissions.append(permission)
+
+    return active_permissions
 
 
 def get_project_roles(flywheel_proxy, role_names: List[str]) -> List[GroupRole]:
@@ -58,7 +104,9 @@ def run(
 
     visitor = StudyMappingVisitor(
         flywheel_proxy=proxy,
-        admin_permissions=admin_group.get_user_access(),
+        admin_permissions=get_active_admin_permissions(
+            proxy, admin_group.get_user_access()
+        ),
         hierarchy_seeder=seeder,
     )
     for study in study_list:
@@ -68,4 +116,10 @@ def run(
         log.warning(
             "Authorization hierarchy seeding completed with %d failure(s)",
             seeder.failure_count,
+        )
+
+    if seeder and seeder.skip_count > 0:
+        log.info(
+            "Authorization hierarchy seeding skipped %d resource(s) (already correct)",
+            seeder.skip_count,
         )

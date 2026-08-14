@@ -2,6 +2,19 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.0
+* Captures duplicate-submit events to S3 when a visit is skipped as a duplicate
+* Adds `event_bucket` and `event_environment` config options for event capture
+* Adds `duplicate-submit` action type to visit event types
+* Refactors `CSVTransformVisitor` to remove redundant parameters
+
+## 2.0.1
+* Prevents gear crashing on data identification errors
+  
+## 2.0.0
+* Adds new transformation to drop optional forms based on release date
+* Adds new pre-processing check to detect resubmission of legacy milestone forms
+  
 ## 1.10.0
 * Prevents multiple submissions for the modules that allow only a single submission for a participant
 * Updates the visit searches to include both QC gear tags in legacy lookup

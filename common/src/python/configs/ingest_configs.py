@@ -111,6 +111,26 @@ class OptionalFormsConfigs(RootModel):
         return version_configs.get(packet)
 
 
+class FormReleaseDates(RootModel):
+    root: Dict[str, Dict[str, str]]
+
+    def get_release_date(self, packet: str, form: str) -> Optional[str]:
+        """Get the release date for the specified packet and form.
+
+        Args:
+            packet: packet code
+            form: form name
+
+        Returns:
+            Optional[str]: release date (YYYY-MM-DD) for the form if found
+        """
+        if not self.root:
+            return None
+
+        packet_configs = self.root.get(packet, {})
+        return packet_configs.get(form)
+
+
 class SupplementModuleConfigs(BaseModel):
     label: str
     date_field: str
@@ -135,6 +155,7 @@ class ModuleConfigs(BaseModel):
     legacy_module: Optional[LegacyModuleConfigs] = None
     supplement_module: Optional[SupplementModuleConfigs] = None
     optional_forms: Optional[OptionalFormsConfigs] = None
+    release_dates: Optional[FormReleaseDates] = None
     preprocess_checks: Optional[List[str]] = None
     errorlog_template: Optional[ErrorLogTemplate] = None
     longitudinal: Optional[bool] = True

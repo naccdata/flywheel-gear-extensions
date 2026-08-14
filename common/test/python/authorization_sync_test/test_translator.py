@@ -16,15 +16,44 @@ from users.authorizations import (
     DashboardResource,
     DatatypeResource,
     PageResource,
+    Resource,
+    StudyAuthorizations,
 )
 
 from .conftest import (
+    center_group_ids_st,
     dashboard_names_st,
     mapped_activities_st,
     page_names_st,
     registry_ids_st,
+    study_ids_st,
     valid_datatypes_st,
 )
+
+
+def _expected_resource_id(resource: Resource, study_id: str | None) -> str:
+    """Build the expected resource_id for test assertions.
+
+    Mirrors the _build_resource_id logic in the translator:
+    - datatype → "ingest-{name}"
+    - dashboard → "dashboard-{name}"
+    - page → "page-{name}"
+    Then appends "-{study_id}" if study_id is provided.
+    """
+    prefix = resource.prefix()
+    name = resource.name
+    if prefix == "datatype":
+        label = f"ingest-{name}"
+    elif prefix == "dashboard":
+        label = f"dashboard-{name}"
+    elif prefix == "page":
+        label = f"page-{name}"
+    else:
+        label = name
+
+    if study_id:
+        label = f"{label}-{study_id}"
+    return label
 
 
 class TestActivityToRelationMappingCorrectness:
@@ -59,14 +88,14 @@ class TestActivityToRelationMappingCorrectness:
         mapping_key = (activity.action, activity.resource.prefix())
         expected_pairs = ACTIVITY_RELATION_MAP[mapping_key]
 
-        # The resource_id is just the resource name (no center_group_id)
-        resource_name = activity.resource.name
+        # Resource ID uses the new format (no study_id when using bare Authorizations)
+        resource_id = _expected_resource_id(activity.resource, study_id=None)
 
         expected_grants = {
             DesiredGrant(
                 user_id=registry_id,
                 resource_type=resource_type,
-                resource_id=resource_name,
+                resource_id=resource_id,
                 relation=relation,
             )
             for resource_type, relation in expected_pairs
@@ -77,24 +106,26 @@ class TestActivityToRelationMappingCorrectness:
     @given(
         datatype=valid_datatypes_st,
         registry_id=registry_ids_st,
+        study_id=study_ids_st,
     )
     @settings(max_examples=100, deadline=None)
     def test_submit_audit_datatype_produces_submitter_and_viewer(
         self,
         datatype: str,
         registry_id: str,
+        study_id: str,
     ) -> None:
         """submit-audit on DatatypeResource produces both submitter AND viewer.
 
         **Validates: Requirements 1.2, 10.1, 10.3**
         """
         resource = DatatypeResource(datatype=datatype)
-        auth = Authorizations()
+        auth = StudyAuthorizations(study_id=study_id)
         auth.add(resource=resource, action="submit-audit")
 
         grants = translate(registry_id=registry_id, authorizations=auth)
 
-        resource_id = resource.name
+        resource_id = f"ingest-{datatype}-{study_id}"
 
         submitter_grant = DesiredGrant(
             user_id=registry_id,
@@ -116,19 +147,21 @@ class TestActivityToRelationMappingCorrectness:
     @given(
         datatype=valid_datatypes_st,
         registry_id=registry_ids_st,
+        study_id=study_ids_st,
     )
     @settings(max_examples=100, deadline=None)
     def test_view_datatype_produces_viewer(
         self,
         datatype: str,
         registry_id: str,
+        study_id: str,
     ) -> None:
         """view on DatatypeResource produces viewer on data_pipeline.
 
         **Validates: Requirements 1.3**
         """
         resource = DatatypeResource(datatype=datatype)
-        auth = Authorizations()
+        auth = StudyAuthorizations(study_id=study_id)
         auth.add(resource=resource, action="view")
 
         grants = translate(registry_id=registry_id, authorizations=auth)
@@ -137,7 +170,7 @@ class TestActivityToRelationMappingCorrectness:
             DesiredGrant(
                 user_id=registry_id,
                 resource_type="data_pipeline",
-                resource_id=resource.name,
+                resource_id=f"ingest-{datatype}-{study_id}",
                 relation="viewer",
             )
         }
@@ -147,19 +180,21 @@ class TestActivityToRelationMappingCorrectness:
     @given(
         name=dashboard_names_st,
         registry_id=registry_ids_st,
+        study_id=study_ids_st,
     )
     @settings(max_examples=100, deadline=None)
     def test_view_dashboard_produces_viewer(
         self,
         name: str,
         registry_id: str,
+        study_id: str,
     ) -> None:
         """view on DashboardResource produces viewer on dashboard.
 
         **Validates: Requirements 1.4**
         """
         resource = DashboardResource(dashboard=name)
-        auth = Authorizations()
+        auth = StudyAuthorizations(study_id=study_id)
         auth.add(resource=resource, action="view")
 
         grants = translate(registry_id=registry_id, authorizations=auth)
@@ -168,7 +203,7 @@ class TestActivityToRelationMappingCorrectness:
             DesiredGrant(
                 user_id=registry_id,
                 resource_type="dashboard",
-                resource_id=name,
+                resource_id=f"dashboard-{name}-{study_id}",
                 relation="viewer",
             )
         }
@@ -178,19 +213,21 @@ class TestActivityToRelationMappingCorrectness:
     @given(
         name=page_names_st,
         registry_id=registry_ids_st,
+        study_id=study_ids_st,
     )
     @settings(max_examples=100, deadline=None)
     def test_view_page_produces_viewer(
         self,
         name: str,
         registry_id: str,
+        study_id: str,
     ) -> None:
         """view on PageResource produces viewer on page.
 
         **Validates: Requirements 1.5**
         """
         resource = PageResource(page=name)
-        auth = Authorizations()
+        auth = StudyAuthorizations(study_id=study_id)
         auth.add(resource=resource, action="view")
 
         grants = translate(registry_id=registry_id, authorizations=auth)
@@ -199,7 +236,7 @@ class TestActivityToRelationMappingCorrectness:
             DesiredGrant(
                 user_id=registry_id,
                 resource_type="page",
-                resource_id=name,
+                resource_id=f"page-{name}-{study_id}",
                 relation="viewer",
             )
         }
@@ -234,3 +271,109 @@ class TestActivityToRelationMappingCorrectness:
         # Every grant from a view activity should have relation "viewer"
         for grant in grants:
             assert grant.relation == "viewer"
+
+
+class TestCenterScopedResourceIds:
+    """Tests for center-scoped resource ID format.
+
+    Verifies that the translator produces resource IDs with the center
+    prefix using underscore separator per ADR-016.
+    """
+
+    @given(
+        datatype=valid_datatypes_st,
+        registry_id=registry_ids_st,
+        study_id=study_ids_st,
+        center_group_id=center_group_ids_st,
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_center_scoped_datatype_uses_underscore_separator(
+        self,
+        datatype: str,
+        registry_id: str,
+        study_id: str,
+        center_group_id: str,
+    ) -> None:
+        """Center-scoped data_pipeline resource_id uses underscore separator.
+
+        Format: {center}_{ingest}-{datatype}-{study_id}
+        """
+        resource = DatatypeResource(datatype=datatype)
+        auth = StudyAuthorizations(study_id=study_id)
+        auth.add(resource=resource, action="submit-audit")
+
+        grants = translate(
+            registry_id=registry_id,
+            authorizations=auth,
+            center_group_id=center_group_id,
+        )
+
+        expected_resource_id = f"{center_group_id}_ingest-{datatype}-{study_id}"
+        for grant in grants:
+            assert grant.resource_id == expected_resource_id
+
+    @given(
+        name=dashboard_names_st,
+        registry_id=registry_ids_st,
+        study_id=study_ids_st,
+        center_group_id=center_group_ids_st,
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_center_scoped_dashboard_uses_underscore_separator(
+        self,
+        name: str,
+        registry_id: str,
+        study_id: str,
+        center_group_id: str,
+    ) -> None:
+        """Center-scoped dashboard resource_id uses underscore separator.
+
+        Format: {center}_dashboard-{name}-{study_id}
+        """
+        resource = DashboardResource(dashboard=name)
+        auth = StudyAuthorizations(study_id=study_id)
+        auth.add(resource=resource, action="view")
+
+        grants = translate(
+            registry_id=registry_id,
+            authorizations=auth,
+            center_group_id=center_group_id,
+        )
+
+        expected_resource_id = f"{center_group_id}_dashboard-{name}-{study_id}"
+        assert len(grants) == 1
+        grant = next(iter(grants))
+        assert grant.resource_id == expected_resource_id
+
+    @given(
+        name=page_names_st,
+        registry_id=registry_ids_st,
+        study_id=study_ids_st,
+        center_group_id=center_group_ids_st,
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_center_scoped_page_uses_underscore_separator(
+        self,
+        name: str,
+        registry_id: str,
+        study_id: str,
+        center_group_id: str,
+    ) -> None:
+        """Center-scoped page resource_id uses underscore separator.
+
+        Format: {center}_page-{name}-{study_id}
+        """
+        resource = PageResource(page=name)
+        auth = StudyAuthorizations(study_id=study_id)
+        auth.add(resource=resource, action="view")
+
+        grants = translate(
+            registry_id=registry_id,
+            authorizations=auth,
+            center_group_id=center_group_id,
+        )
+
+        expected_resource_id = f"{center_group_id}_page-{name}-{study_id}"
+        assert len(grants) == 1
+        grant = next(iter(grants))
+        assert grant.resource_id == expected_resource_id

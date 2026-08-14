@@ -1,5 +1,6 @@
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from flywheel.models.file_entry import FileEntry
@@ -39,25 +40,59 @@ class DataRequestMatch(BaseModel):
     project_label: str
 
 
+# Characters usable inside one segment of a '-'-delimited filename. A '.'
+# is included because real form versions carry one (LBD 3.1) and the label
+# occupies a fixed, non-final position, where a '.' cannot be read as a
+# segment boundary. A '-', '_', '/', or whitespace can be, so a value
+# containing one is refused rather than emitted.
+#
+# This is deliberately a check for filename safety, not for a well-formed
+# version number: a non-numeric but harmless value such as "3a" passes
+# through as it always has. If this check also rejects those, it changes
+# the labels a released gear already emits, and merges their rows into
+# the "unknown" bucket, for no parsing benefit.
+FORMVER_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9.]+$")
+FORMVER_UNKNOWN_LABEL = "unknown"
+
+
 def formver_label(formver: Any) -> str:
     """Normalize a form version value into a filename-safe label.
 
+    Callers place the result in a '-'-delimited filename parsed by anchored
+    regexes. This function therefore guarantees a label of ``v`` followed
+    by letters, digits, and dots, or ``unknown``.
+
+    A value can carry a segment delimiter or whitespace, as in
+    "3.0-draft", "3_1", or "N/A". Such a value shifts every following
+    segment of the name. This function refuses it and logs it, rather
+    than producing a filename no consumer can parse.
+
     Examples:
-        "1"   -> "v1"
-        "1.0" -> "v1"
-        "1.5" -> "v1.5"
-        "3.0" -> "v3"
-        ""    -> "unknown"
-        None  -> "unknown"
+        "1"         -> "v1"
+        "1.0"       -> "v1"
+        "1.5"       -> "v1.5"
+        "3.0"       -> "v3"
+        "3.1"       -> "v3.1"
+        ""          -> "unknown"
+        None        -> "unknown"
+        "3.0-draft" -> "unknown" (logged)
 
     Args:
       formver: the raw form version value (any type; coerced via str)
     Returns:
-      a label suitable for use in a filename, e.g. "v3" or "unknown"
+      a label safe to use as one segment of a filename: "v" followed by
+      letters, digits, and dots, for example "v3" or "v3.1", or "unknown"
     """
     s = str(formver if formver is not None else "").strip()
     if not s:
-        return "unknown"
+        return FORMVER_UNKNOWN_LABEL
+    if not FORMVER_SEGMENT_PATTERN.match(s):
+        log.warning(
+            "unusable form version %r: labelling as %s",
+            formver,
+            FORMVER_UNKNOWN_LABEL,
+        )
+        return FORMVER_UNKNOWN_LABEL
     if s.endswith(".0"):
         s = s[:-2]
     return f"v{s}"
@@ -145,8 +180,18 @@ class ModuleDataGatherer:
         Raises:
           ModuleDataError if path doesn't exist or the value is not a dictionary.
         """
+        self.__process_reloaded_file(file.reload())
+
+    def __process_reloaded_file(self, file: FileEntry) -> None:
+        """Writes file info to the writer for a file that has already been
+        reloaded (i.e. ``file.info`` is populated).
+
+        Args:
+          file: the reloaded file object
+        Raises:
+          ModuleDataError if path doesn't exist or the value is not a dictionary.
+        """
         merged_data = {}
-        file = file.reload()
         symbol_table = SymbolTable(file.info)
 
         for path in self.__info_paths:
@@ -188,6 +233,70 @@ class ModuleDataGatherer:
             except ModuleDataError as error:
                 log.warning("Failed to load data: %s", str(error))
                 continue
+
+    def gather_project_data(
+        self,
+        subject_ids: list[str],
+        batch_size: int = 100,
+        reload_workers: int = 10,
+    ) -> None:
+        """Writes the file custom info to the writer of this object for every
+        acquisition labeled by the module name, across the given subjects.
+
+        Unlike ``gather_request_data``, this batches subjects into groups
+        using Flywheel's OR-list filter syntax (``field=|[v1,v2,...]``)
+        instead of issuing one query per subject. This is the appropriate
+        access pattern when there is no participant list to narrow the
+        subjects of interest (e.g. a full-center export): one query per
+        subject doesn't scale to centers with thousands of subjects, and a
+        single query scoped to the whole project (with no subject
+        narrowing at all) can time out on Flywheel's backend for large
+        projects instead of paginating cleanly.
+
+        Within each batch, the per-file ``.reload()`` calls needed to
+        populate ``file.info`` are issued concurrently across a shared
+        worker pool (they are independent I/O-bound requests), since
+        serially reloading every matching file dominates runtime for
+        modules with many visits per subject (e.g. UDS). The merge/write
+        step for each reloaded file still runs single-threaded, since
+        ``StringCSVWriter`` is not thread-safe.
+
+        Args:
+          subject_ids: Flywheel subject ids to search across
+          batch_size: number of subject ids per query batch. The default
+            of 100 was tuned empirically against real center data rather
+            than swept systematically -- worth revisiting if it proves
+            slow.
+          reload_workers: number of concurrent workers used to reload
+            each batch's files. Defaults to 10 to match the underlying
+            ``requests.Session`` connection pool size
+            (``requests.adapters.DEFAULT_POOLSIZE``); using more workers
+            than that causes connections to be discarded and reopened
+            rather than reused. Assumes concurrent use of one shared
+            Flywheel client/session across threads is safe -- observed
+            correct in testing, but not guaranteed by the SDK docs.
+        """
+        total_subjects = len(subject_ids)
+        with ThreadPoolExecutor(max_workers=reload_workers) as pool:
+            for start in range(0, total_subjects, batch_size):
+                batch = subject_ids[start : start + batch_size]
+                files = self.__proxy.get_files(
+                    f"parent_ref.type=acquisition,"
+                    f"parents.subject=|[{','.join(batch)}],"
+                    f"acquisition.label={self.__module_name}"
+                )
+                reloaded_files = pool.map(lambda file: file.reload(), files)
+                for file in reloaded_files:
+                    try:
+                        self.__process_reloaded_file(file)
+                    except ModuleDataError as error:
+                        log.warning("Failed to load data: %s", str(error))
+                log.info(
+                    "Processed %d/%d subjects for module %s",
+                    min(start + batch_size, total_subjects),
+                    total_subjects,
+                    self.__module_name,
+                )
 
 
 class ModuleDataError(Exception):

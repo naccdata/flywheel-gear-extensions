@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from authorization.exceptions import AuthorizationClientError
 from authorization.models import (
+    AuthorizationModelMetadata,
     BatchError,
     BatchOperation,
     BatchResult,
@@ -15,14 +16,6 @@ from authorization.models import (
     UserProfileRequest,
 )
 from authorization_sync.sync_service import AuthorizationSyncService
-from authorization_sync_test.conftest import (
-    MockAuthorizationClient,
-    authorization_client_errors_st,
-    authorizations_st,
-    center_group_ids_st,
-    mapped_activities_st,
-    registry_ids_st,
-)
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from users.authorizations import Authorizations
@@ -30,6 +23,15 @@ from users.event_models import (
     EventCategory,
     EventType,
     UserEventCollector,
+)
+
+from authorization_sync_test.conftest import (
+    MockAuthorizationClient,
+    authorization_client_errors_st,
+    authorizations_st,
+    center_group_ids_st,
+    mapped_activities_st,
+    registry_ids_st,
 )
 
 
@@ -47,7 +49,7 @@ class PartialFailureClient:
     def get_user_permissions(
         self,
         user_id: str,
-        type_filter: str | None = None,
+        type_filter: str,
         relation_filter: str | None = None,
     ) -> UserPermissions:
         """Return empty permissions so diff produces operations."""
@@ -72,6 +74,10 @@ class PartialFailureClient:
             auth_email="test@example.com",
             active=True,
         )
+
+    def get_model(self) -> AuthorizationModelMetadata:
+        """Mock get_model that returns minimal metadata."""
+        return AuthorizationModelMetadata(version="1.0.0", types={})
 
 
 @st.composite

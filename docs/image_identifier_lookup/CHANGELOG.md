@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.1
+
+* Fix VisitEvent serialization: `modality` field is now included in serialized dicom events
+* Rebuilt with forward-compatible event field passthrough
+
 ## 0.2.0
 
 * Write `DataIdentification` to `file.info.data_identification` after successful processing

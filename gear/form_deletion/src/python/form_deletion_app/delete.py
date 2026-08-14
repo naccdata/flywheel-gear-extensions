@@ -36,7 +36,8 @@ class FormDeletionProcessor:
         form_configs: FormProjectConfigs,
         error_writer: ListErrorWriter,
         identifier: Optional[IdentifierObject] = None,
-        check_sbsq_visits: bool,
+        check_sbsq_visits: bool = True,
+        skip_accepted_project: bool = False,
     ):
         """
         Args:
@@ -48,6 +49,7 @@ class FormDeletionProcessor:
             error_writer: Error writer to record any errors
             identifier: IdentifierObject if exists
             check_sbsq_visits: Check whether there are any subsequent QC passed visits
+            skip_accepted_project: Skip deleting files from the accepted project
         """
         self.__project = project
         self.__adcid = adcid
@@ -58,6 +60,7 @@ class FormDeletionProcessor:
         self.__identifier = identifier
         self.__naccid = identifier.naccid if identifier else None
         self.__check_sbsq_visits = check_sbsq_visits
+        self.__skip_accepted_project = skip_accepted_project
         self.__module = delete_request.module.upper()
 
         self.__dependent_modules = form_configs.get_module_dependencies(
@@ -461,6 +464,7 @@ class FormDeletionProcessor:
             delete_request=self.__delete_request,
             deleted_items=self.__deleted_items,
             dependent_modules=self.__dependent_modules,
+            skip_accepted_project=self.__skip_accepted_project,
         )
 
         if not self.__acq_remover.cleanup_acquisitions():

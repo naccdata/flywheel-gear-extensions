@@ -25,7 +25,7 @@ from nacc_common.error_data import list_submissions
 #   all-zero or leading-zero PTIDs that normalize to something different.
 ptid_strategy = st.from_regex(r"[a-zA-Z][a-zA-Z0-9]{0,9}", fullmatch=True)
 
-# Module: word characters (\w+), at least 1 char
+# Module: alphanumeric characters ([A-Za-z0-9]+), at least 1 char
 module_strategy = st.from_regex(r"[A-Za-z][A-Za-z0-9]{0,5}", fullmatch=True)
 
 # Date: YYYY-MM-DD format with 4-digit year (required by QC_FILENAME_PATTERN)

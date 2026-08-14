@@ -54,8 +54,8 @@ class MockParameterStore:
             raise ParameterError("Notification parameters not found")
         return self.notification_params
 
-    def get_portal_url(self, path: str):
-        """Mock get_portal_url."""
+    def get_url(self, path: str):
+        """Mock get_url."""
         if not self.portal_url:
             raise ParameterError("Portal URL not found")
         return self.portal_url

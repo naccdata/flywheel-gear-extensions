@@ -2,6 +2,7 @@
 
 import logging
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
@@ -12,6 +13,8 @@ from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
     QCStatusLogManager,
 )
+from event_capture.event_capture import VisitEventCapture
+from event_capture.visit_events import ACTION_DUPLICATE_SUBMIT, VisitEvent
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
@@ -19,6 +22,8 @@ from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import PreprocessingChecks, SysErrorCodes
 from nacc_common.data_identification import (
     DataIdentification,
+    EmptyFieldError,
+    InvalidDateError,
 )
 from nacc_common.error_models import FileQCModel, QCStatus
 from nacc_common.field_names import FieldNames
@@ -53,6 +58,8 @@ class CSVTransformVisitor(CSVVisitor):
         module_configs: ModuleConfigs,
         gear_name: str,
         project: Optional[ProjectAdaptor] = None,
+        event_capture: Optional[VisitEventCapture] = None,
+        timestamp: Optional[datetime] = None,
     ) -> None:
         self.__module = module
         self.__id_column = id_column
@@ -62,6 +69,8 @@ class CSVTransformVisitor(CSVVisitor):
         self.__module_configs = module_configs
         self.__gear_name = gear_name
         self.__project = project
+        self.__event_capture = event_capture
+        self.__timestamp = timestamp
         self.__transformer: Optional[BaseRecordTransformer] = None
 
         self.__date_field = self.__module_configs.date_field
@@ -161,7 +170,9 @@ class CSVTransformVisitor(CSVVisitor):
         # Set transformer for the module
         if not self.__transformer:
             self.__transformer = self.__transformer_factory.create(
-                self.__module, self.__date_field, self.__error_writer
+                self.__module,
+                self.__error_writer,
+                self.__module_configs,
             )
 
         transformed_row = self.__transformer.transform(row, line_num)
@@ -224,6 +235,9 @@ class CSVTransformVisitor(CSVVisitor):
                     self.__add_to_current_batch(
                         subject_lbl=subject_lbl, input_record=visit
                     )
+                else:
+                    # Visit is truly skipped as duplicate — capture the event
+                    self.__capture_duplicate_event(visit)
                 success = copied and success
 
         return success
@@ -260,13 +274,15 @@ class CSVTransformVisitor(CSVVisitor):
                     self.__module_configs.preprocess_checks
                     and PreprocessingChecks.VISIT_CONFLICT
                     in self.__module_configs.preprocess_checks
+                    and FieldNames.VISITNUM in self.__module_configs.required_fields
                 ):
-                    is_ivp = (
-                        transformed_row[FieldNames.PACKET]
-                        in self.__module_configs.initial_packets
-                    )
-                    visit_num = transformed_row[FieldNames.VISITNUM]
+                    if FieldNames.PACKET in self.__module_configs.required_fields:
+                        is_ivp = (
+                            transformed_row[FieldNames.PACKET]
+                            in self.__module_configs.initial_packets
+                        )
 
+                    visit_num = transformed_row[FieldNames.VISITNUM]
                     # check the validity of visit numbers within current batch
                     if visit_num not in prev_visit_nums:
                         prev_visit_nums.append(visit_num)
@@ -332,6 +348,47 @@ class CSVTransformVisitor(CSVVisitor):
                     ivp_packet = transformed_row
 
         return success
+
+    def __capture_duplicate_event(self, transformed_row: Dict[str, Any]) -> None:
+        """Capture a duplicate-submit event for the given row.
+
+        Failures are logged as warnings and do not interrupt processing.
+        """
+        if not self.__event_capture or not self.__timestamp or not self.__project:
+            return
+
+        try:
+            data_id = DataIdentification.from_form_record(
+                transformed_row, self.__date_field
+            )
+        except (EmptyFieldError, InvalidDateError, ValidationError) as error:
+            ptid = transformed_row.get(FieldNames.PTID, "unknown")
+            date = transformed_row.get(self.__date_field, "unknown")
+            log.warning(
+                f"Cannot construct DataIdentification for duplicate event "
+                f"(ptid={ptid}, date={date}): {error}. Skipping event capture."
+            )
+            return
+
+        event = VisitEvent(
+            action=ACTION_DUPLICATE_SUBMIT,
+            project_label=self.__project.label,
+            center_label=self.__project.group,
+            gear_name=self.__gear_name,
+            data_identification=data_id,
+            datatype="form",
+            timestamp=self.__timestamp,
+        )
+
+        try:
+            self.__event_capture.capture_event(event)
+        except Exception as error:
+            ptid = transformed_row.get(FieldNames.PTID, "unknown")
+            date = transformed_row.get(self.__date_field, "unknown")
+            log.warning(
+                f"Failed to capture duplicate-submit event for "
+                f"ptid={ptid}, date={date}: {error}. Continuing processing."
+            )
 
     def __get_module(self, row: Dict[str, Any]) -> str:
         """Returns the module from the row.
@@ -406,18 +463,27 @@ class CSVTransformVisitor(CSVVisitor):
             )
             return None
 
+        ptid = input_record.get(FieldNames.PTID)
+        date = input_record.get(self.__date_field)
         # Create DataIdentification from CSV record
         # Note: Use visitor's module (self.module), not record's module,
         # to ensure consistent QC log filenames even when record has wrong module
-        data_id = DataIdentification.from_visit_metadata(
-            ptid=input_record.get(FieldNames.PTID),
-            date=input_record.get(self.__date_field),
-            module=self.module,  # Use visitor's module, not record's module
-            visitnum=input_record.get(FieldNames.VISITNUM),
-            packet=input_record.get(FieldNames.PACKET),
-            naccid=input_record.get(FieldNames.NACCID),
-            adcid=input_record.get(FieldNames.ADCID),
-        )
+        try:
+            data_id = DataIdentification.from_visit_metadata(
+                ptid=ptid,
+                date=date,
+                module=self.module,  # Use visitor's module, not record's module
+                visitnum=input_record.get(FieldNames.VISITNUM),
+                packet=input_record.get(FieldNames.PACKET),
+                naccid=input_record.get(FieldNames.NACCID),
+                adcid=input_record.get(FieldNames.ADCID),
+            )
+        except (ValidationError, ValueError, TypeError) as error:
+            log.error(
+                "Failed to create DataIdentification for visit "
+                f"{ptid} - {date}: {error}. Cannot update the error log file."
+            )
+            return None
 
         # Use QCStatusLogManager to get filename
         qc_manager = QCStatusLogManager(
@@ -441,11 +507,7 @@ class CSVTransformVisitor(CSVVisitor):
         )
 
         if not error_log_name:
-            log.error(
-                "Failed to update error log for visit %s, %s",
-                input_record[FieldNames.PTID],
-                input_record[self.__date_field],
-            )
+            log.error(f"Failed to update error log for visit {ptid} - {date}")
             return None
 
         return error_log_name
@@ -684,6 +746,8 @@ def run(
     error_writer: ListErrorWriter,
     gear_name: str,
     downstream_gears: Optional[List[str]] = None,
+    event_capture: Optional[VisitEventCapture] = None,
+    timestamp: Optional[datetime] = None,
 ) -> bool:
     """Reads records from the input file and transforms each into a JSON file.
     Uploads the JSON file to the respective acquisition in Flywheel.
@@ -699,6 +763,8 @@ def run(
         error_writer: the writer for error output
         gear_name: gear name
         downstream_gears: list of downstream gears
+        event_capture: optional VisitEventCapture for logging duplicate events
+        timestamp: file entry created timestamp for event capture
 
     Returns:
         bool: True if transformation/upload successful
@@ -712,6 +778,8 @@ def run(
         module_configs=module_configs,
         gear_name=gear_name,
         project=destination,
+        event_capture=event_capture,
+        timestamp=timestamp,
     )
     result = read_csv(
         input_file=input_file,

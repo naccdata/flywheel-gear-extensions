@@ -25,7 +25,10 @@ log = logging.getLogger(__name__)
 
 # TODO: Consider consolidating QC filename pattern usage - currently duplicated
 # between ProjectReportVisitor and FileQCReportVisitor
-QC_FILENAME_PATTERN = r"^([!-~]{1,10})_(\d{4}-\d{2}-\d{2})_(\w+)_qc-status.log$"
+QC_FILENAME_PATTERN = (
+    r"^(?P<ptid>[!-~]{1,10})_(?P<date>\d{4}-\d{2}-\d{2})"
+    r"_(?:(?P<visitnum>[^_]+)_)?(?P<module>[A-Za-z0-9]+)_qc-status\.log$"
+)
 
 
 def extract_visit_keys(
@@ -46,9 +49,9 @@ def extract_visit_keys(
     if not match:
         raise TypeError(f"file name does not match qc-status log: {file.name}")
 
-    ptid = match.group(1)
-    visitdate = match.group(2)
-    module = match.group(3).upper()
+    ptid = match.group("ptid")
+    visitdate = match.group("date")
+    module = match.group("module").upper()
 
     return DataIdentification.from_visit_metadata(
         ptid=ptid, date=visitdate, module=module, adcid=adcid
@@ -345,12 +348,12 @@ class ProjectReportVisitor:
         if not match:
             return False
 
-        ptid = match.group(1)
+        ptid = match.group("ptid")
         if self.__ptid_set is not None and ptid not in self.__ptid_set:
             return False
 
-        module = match.group(3).upper()
-        return self.__modules is None or module.upper() in self.__modules
+        module = match.group("module").upper()
+        return self.__modules is None or module in self.__modules
 
     def visit_file(self, file: FileEntry) -> None:
         """Creates a file visitor for the QC log file and processes it.

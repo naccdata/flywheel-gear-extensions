@@ -5,22 +5,20 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from data_requests.data_request import (
-    DataRequestVisitor,
-    ModuleDataGatherer,
-)
+from data_requests.data_request import ModuleDataGatherer
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
     GearEngine,
     GearExecutionEnvironment,
+    GearExecutionError,
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
 from outputs.error_writer import ListErrorWriter
 
-from gather_form_data_app.main import run
+from gather_form_data_app.main import GatherConfig, run
 
 log = logging.getLogger(__name__)
 
@@ -28,23 +26,23 @@ log = logging.getLogger(__name__)
 def _write_module_output(
     context: GearContext,
     gatherers: list[ModuleDataGatherer],
-    study_id: str,
+    output_prefix: str,
 ) -> None:
     """Writes the data content in each gatherer to one or more output files.
 
     For gatherers with ``split_by_formver=False`` (default), produces a single
-    CSV per module named ``{study_id}-{module}-{date}.csv``.
+    CSV per module named ``{output_prefix}-{module}-{date}.csv``.
 
     For gatherers with ``split_by_formver=True``, produces one CSV per
     (module, formver) pair, named
-    ``{study_id}-{module}-{formver_label}-{date}.csv`` (e.g.
+    ``{output_prefix}-{module}-{formver_label}-{date}.csv`` (e.g.
     ``adrc-UDS-v4-2026-05-29.csv``). The formver label is normalized via
     ``formver_label`` (e.g. "1.0" -> "v1", missing -> "unknown").
 
     Args:
       context: the gear context
       gatherers: a list of ModuleDataGatherer objects
-      study_id: the study identifier used in output filenames
+      output_prefix: the prefix used in output filenames
     """
     today = date.today().isoformat()
     for gatherer in gatherers:
@@ -60,7 +58,7 @@ def _write_module_output(
                 if not content:
                     continue
                 output_filename = (
-                    f"{study_id}-{gatherer.module_name}-"
+                    f"{output_prefix}-{gatherer.module_name}-"
                     f"{formver_label_value}-{today}.csv"
                 )
                 with context.open_output(
@@ -76,7 +74,7 @@ def _write_module_output(
             )
             continue
 
-        output_filename = f"{study_id}-{gatherer.module_name}-{today}.csv"
+        output_filename = f"{output_prefix}-{gatherer.module_name}-{today}.csv"
         with context.open_output(
             output_filename, mode="w", encoding="utf-8"
         ) as output_file:
@@ -94,7 +92,10 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         info_paths: list[str],
         modules: set[str],
         study_id: str,
+        output_prefix: str,
         formver_split: bool = False,
+        batch_size: int = 100,
+        reload_workers: int = 10,
     ):
         super().__init__(client=client)
         self.__file_input = file_input
@@ -102,7 +103,10 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         self.__info_paths = info_paths
         self.__modules = modules
         self.__study_id = study_id
+        self.__output_prefix = output_prefix
         self.__formver_split = formver_split
+        self.__batch_size = batch_size
+        self.__reload_workers = reload_workers
 
     @classmethod
     def create(
@@ -118,9 +122,9 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
         Returns:
           the execution environment
         Raises:
-          GearExecutionError if any expected inputs are missing
+          GearExecutionError if any expected inputs are missing or config
+          parameters are invalid
         """
-
         client = GearBotClient.create(context=context, parameter_store=parameter_store)
         file_input = InputFileWrapper.create(input_name="input_file", context=context)
         assert file_input, "create raises exception if missing input file"
@@ -133,6 +137,20 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
 
         study_id = options.get("study_id", "adrc")
         formver_split = options.get("formver_split", False)
+        output_file_prefix = options.get("output_file_prefix", "")
+        output_prefix = output_file_prefix if output_file_prefix else study_id
+
+        batch_size = options.get("batch_size", 100)
+        reload_workers = options.get("reload_workers", 10)
+
+        if batch_size <= 0:
+            raise GearExecutionError(
+                f"batch_size must be a positive integer, got {batch_size}"
+            )
+        if reload_workers <= 0:
+            raise GearExecutionError(
+                f"reload_workers must be a positive integer, got {reload_workers}"
+            )
 
         return GatherFormDataVisitor(
             client=client,
@@ -141,21 +159,13 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
             info_paths=info_paths,
             modules=modules,
             study_id=study_id,
+            output_prefix=output_prefix,
             formver_split=formver_split,
+            batch_size=batch_size,
+            reload_workers=reload_workers,
         )
 
     def run(self, context: GearContext) -> None:
-        data_gatherers: list[ModuleDataGatherer] = []
-        for module_name in self.__modules:
-            data_gatherers.append(
-                ModuleDataGatherer(
-                    proxy=self.proxy,
-                    module_name=module_name,
-                    info_paths=self.__info_paths,
-                    split_by_formver=self.__formver_split,
-                )
-            )
-
         input_path = Path(self.__file_input.filepath)
         with open(input_path, mode="r", encoding="utf-8-sig") as request_file:
             file_id = self.__file_input.file_id
@@ -163,25 +173,27 @@ class GatherFormDataVisitor(GearExecutionEnvironment):
                 container_id=file_id,
                 fw_path=self.proxy.get_lookup_path(self.proxy.get_file(file_id)),
             )
-            request_visitor = DataRequestVisitor(
+
+            success, data_gatherers = run(
+                request_file=request_file,
                 proxy=self.proxy,
-                study_id=self.__study_id,
-                project_names=self.__project_names,
-                gatherers=data_gatherers,
+                config=GatherConfig(
+                    study_id=self.__study_id,
+                    project_names=self.__project_names,
+                    modules=self.__modules,
+                    info_paths=self.__info_paths,
+                    batch_size=self.__batch_size,
+                    reload_workers=self.__reload_workers,
+                    formver_split=self.__formver_split,
+                ),
                 error_writer=error_writer,
             )
 
-            success = run(
-                request_file=request_file,
-                request_visitor=request_visitor,
-                error_writer=error_writer,
+            _write_module_output(
+                context=context,
+                gatherers=data_gatherers,
+                output_prefix=self.__output_prefix,
             )
-            if success:
-                _write_module_output(
-                    context=context,
-                    gatherers=request_visitor.gatherers,
-                    study_id=self.__study_id,
-                )
 
         context.metadata.add_qc_result(
             self.__file_input.file_input,
