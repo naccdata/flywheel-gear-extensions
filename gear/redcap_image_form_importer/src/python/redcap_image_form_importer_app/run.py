@@ -23,7 +23,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-class REDCapimageformimporterVisitor(GearExecutionEnvironment):
+class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
     """Visitor for the REDCap image form importer gear."""
 
     def __init__(
@@ -41,7 +41,7 @@ class REDCapimageformimporterVisitor(GearExecutionEnvironment):
     @classmethod
     def create(
         cls, context: GearContext, parameter_store: Optional[ParameterStore] = None
-    ) -> "REDCapimageformimporterVisitor":
+    ) -> "REDCapImageFormImporterVisitor":
         """Creates a REDCap image form importer execution visitor.
 
         Args:
@@ -64,7 +64,7 @@ class REDCapimageformimporterVisitor(GearExecutionEnvironment):
 
         client = ContextClient.create(context=context)
 
-        return REDCapimageformimporterVisitor(
+        return REDCapImageFormImporterVisitor(
             dry_run=dry_run,
             client=client,
             parameter_store=parameter_store,
@@ -101,8 +101,8 @@ class REDCapimageformimporterVisitor(GearExecutionEnvironment):
 
 def main():
     """Main method for REDCap image form importer."""
-    GearEngine().create_with_parameter_store().run(
-        gear_type=REDCapimageformimporterVisitor
+    GearEngine.create_with_parameter_store().run(
+        gear_type=REDCapImageFormImporterVisitor
     )
 
 
