@@ -1,7 +1,8 @@
 """Defines REDCap image form importer."""
 
+import json
 import logging
-import sys
+from typing import NoReturn
 
 from flywheel.models.container_output import ContainerOutput
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -10,7 +11,6 @@ from gear_execution.gear_execution import GearExecutionError
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_project import REDCapProject
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
 pass_tag = "redcap-image-form-importer-PASS"
@@ -29,7 +29,7 @@ def tag_pass(session: ContainerOutput) -> None:
         session.add_tag(pass_tag)
 
 
-def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> None:
+def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> NoReturn:
     """Handles gear-related tagging upon failure and raises an error.
 
     Args:
@@ -92,25 +92,25 @@ mri_variables_to_import: list[str] = [
 
 def format_variables_for_session(
     redcap_variables_to_import: list, redcap_record: dict[str, str]
-) -> str:
-    """Generates a formatted string for the specified variables that are
-    available in the REDCap record.
+) -> dict[str, str]:
+    """Collects the specified variables that are available in the REDCap
+    record.
 
     Args:
-        redcap_variable: the name of the REDCap variable to check
+        redcap_variables_to_import: list of REDCap variable names to collect
         redcap_record: the session's record grabbed from REDCap
 
     Returns:
-        A formatted string that defines the specified variables
+        A dict of variable name to value for variables present in the record
     """
-    string_to_return = ""
+    collected: dict[str, str] = {}
     for var in redcap_variables_to_import:
         if var in redcap_record:
             log.info(f'  {var}: "{redcap_record[var]}"')
-            string_to_return += '    "' + var + '":"' + redcap_record[var] + '",\n'
+            collected[var] = redcap_record[var]
         else:
             log.info(f"  {var}: <missing>")
-    return string_to_return
+    return collected
 
 
 def verify_import_permitted(
@@ -163,19 +163,21 @@ def import_content_from_redcap_to_flywheel(
         session: target Flywheel session
         output_dir: directory to write output submission form to
     """
-    content_to_import = "{\n" + format_variables_for_session(
-        all_types_variables_to_import, redcap_record
+    content: dict[str, str] = {}
+    content.update(
+        format_variables_for_session(all_types_variables_to_import, redcap_record)
     )
 
     if redcap_record["imagetype"] == "1":  # PET
-        content_to_import += format_variables_for_session(
-            pet_variables_to_import, redcap_record
+        content.update(
+            format_variables_for_session(pet_variables_to_import, redcap_record)
         )
     elif redcap_record["imagetype"] == "2":  # MRI
-        content_to_import += format_variables_for_session(
-            mri_variables_to_import, redcap_record
+        content.update(
+            format_variables_for_session(mri_variables_to_import, redcap_record)
         )
-    content_to_import = content_to_import.rstrip(",\n") + "\n}"
+
+    content_to_import = json.dumps(content, indent=4)
 
     log.info(
         f"Content to import for {session.label}_image-submission-form.json:\n"
@@ -195,6 +197,47 @@ def import_content_from_redcap_to_flywheel(
         with open(out_json_name, "w") as output_json:
             output_json.write(content_to_import)
         tag_pass(session)
+
+
+def verify_flywheel_matches_redcap(
+    dry_run: bool,
+    session: ContainerOutput,
+    fw_record: FlywheelREDCapImageForm,
+    redcap_record: dict[str, str],
+) -> None:
+    """Verifies that Flywheel session data matches the REDCap record.
+
+    Args:
+        dry_run: flag for dry run (data collected but no modifications)
+        session: target Flywheel session
+        fw_record: form data collected from Flywheel
+        redcap_record: the session's record from REDCap
+
+    Raises:
+        GearExecutionError on mismatch or missing data
+    """
+    fw_record_dict = fw_record.model_dump(exclude_none=True)
+    for var in fw_record.required_fields:
+        if (
+            var == "redcap_data_access_group"
+            and fw_record_dict.get(var) == ""
+            and fw_record_dict.get("adcid") == 0
+        ):
+            log.info(f"Note: skipping agreement of {var} for test center")
+            continue
+        if var not in fw_record_dict:
+            tag_fail(
+                dry_run,
+                session,
+                f"Missing {var} from Flywheel session data",
+            )
+        if str(fw_record_dict[var]) != redcap_record[var]:
+            tag_fail(
+                dry_run,
+                session,
+                f"Mismatch for {var}: FW gives '{fw_record_dict[var]}' "
+                f"but REDCap gives '{redcap_record[var]}'",
+            )
 
 
 def run(
@@ -269,23 +312,7 @@ def run(
         dry_run, session, redcap_record, "image_submission_ecrf_complete", 2
     )
 
-    fw_record = FlywheelREDCapImageForm(session, proxy)
-    fw_record_dict: dict[str, str] = {}
-    fw_record_dict.update(fw_record)
-    for var in fw_record.all_types_variables_to_check:
-        if (
-            var == "redcap_data_access_group"
-            and fw_record_dict[var] == ""
-            and fw_record_dict["adcid"] == 0
-        ):
-            log.info(f"Note: skipping agreement of {var} for test center")
-            continue
-        if str(fw_record_dict[var]) != redcap_record[var]:
-            tag_fail(
-                dry_run,
-                session,
-                f"Mismatch for {var}: FW gives '{fw_record_dict[var]}' "
-                f"but REDCap gives '{redcap_record[var]}'",
-            )
+    fw_record = FlywheelREDCapImageForm.from_session(session, proxy)
+    verify_flywheel_matches_redcap(dry_run, session, fw_record, redcap_record)
 
     import_content_from_redcap_to_flywheel(dry_run, redcap_record, session, output_dir)
