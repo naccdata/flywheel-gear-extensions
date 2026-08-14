@@ -1,90 +1,57 @@
 import logging
-import sys
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
 from flywheel.models.file_entry import FileEntry
+from pydantic import BaseModel, ConfigDict
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-class FlywheelREDCapImageForm:
-    """Class for collecting and storing Flywheel data for the REDCap image
-    form."""
+class FlywheelREDCapImageForm(BaseModel):
+    """Collects and stores Flywheel data for the REDCap image form."""
 
-    def __init__(self, session: ContainerOutput, proxy: FlywheelProxy):
-        self.__image_form: dict[str, str] = {}
-        self.__construct_session_info_for_redcap(session, proxy)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def __getitem__(self, key):
-        return self.__image_form[key]
-
-    def __setitem__(self, key, item):
-        self.__image_form[key] = item
-
-    def __len__(self):
-        return len(self.__image_form)
-
-    def __repr__(self):
-        return repr(self.__image_form)
-
-    def __delitem__(self, key):
-        del self.__image_form[key]
-
-    def clear(self):
-        return self.__image_form.clear()
-
-    def copy(self):
-        return self.__image_form.copy()
-
-    def get(self, item):
-        return self.__image_form.get(item)
-
-    def has_key(self, k):
-        return k in self.__image_form
-
-    def update(self, *args, **kwargs):
-        return self.__image_form.update(*args, **kwargs)
-
-    def keys(self):
-        return self.__image_form.keys()
-
-    def values(self):
-        return self.__image_form.values()
-
-    def items(self):
-        return self.__image_form.items()
-
-    def pop(self, *args):
-        return self.__image_form.pop(*args)
-
-    def __contains__(self, item):
-        return item in self.__image_form
-
-    def __iter__(self):
-        return iter(self.__image_form)
+    adcid: Optional[int] = None
+    fw_session_label: Optional[str] = None
+    fwid: Optional[str] = None
+    imagetype: Optional[int] = None
+    naccid: Optional[str] = None
+    ptid: Optional[str] = None
+    redcap_data_access_group: Optional[str] = None
+    scandt: Optional[str] = None
+    scanstart: Optional[str] = None
+    upload_date: Optional[str] = None
+    uploader_email: Optional[str] = None
+    uploader_fullname: Optional[str] = None
+    fw_mri_series: Optional[str] = None
 
     # keys are Flywheel's two-character modality
-    # values are NACC's three-character imagetype
-    __imagetype_from_modality: ClassVar[dict] = {
-        "PT": 1,  # 'PET'
-        "MR": 2,  # 'MRI',
+    # values are NACC's imagetype code
+    _imagetype_from_modality: ClassVar[dict[str, int]] = {
+        "PT": 1,  # PET
+        "MR": 2,  # MRI
     }
 
     # keys are REDCap image form variables
     # values are DICOM tag names
-    __pet_tag_for_variable: ClassVar[dict] = {
+    _pet_tag_for_variable: ClassVar[dict[str, str]] = {
         "emission_start_time": "AcquisitionTime",
         "tracer_dose_assay": "RadionuclideTotalDose",
         "tracer_inj_time": "RadiopharmaceuticalStartDateTime",
     }
 
-    # list of REDCap image form variables that could be assigned by this class
-    all_types_variables_to_check = (
+    # PET-specific fields stored as extra data
+    emission_start_time: Optional[str] = None
+    tracer_dose_assay: Optional[str] = None
+    tracer_inj_time: Optional[str] = None
+
+    # Fields that must be present for a successful export
+    required_fields: ClassVar[list[str]] = [
         "adcid",
         "fw_session_label",
         "fwid",
@@ -97,17 +64,75 @@ class FlywheelREDCapImageForm:
         "upload_date",
         "uploader_email",
         "uploader_fullname",
-    )
+    ]
 
-    def __find_flywheel_origin_user_id(
+    @classmethod
+    def from_session(
+        cls, session: ContainerOutput, proxy: FlywheelProxy
+    ) -> "FlywheelREDCapImageForm":
+        """Constructs a FlywheelREDCapImageForm by collecting data from a
+        Flywheel session and its acquisitions.
+
+        Args:
+            session: the target Flywheel session
+            proxy: the proxy for the Flywheel instance
+
+        Returns:
+            A populated FlywheelREDCapImageForm instance
+        """
+        form = cls()
+        form._collect_session_info(session, proxy)
+        return form
+
+    def check_required_fields(self) -> list[str]:
+        """Returns the list of required fields that are missing (None).
+
+        Returns:
+            list of field names that are None
+        """
+        missing = []
+        for field_name in self.required_fields:
+            if getattr(self, field_name) is None:
+                missing.append(field_name)
+        return missing
+
+    def _set_or_agree(
+        self,
+        conflicts: dict[str, str],
+        field_name: str,
+        value: Any,
+        info_context: str,
+    ) -> None:
+        """Sets the given field to the given value, tracking if there is a
+        conflicting value already present.
+
+        Args:
+            conflicts: dict with field names as keys and conflict descriptions
+            field_name: the field to set
+            value: value to assign
+            info_context: describes the source for conflict messages
+        """
+        current = getattr(self, field_name)
+        if current is None:
+            setattr(self, field_name, value)
+        elif current != value:
+            conflict_str = (
+                f'; Expected "{current}" not "{value}" '
+                f"for {field_name} from {info_context}"
+            )
+            if field_name in conflicts:
+                conflicts[field_name] += "; " + conflict_str
+            else:
+                conflicts[field_name] = conflict_str
+
+    def _find_flywheel_origin_user_id(
         self, flywheel_obj, proxy: FlywheelProxy
     ) -> Optional[str]:
-        """Treats cases for finding the user_id associated with a Flywheel
-        object.
+        """Finds the user_id associated with a Flywheel object's origin.
 
         Args:
             flywheel_obj: target Flywheel object
-            proxy: proxy: the proxy for the Flywheel instance
+            proxy: the proxy for the Flywheel instance
 
         Returns:
             string for user_id, if found; otherwise None
@@ -126,35 +151,7 @@ class FlywheelREDCapImageForm:
             case _:
                 return None
 
-    def __set_or_agree(
-        self,
-        conflicts: dict[str, str],
-        key_to_set: str,
-        val_to_set: str,
-        info_context: str,
-    ) -> None:
-        """Sets the given key to the given value, tracking if there is a
-        conflicting value already present.
-
-        Args:
-            conflicts: dict with keys of variables and values of conflict context(s)
-            key_to_set: variable name that is used as a key
-            val_to_set: value to associate with the key
-            info_context: informational string describing the context of the source
-        """
-        if key_to_set not in self:
-            self[key_to_set] = val_to_set
-        elif self[key_to_set] != val_to_set:
-            conflict_str = (
-                f'; Expected "{self[key_to_set]}" not "{val_to_set}" '
-                + f"for {key_to_set} from {info_context}"
-            )
-            if key_to_set in conflicts:
-                conflicts[key_to_set] = conflicts[key_to_set] + "; " + conflict_str
-            else:
-                conflicts[key_to_set] = conflict_str
-
-    def __collect_classification(
+    def _collect_classification(
         self, file: FileEntry, fw_mri_series: list[str]
     ) -> None:
         """Collects the classification output from the File Classifier gear.
@@ -165,7 +162,6 @@ class FlywheelREDCapImageForm:
         """
         if file.get("classification"):
             classifications = []
-            # file.classification options: Features, Intent, and Measurement
             for classification_key in ["Measurement", "Intent"]:
                 if file.classification.get(classification_key):
                     classifications.extend(
@@ -190,49 +186,52 @@ class FlywheelREDCapImageForm:
                 "no_classification:" + file.info["header"]["dicom"]["SeriesDescription"]
             )
 
-    def __inspect_acquisition(
+    def _inspect_acquisition(
         self,
         fw_mri_series: list[str],
-        conflicts: dict,
+        conflicts: dict[str, str],
         acq: Acquisition,
         proxy: FlywheelProxy,
     ) -> None:
-        """Inspects the given acquisition to extract information for the form.
+        """Inspects an acquisition to extract information for the form.
 
         Args:
             fw_mri_series: list of classifications for MRI series
-            conflicts: dict with keys of variables and values of conflict context(s)
+            conflicts: dict tracking field conflicts
             acq: target Flywheel acquisition
             proxy: the proxy for the Flywheel instance
         """
         log.info(f"  Found acquisition: {acq.label}")
         for file in acq.files:
-            file = file.reload()  # needed to populate file.info
-            user_id = self.__find_flywheel_origin_user_id(file, proxy)
+            reloaded_file = file.reload()
+            user_id = self._find_flywheel_origin_user_id(reloaded_file, proxy)
             if user_id is not None:
-                self.__set_or_agree(
-                    conflicts, "uploader_email", user_id, f"origin['id'] in {file.name}"
+                self._set_or_agree(
+                    conflicts,
+                    "uploader_email",
+                    user_id,
+                    f"origin['id'] in {reloaded_file.name}",
                 )
-            self.__set_or_agree(
+            self._set_or_agree(
                 conflicts,
                 "imagetype",
-                self.__imagetype_from_modality[file.modality],
-                f"file.modality in {file.name}",
+                self._imagetype_from_modality[reloaded_file.modality],
+                f"file.modality in {reloaded_file.name}",
             )
-            if "StudyDate" in file.info["header"]["dicom"]:
-                studydt = file.info["header"]["dicom"]["StudyDate"]
+            if "StudyDate" in reloaded_file.info["header"]["dicom"]:
+                studydt = reloaded_file.info["header"]["dicom"]["StudyDate"]
                 studydt = studydt[:4] + "-" + studydt[4:6] + "-" + studydt[6:]
-                self.__set_or_agree(
+                self._set_or_agree(
                     conflicts,
                     "scandt",
                     studydt,
-                    f"file.info['header']['dicom']['StudyDate'] in {file.name}",
+                    "file.info['header']['dicom']['StudyDate']"
+                    f" in {reloaded_file.name}",
                 )
-            if file.modality == "PT":
-                for pet_var, pet_tag in self.__pet_tag_for_variable.items():
-                    if pet_tag in file.info["header"]["dicom"]:
-                        variable_value = file.info["header"]["dicom"][pet_tag]
-                        # times given as HHMMSS or HHMMSS.ss... but need HH:MM:SS
+            if reloaded_file.modality == "PT":
+                for pet_var, pet_tag in self._pet_tag_for_variable.items():
+                    if pet_tag in reloaded_file.info["header"]["dicom"]:
+                        variable_value = reloaded_file.info["header"]["dicom"][pet_tag]
                         if pet_var.endswith("_time"):
                             variable_value = variable_value.split(".")[0]
                             variable_value = (
@@ -242,44 +241,48 @@ class FlywheelREDCapImageForm:
                                 + ":"
                                 + variable_value[4:6]
                             )
-                        self.__set_or_agree(
+                        self._set_or_agree(
                             conflicts,
                             pet_var,
                             variable_value,
-                            f"file.info['header']['dicom']['{pet_var}'] in {file.name}",
+                            "file.info['header']['dicom']"
+                            f"['{pet_var}']"
+                            f" in {reloaded_file.name}",
                         )
-            elif file.modality == "MR":
-                self.__collect_classification(file, fw_mri_series)
+            elif reloaded_file.modality == "MR":
+                self._collect_classification(reloaded_file, fw_mri_series)
 
-    def __inspect_acquisitions(
+    def _inspect_acquisitions(
         self, session: ContainerOutput, proxy: FlywheelProxy
     ) -> None:
-        """Inspects the acquisitions in the given session to extract
-        information for the form.
+        """Inspects the acquisitions in the session to extract form data.
 
         Args:
             session: the target Flywheel session
             proxy: the proxy for the Flywheel instance
         """
         fw_mri_series: list[str] = []
-        conflicts: dict[
-            str, str
-        ] = {}  # keys are REDCap variables and values are conflict context(s)
+        conflicts: dict[str, str] = {}
         for acq in session.acquisitions():
-            self.__inspect_acquisition(fw_mri_series, conflicts, acq, proxy)
-        for key, reason in conflicts.items():
-            log.warning(f"{key}: {reason}")
-            self[key] = None
-        if "scandt" not in self:
+            self._inspect_acquisition(fw_mri_series, conflicts, acq, proxy)
+        for field_name, reason in conflicts.items():
+            log.warning(f"{field_name}: {reason}")
+            # Setting to None causes check_required_fields() to flag
+            # this field as missing, which fails the gear with a clear
+            # "missing information" error.
+            setattr(self, field_name, None)
+        if self.scandt is None:
             log.warning("No scandt found from any acquisition")
         if fw_mri_series:
-            self["fw_mri_series"] = ";".join(fw_mri_series)
+            self.fw_mri_series = ";".join(fw_mri_series)
 
-    def __construct_session_info_for_redcap(
+    def _collect_session_info(
         self, session: ContainerOutput, proxy: FlywheelProxy
     ) -> None:
-        """Collects all session information for the REDCap form; does not find
-        or define record_id because record_id needs special treatment.
+        """Collects all session information for the REDCap form.
+
+        Does not find or define record_id because record_id needs
+        special treatment.
 
         Args:
             session: the target Flywheel session
@@ -289,7 +292,7 @@ class FlywheelREDCapImageForm:
 
         if "pipeline_adcid" in fw_proj.info:
             if isinstance(fw_proj.info["pipeline_adcid"], int):
-                self["adcid"] = fw_proj.info["pipeline_adcid"]
+                self.adcid = fw_proj.info["pipeline_adcid"]
             else:
                 log.warning(
                     "Expected adcid to be int, "
@@ -299,53 +302,52 @@ class FlywheelREDCapImageForm:
         else:
             log.warning(
                 "Expected pipeline_adcid key in custom information "
-                f"from project {fw_proj.label} for session {session.label}"
+                f"from project {fw_proj.label} for session "
+                f"{session.label}"
             )
 
         if "redcap_data_access_group" in fw_proj.info:
             if isinstance(fw_proj.info["redcap_data_access_group"], str):
-                self["redcap_data_access_group"] = fw_proj.info[
-                    "redcap_data_access_group"
-                ]
+                self.redcap_data_access_group = fw_proj.info["redcap_data_access_group"]
             else:
                 log.warning(
                     "Expected redcap_data_access_group to be str, "
-                    f"not {type(fw_proj.info['redcap_data_access_group'])} "
-                    f"for {fw_proj.info['redcap_data_access_group']}"
+                    "not "
+                    f"{type(fw_proj.info['redcap_data_access_group'])}"
+                    " for "
+                    f"{fw_proj.info['redcap_data_access_group']}"
                 )
         else:
             log.warning(
-                "Expected redcap_data_access_group key in custom information "
-                f"from project {fw_proj.label} for session {session.label}"
+                "Expected redcap_data_access_group key in custom "
+                f"information from project {fw_proj.label} for "
+                f"session {session.label}"
             )
 
         subject = session.subject
         if "naccid" in subject.info:
-            self["naccid"] = session.subject.info["naccid"]
+            self.naccid = session.subject.info["naccid"]
         else:
             log.warning("Expected entry for naccid in subject.info")
         if session.timestamp:
-            self["scanstart"] = session.timestamp.strftime("%H:%M:%S")
+            self.scanstart = session.timestamp.strftime("%H:%M:%S")
         if session.created:
-            self["upload_date"] = session.created.strftime("%Y-%m-%d")
-        self.update(
-            {
-                "fw_session_label": session.label,
-                "fwid": session.id,
-                "ptid": session.subject.label,
-            }
-        )
+            self.upload_date = session.created.strftime("%Y-%m-%d")
 
-        self.__inspect_acquisitions(session, proxy)
-        if "uploader_email" in self:
-            user = proxy.find_user(self["uploader_email"])
+        self.fw_session_label = session.label
+        self.fwid = session.id
+        self.ptid = session.subject.label
+
+        self._inspect_acquisitions(session, proxy)
+        if self.uploader_email:
+            user = proxy.find_user(self.uploader_email)
             if user is None:
                 log.warning(
                     "Unable to determine uploader_fullname from "
-                    f"email {self['uploader_email']}"
+                    f"email {self.uploader_email}"
                 )
             else:
-                self["uploader_fullname"] = (
+                self.uploader_fullname = (
                     (user.firstname or "") + " " + (user.lastname or "")
                 )
         else:

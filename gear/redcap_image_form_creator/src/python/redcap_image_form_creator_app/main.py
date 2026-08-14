@@ -3,7 +3,6 @@
 import json
 import logging
 import re
-import sys
 from time import sleep
 from typing import NoReturn, Optional
 
@@ -14,7 +13,6 @@ from gear_execution.gear_execution import GearExecutionError
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_project import REDCapProject
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
 pass_tag = "redcap-image-form-creator-PASS"
@@ -56,6 +54,10 @@ def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> NoReturn:
 
 def get_record_id_suffix(session: ContainerOutput, proxy: FlywheelProxy) -> int:
     """Determines the lowest suffix (>=1) that is greater than all others.
+
+    Iterates all sessions in the project, making one API call per session
+    to fetch custom info. This is O(n) in project size; expected to be
+    acceptable for imaging projects with tens to low hundreds of sessions.
 
     Args:
         session: target Flywheel session
@@ -170,6 +172,10 @@ def ensure_record_id_is_unique(
                     f" ({ses.id})"
                 )
                 if int(ses.id, 16) < int(session.id, 16):
+                    # Deterministic tiebreaker: the session with the higher
+                    # hex ID yields by picking a new record_id; the lower
+                    # hex ID waits. This ensures exactly one of two concurrent
+                    # sessions will back off without coordination.
                     record_id = compose_record_id(dry_run, adcid, session, proxy)
                     log.info(f"Trying new record_id {record_id}")
                     able_to_confirm_record_id = False
@@ -250,12 +256,14 @@ def import_new_record_for_session(
         GearExecutionError if a unique record_id cannot be secured
     """
 
+    assert session_info_to_import.adcid is not None
     record_id = generate_unique_record_id(
-        dry_run, session, proxy, session_info_to_import["adcid"]
+        dry_run, session, proxy, session_info_to_import.adcid
     )
-    final_session_info_to_import = {}
-    final_session_info_to_import["record_id"] = record_id
-    final_session_info_to_import.update(session_info_to_import)
+    final_session_info_to_import: dict = {"record_id": record_id}
+    final_session_info_to_import.update(
+        session_info_to_import.model_dump(exclude_none=True)
+    )
     log.info("final session_info_to_import:")
     for key, val in final_session_info_to_import.items():
         log.info(f"\t{key}: {val}")
@@ -316,13 +324,11 @@ def run(
     if session.info.get("record_id"):
         log.info(f"Note previous record_id for session is {session.info['record_id']}")
 
-    session_info_to_import = FlywheelREDCapImageForm(session, proxy)
-    missed_some_key = False
-    for key_check in session_info_to_import.all_types_variables_to_check:
-        if session_info_to_import.get(key_check) is None:
-            log.warning(f"Missing {key_check}")
-            missed_some_key = True
-    if missed_some_key:
+    session_info_to_import = FlywheelREDCapImageForm.from_session(session, proxy)
+    missing_fields = session_info_to_import.check_required_fields()
+    if missing_fields:
+        for field_name in missing_fields:
+            log.warning(f"Missing {field_name}")
         tag_fail(
             dry_run, session, f"Missing information for {session.label} ({session.id})"
         )
