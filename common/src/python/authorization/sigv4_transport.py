@@ -51,7 +51,10 @@ class SigV4Transport:
         self._base_url = base_url.rstrip("/")
         self._session = Session()
         self._region = region or self._session.get_config_variable("region")
-        self._credentials = self._session.get_credentials()
+        credentials = self._session.get_credentials()
+        if credentials is None:
+            raise RuntimeError("Unable to resolve AWS credentials for SigV4 signing")
+        self._credentials = credentials
         self._timeout = timeout
 
     def request(
