@@ -2,6 +2,16 @@
 
 from dataclasses import dataclass, field
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _aws_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Set dummy AWS credentials so SigV4Transport can be instantiated."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+
 
 @dataclass
 class MockResponse:
