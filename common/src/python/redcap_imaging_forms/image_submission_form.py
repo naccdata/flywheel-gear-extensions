@@ -4,15 +4,15 @@ from typing import Any, ClassVar, Optional
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
 from flywheel.models.file_entry import FileEntry
-from pydantic import BaseModel, ConfigDict
-
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from pydantic import BaseModel, ConfigDict
 
 log = logging.getLogger(__name__)
 
 
-class FlywheelREDCapImageForm(BaseModel):
-    """Collects and stores Flywheel data for the REDCap image form."""
+class ImageSubmissionForm(BaseModel):
+    """Collects and stores Flywheel data for the REDCap Image Submission EDC
+    form."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -69,16 +69,16 @@ class FlywheelREDCapImageForm(BaseModel):
     @classmethod
     def from_session(
         cls, session: ContainerOutput, proxy: FlywheelProxy
-    ) -> "FlywheelREDCapImageForm":
-        """Constructs a FlywheelREDCapImageForm by collecting data from a
-        Flywheel session and its acquisitions.
+    ) -> "ImageSubmissionForm":
+        """Constructs an ImageSubmissionForm by collecting data from a Flywheel
+        session and its acquisitions.
 
         Args:
             session: the target Flywheel session
             proxy: the proxy for the Flywheel instance
 
         Returns:
-            A populated FlywheelREDCapImageForm instance
+            A populated ImageSubmissionForm instance
         """
         form = cls()
         form._collect_session_info(session, proxy)
