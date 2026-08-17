@@ -8,10 +8,10 @@ from typing import NoReturn, Optional
 
 from flywheel.models.container_output import ContainerOutput
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.flywheel_redcap_image_form import FlywheelREDCapImageForm
 from gear_execution.gear_execution import GearExecutionError
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_project import REDCapProject
+from redcap_imaging_forms.image_submission_form import ImageSubmissionForm
 
 log = logging.getLogger(__name__)
 
@@ -239,7 +239,7 @@ def generate_unique_record_id(
 def import_new_record_for_session(
     dry_run: bool,
     redcap_con: REDCapConnection,
-    session_info_to_import: FlywheelREDCapImageForm,
+    session_info_to_import: ImageSubmissionForm,
     session: ContainerOutput,
     proxy: FlywheelProxy,
 ) -> None:
@@ -324,7 +324,7 @@ def run(
     if session.info.get("record_id"):
         log.info(f"Note previous record_id for session is {session.info['record_id']}")
 
-    session_info_to_import = FlywheelREDCapImageForm.from_session(session, proxy)
+    session_info_to_import = ImageSubmissionForm.from_session(session, proxy)
     missing_fields = session_info_to_import.check_required_fields()
     if missing_fields:
         for field_name in missing_fields:

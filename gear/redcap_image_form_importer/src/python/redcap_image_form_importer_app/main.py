@@ -6,10 +6,10 @@ from typing import NoReturn
 
 from flywheel.models.container_output import ContainerOutput
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from flywheel_adaptor.flywheel_redcap_image_form import FlywheelREDCapImageForm
 from gear_execution.gear_execution import GearExecutionError
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_project import REDCapProject
+from redcap_imaging_forms.image_submission_form import ImageSubmissionForm
 
 log = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ def import_content_from_redcap_to_flywheel(
 def verify_flywheel_matches_redcap(
     dry_run: bool,
     session: ContainerOutput,
-    fw_record: FlywheelREDCapImageForm,
+    fw_record: ImageSubmissionForm,
     redcap_record: dict[str, str],
 ) -> None:
     """Verifies that Flywheel session data matches the REDCap record.
@@ -312,7 +312,7 @@ def run(
         dry_run, session, redcap_record, "image_submission_ecrf_complete", 2
     )
 
-    fw_record = FlywheelREDCapImageForm.from_session(session, proxy)
+    fw_record = ImageSubmissionForm.from_session(session, proxy)
     verify_flywheel_matches_redcap(dry_run, session, fw_record, redcap_record)
 
     import_content_from_redcap_to_flywheel(dry_run, redcap_record, session, output_dir)
