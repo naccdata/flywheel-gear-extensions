@@ -8,6 +8,7 @@ from flywheel.models.container_output import ContainerOutput
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from redcap_api.redcap_connection import REDCapConnection
+from redcap_api.redcap_module_connection import REDCapModuleConnection
 from redcap_api.redcap_project import REDCapProject
 from redcap_imaging_forms.image_submission_form import ImageSubmissionForm
 
@@ -240,22 +241,122 @@ def verify_flywheel_matches_redcap(
             )
 
 
+def get_redcap_record(
+    dry_run: bool,
+    redcap_proj: REDCapProject,
+    record_id: str,
+    session: ContainerOutput,
+) -> dict[str, str]:
+    """Gets the REDCap record for the target record_id.
+
+    Args:
+        dry_run: flag for dry run (data collected but no modifications)
+        redcap_proj: the REDCap project
+        record_id: the target record identifier
+        session: target Flywheel session
+
+    Returns:
+        The REDCap record
+    """
+    redcap_record_list = redcap_proj.export_records(record_ids=[record_id])
+    if len(redcap_record_list) != 1:
+        tag_fail(
+            dry_run,
+            session,
+            f"Expected exactly one record for {record_id}, "
+            f"but got {len(redcap_record_list)}",
+        )
+    redcap_record = redcap_record_list[0]
+    if isinstance(redcap_record, str):
+        tag_fail(
+            dry_run, session, f"Expected dict from REDCap but got '{redcap_record}'"
+        )
+    assert isinstance(redcap_record, dict), (
+        "variable redcap_record from REDCap must be a dict"
+    )
+    return redcap_record
+
+
+def record_is_locked(redcap_lock_con: REDCapModuleConnection, record_id: str) -> bool:
+    """Determines lock status for the target record.
+
+    Args:
+        redcap_lock_con: the connection to the REDCap module
+        record_id: the target record identifier
+    Returns:
+        True if record is locked and False if it is unlocked
+    """
+    lock_data = {"record": record_id, "lock_record_level": "true"}
+    lock_status_list = redcap_lock_con.post_module_request(
+        action_page="status", data=lock_data
+    )
+    if not lock_status_list:
+        return False
+    if isinstance(lock_status_list, str):
+        log.warning(
+            f"Received '{lock_status_list}' when requesting status for {record_id}"
+        )
+        return False
+    if len(lock_status_list) > 1:
+        log.warning(
+            f"Received multiple REDCap entries for {record_id}"
+            " -- inspecting only the first"
+        )
+    if lock_status_list[0].get("locked"):
+        return lock_status_list[0]["locked"] == "1"
+    return False
+
+
+def lock_redcap_record(redcap_lock_con: REDCapModuleConnection, record_id: str) -> None:
+    """Locks the target record.
+
+    Args:
+        redcap_lock_con: the connection to the REDCap module
+        record_id: the target record identifier
+    """
+    log.info(f"Locking {record_id}")
+    lock_data = {"record": record_id, "lock_record_level": "true"}
+    lock_lock_list = redcap_lock_con.post_module_request(
+        action_page="lock", data=lock_data
+    )
+    if not lock_lock_list:
+        log.warning(f"Nothing returned from posting lock request for {record_id}")
+    elif isinstance(lock_lock_list, str):
+        log.warning(
+            f"Received '{lock_lock_list}' when requesting status for {record_id}"
+        )
+    else:
+        if len(lock_lock_list) > 1:
+            log.warning(
+                f"Received multiple REDCap entries for {record_id}"
+                " -- inspecting only the first"
+            )
+        if lock_lock_list[0].get("locked"):
+            if lock_lock_list[0]["locked"] != "1":
+                log.warning(f"{record_id} still not locked")
+        else:
+            log.warning(f"Unable to confirm lock for {record_id}")
+
+
 def run(
     *,
     dry_run: bool,
+    lock_record: bool,
     session_id: str,
     output_dir: str,
     redcap_con: REDCapConnection,
+    redcap_lock_con: REDCapModuleConnection | None,
     proxy: FlywheelProxy,
 ):
     """Runs the REDCap Image Form Importer process, collecting the available
     information from REDCap to be imported into the Flywheel session.
 
     Args:
-        dry_run: flag for dry run (data collected but no modifications)
+        dry_run: flag for dry run (data collected but no modification/import or locking)
         session_id: Flywheel ID for the session
         output_dir: directory to write output submission form file to
         redcap_con: API connection to REDCap project
+        redcap_lock_con: API connection to REDCap locking module for the project
         proxy: the proxy for the Flywheel instance
 
     Raises:
@@ -287,22 +388,7 @@ def run(
         f"Connected to REDCapProject with pid {redcap_proj.pid} "
         f"and title {redcap_proj.title}"
     )
-    redcap_record_list = redcap_proj.export_records(record_ids=[record_id])
-    if len(redcap_record_list) != 1:
-        tag_fail(
-            dry_run,
-            session,
-            f"Expected exactly one record for {record_id}, "
-            f"but got {len(redcap_record_list)}",
-        )
-    redcap_record = redcap_record_list[0]
-    if isinstance(redcap_record, str):
-        tag_fail(
-            dry_run, session, f"Expected dict from REDCap but got '{redcap_record}'"
-        )
-    assert isinstance(redcap_record, dict), (
-        "variable redcap_record from REDCap must be a dict"
-    )
+    redcap_record = get_redcap_record(dry_run, redcap_proj, record_id, session)
 
     # 2 for pass
     verify_import_permitted(dry_run, session, redcap_record, "pass_criteria", 2)
@@ -311,6 +397,18 @@ def run(
     verify_import_permitted(
         dry_run, session, redcap_record, "image_submission_ecrf_complete", 2
     )
+
+    if lock_record:
+        assert redcap_lock_con is not None, (
+            "REDCapModuleConnection redcap_lock_con must not be None in order to lock"
+            " the record"
+        )
+        if record_is_locked(redcap_lock_con, record_id):
+            log.info(f"REDCap record for {record_id} is already locked")
+        elif dry_run:
+            log.info(f"Skipping lock of record {record_id} because of dry run")
+        else:
+            lock_redcap_record(redcap_lock_con, record_id)
 
     fw_record = ImageSubmissionForm.from_session(session, proxy)
     verify_flywheel_matches_redcap(dry_run, session, fw_record, redcap_record)

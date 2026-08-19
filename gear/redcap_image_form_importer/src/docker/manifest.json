@@ -2,7 +2,7 @@
     "name": "redcap-image-form-importer",
     "label": "REDCap Image Form Importer",
     "description": "Import image form data from REDCap back into Flywheel",
-    "version": "0.0.8",
+    "version": "0.0.19",
     "author": "NACC",
     "maintainer": "NACC <nacchelp@uw.edu>",
     "cite": "",
@@ -15,7 +15,7 @@
     "custom": {
         "gear-builder": {
             "category": "utility",
-            "image": "naccdata/redcap-image-form-importer:0.0.8"
+            "image": "naccdata/redcap-image-form-importer:0.0.19"
         },
         "flywheel": {
             "suite": "Utility",
@@ -32,6 +32,11 @@
             "description": "Whether to do a dry run",
             "type": "boolean",
             "default": false
+        },
+        "lock_record": {
+            "description": "Whether to lock the REDCap record upon confirming import is permitted",
+            "type": "boolean",
+            "default": true
         },
         "parameter_path": {
             "description": "AWS parameter path for REDCap instance",
