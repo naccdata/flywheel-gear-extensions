@@ -41,7 +41,7 @@
         "parameter_path": {
             "description": "AWS parameter path for REDCap instance",
             "type": "string",
-            "default": "/redcap/aws/image-submission-edc-test"
+            "default": "/redcap/aws/image-submission-edc"
         }
     },
     "command": "/bin/run"

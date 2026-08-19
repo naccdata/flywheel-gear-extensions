@@ -313,8 +313,6 @@ def lock_redcap_record(redcap_lock_con: REDCapModuleConnection, record_id: str) 
     Args:
         redcap_lock_con: the connection to the REDCap module
         record_id: the target record identifier
-    Returns:
-        True if record is locked and False if it is unlocked
     """
     log.info(f"Locking {record_id}")
     lock_data = {"record": record_id, "lock_record_level": "true"}
@@ -403,7 +401,7 @@ def run(
     if lock_record:
         assert redcap_lock_con is not None, (
             "REDCapModuleConnection redcap_lock_con must not be None in order to lock"
-            "the record"
+            " the record"
         )
         if record_is_locked(redcap_lock_con, record_id):
             log.info(f"REDCap record for {record_id} is already locked")
