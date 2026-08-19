@@ -15,6 +15,7 @@ from gear_execution.gear_execution import (
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterStore
 from redcap_api.redcap_connection import REDCapConnection
+from redcap_api.redcap_module_connection import REDCapModuleConnection
 from redcap_api.redcap_parameter_store import REDCapParameters
 
 from redcap_image_form_importer_app.main import run
@@ -29,12 +30,14 @@ class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
     def __init__(
         self,
         dry_run: bool,
+        lock_record: bool,
         client: ClientWrapper,
         parameter_store: ParameterStore,
         parameter_path: str,
     ):
         super().__init__(client=client)
         self.__dry_run = dry_run
+        self.__lock_record = lock_record
         self.__param_store = parameter_store
         self.__parameter_path = parameter_path
 
@@ -56,6 +59,7 @@ class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
 
         try:
             dry_run: bool = get_config(gear_context=context, key="dry_run")
+            lock_record: bool = get_config(gear_context=context, key="lock_record")
             parameter_path: str = get_config(gear_context=context, key="parameter_path")
         except ConfigParseError as error:
             raise GearExecutionError(
@@ -66,6 +70,7 @@ class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
 
         return REDCapImageFormImporterVisitor(
             dry_run=dry_run,
+            lock_record=lock_record,
             client=client,
             parameter_store=parameter_store,
             parameter_path=parameter_path,
@@ -89,11 +94,22 @@ class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
                 param_type=REDCapParameters, parameter_path=self.__parameter_path
             )
         )
+        if self.__lock_record:
+            redcap_lock_con = REDCapModuleConnection.create_from(
+                parameters=self.__param_store.get_parameters(
+                    param_type=REDCapParameters, parameter_path=self.__parameter_path
+                ),
+                module_prefix="locking_api",
+            )
+        else:
+            redcap_lock_con = None
 
         run(
             dry_run=self.__dry_run,
+            lock_record=self.__lock_record,
             session_id=session_id,
             redcap_con=redcap_con,
+            redcap_lock_con=redcap_lock_con,
             proxy=self.proxy,
             output_dir=str(context.output_dir),
         )
