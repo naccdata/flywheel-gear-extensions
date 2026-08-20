@@ -83,6 +83,10 @@ preprocess_errors = {
         "To submit an Initial UDSv4 Visit Packet (PACKET=I4), "
         "participant must have an existing UDSv3 Visit Packet"
     ),
+    SysErrorCodes.UDS_I4_REQUIRED: (
+        "Participant with an existing UDSv3 Visit Packet must use PACKET=I4 for the "
+        "Initial UDSv4 Visit Packet, PACKET=I is not accepted"
+    ),
     SysErrorCodes.MISSING_UDS_I4: (
         "Participant must have an existing Initial UDSv4 Visit Packet (PACKET=I4) "
         "submitted before the Follow-Up Visit Packet (PACKET=F)"

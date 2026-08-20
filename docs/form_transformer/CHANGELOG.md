@@ -2,11 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
-## 2.1.0
+## 2.1.0 (unreleased)
 * Captures duplicate-submit events to S3 when a visit is skipped as a duplicate
 * Adds `event_bucket` and `event_environment` config options for event capture
 * Adds `duplicate-submit` action type to visit event types
 * Refactors `CSVTransformVisitor` to remove redundant parameters
+* Rejects PACKET=I for a UDS visit when the participant has UDSv3 visits, so the
+  packet code of an existing I4 visit cannot be changed to I by a later update
 
 ## 2.0.1
 * Prevents gear crashing on data identification errors

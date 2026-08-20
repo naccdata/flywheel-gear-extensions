@@ -363,10 +363,22 @@ class FormPreprocessor:
 
         if packet in module_configs.initial_packets and initial_packet:
             # allow if this is an update to the existing initial visit packet
+            # Note: a changed packet code is deliberately allowed past this check;
+            # the validity of the new code is evaluated by the udsv4-ivp check
             if (
                 initial_packet[date_lbl] == input_record[module_configs.date_field]
                 and initial_packet[visitnum_lbl] == input_record[FieldNames.VISITNUM]
             ):
+                if initial_packet[packet_lbl] != packet:
+                    log.warning(
+                        "Packet code changed from %s to %s for existing visit "
+                        "%s - visitnum:%s",
+                        initial_packet[packet_lbl],
+                        packet,
+                        initial_packet[date_lbl],
+                        initial_packet[visitnum_lbl],
+                    )
+
                 return True
 
             # allow if this is a new I4 submission
@@ -579,7 +591,8 @@ class FormPreprocessor:
         return True
 
     def _check_udsv4_initial_visit(self, pp_context: PreprocessingContext) -> bool:
-        """Validate UDSv4 I4 packet requirements.
+        """Validate UDSv4 initial packet requirements: I4 requires an existing
+        UDSv3 visit, I is not accepted when UDSv3 visits exist.
 
         Args:
             pp_context: preprocessing context
@@ -595,10 +608,7 @@ class FormPreprocessor:
         ivp_record = pp_context.ivp_record
 
         packet = input_record[FieldNames.PACKET]
-        if self.__module != DefaultValues.UDS_MODULE or packet not in [
-            DefaultValues.UDS_I4_PACKET,
-            DefaultValues.UDS_F_PACKET,
-        ]:
+        if self.__module != DefaultValues.UDS_MODULE:
             return True
 
         legacy_module = (
@@ -626,6 +636,18 @@ class FormPreprocessor:
         )
 
         legacy_visit = legacy_visits[0] if legacy_visits else None
+
+        # A participant with UDSv3 visits must submit I4 as the initial UDSv4 packet.
+        # Evaluated on updates as well, so a packet code changed from I4 to I is
+        # rejected instead of silently overwriting the existing visit file.
+        if packet == DefaultValues.UDS_I_PACKET:
+            if legacy_visit:
+                self.__error_handler.write_packet_error(
+                    pp_context=pp_context, error_code=SysErrorCodes.UDS_I4_REQUIRED
+                )
+                return False
+
+            return True
 
         if not legacy_visit:
             # For FVP return true, since IVP check (I or I4) is done earlier
