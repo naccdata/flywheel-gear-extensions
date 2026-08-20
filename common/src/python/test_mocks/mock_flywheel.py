@@ -172,6 +172,14 @@ class MockProjectAdaptor(ProjectAdaptor):
         """Return empty list of subjects for testing."""
         return []
 
+    def find_subject(self, label: str) -> None:
+        """Return no matching subject for testing.
+
+        Overrides ProjectAdaptor.find_subject, which reaches into
+        `_project.subjects` and is not supported by MockProject.
+        """
+        return None
+
     def reload(self, *args, **kwargs):
         return self
 

@@ -3,6 +3,7 @@
 import logging
 from collections import defaultdict
 from datetime import datetime
+from enum import Enum
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
 from configs.ingest_configs import ModuleConfigs
@@ -30,6 +31,7 @@ from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     empty_field_error,
+    existing_visit_retained_error,
     missing_field_error,
     partially_failed_file_error,
     preprocess_errors,
@@ -39,9 +41,18 @@ from outputs.errors import (
 from preprocess.preprocessor import FormPreprocessor
 from pydantic import ValidationError
 from transform.transformer import BaseRecordTransformer, TransformerFactory
+from uploads.acquisition import reset_visit_qc_metadata
 from uploads.uploader import FormJSONUploader
 
 log = logging.getLogger(__name__)
+
+
+class VisitFileLookup(str, Enum):
+    """Outcome of looking up an existing acquisition file for a visit."""
+
+    FOUND = "found"  # acquisition file exists for this exact visit
+    NOT_FOUND = "not-found"  # no file, or the file is for a different visit
+    ERROR = "error"  # lookup could not be completed
 
 
 class CSVTransformVisitor(CSVVisitor):
@@ -177,7 +188,7 @@ class CSVTransformVisitor(CSVVisitor):
 
         transformed_row = self.__transformer.transform(row, line_num)
         if not transformed_row:
-            self.__update_visit_error_log(input_record=row, qc_passed=False)
+            self.__handle_rejected_visit(input_record=row, line_num=line_num)
             return False
 
         # check for duplicates (should be done after transformations)
@@ -316,13 +327,13 @@ class CSVTransformVisitor(CSVVisitor):
                     line_num=line_num,
                     ivp_record=ivp_packet,
                 ):
-                    self.__update_visit_error_log(
-                        input_record=transformed_row, qc_passed=False
-                    )
                     log.error(
                         "Failed pre-processing checks in line %s - visit date %s",
                         line_num,
                         visitdate,
+                    )
+                    self.__handle_rejected_visit(
+                        input_record=transformed_row, line_num=line_num
                     )
                     success = False
                     continue
@@ -389,6 +400,208 @@ class CSVTransformVisitor(CSVVisitor):
                 f"Failed to capture duplicate-submit event for "
                 f"ptid={ptid}, date={date}: {error}. Continuing processing."
             )
+
+    def __find_matching_acquisition(
+        self, *, input_record: Dict[str, Any]
+    ) -> tuple[VisitFileLookup, Optional[FileEntry]]:
+        """Find the existing acquisition file for the visit in the input
+        record.
+
+        Args:
+            input_record: input visit record
+
+        Returns:
+            the lookup outcome and the matching file, if one was found
+        """
+
+        if not self.__project:
+            log.warning("Parent project not specified to look up the visit file")
+            return (VisitFileLookup.ERROR, None)
+
+        subject_lbl = input_record.get(self.__id_column)
+        if not subject_lbl:
+            log.warning("Missing %s, cannot look up the visit file", self.__id_column)
+            return (VisitFileLookup.ERROR, None)
+
+        hierarchy_labels = self.__module_configs.hierarchy_labels
+        try:
+            session_label = hierarchy_labels.session.instantiate(record=input_record)
+            acq_label = hierarchy_labels.acquisition.instantiate(record=input_record)
+            filename = hierarchy_labels.filename.instantiate(
+                record=input_record,
+                environment={
+                    "subject": subject_lbl,
+                    "session": session_label,
+                    "acquisition": acq_label,
+                },
+            )
+        except (ValueError, KeyError, TypeError) as error:
+            log.warning(
+                "Failed to derive container labels for %s/%s: %s",
+                subject_lbl,
+                self.module,
+                error,
+            )
+            return (VisitFileLookup.ERROR, None)
+
+        try:
+            subject = self.__project.find_subject(label=subject_lbl)
+            if not subject:
+                return (VisitFileLookup.NOT_FOUND, None)
+
+            acq_file = subject.find_acquisition_file(
+                session_label=session_label,
+                acquisition_label=acq_label,
+                filename=filename,
+            )
+            if not acq_file:
+                return (VisitFileLookup.NOT_FOUND, None)
+
+            if not self.__acquisition_matches_visit(
+                acq_file=acq_file, input_record=input_record
+            ):
+                return (VisitFileLookup.NOT_FOUND, None)
+        except ApiException as error:
+            log.error("Error in retrieving visit file %s - %s", filename, error)
+            return (VisitFileLookup.ERROR, None)
+
+        return (VisitFileLookup.FOUND, acq_file)
+
+    def __acquisition_matches_visit(
+        self, *, acq_file: FileEntry, input_record: Dict[str, Any]
+    ) -> bool:
+        """Check whether the acquisition file is for the same visit as the
+        input record, comparing PTID, date and visit number (if applicable).
+
+        The packet code is deliberately not compared. A packet code change
+        keeps the same acquisition file name and the same error log name, so
+        those records are exactly the ones that need to match here.
+
+        Note: a missing metadata field counts as a mismatch.
+        An exact match cannot be satisfied by absent evidence.
+
+        Args:
+            acq_file: existing acquisition file for the visit
+            input_record: input visit record
+
+        Returns:
+            True if the file is for the same visit as the input record
+        """
+
+        acq_file = acq_file.reload()
+        forms_json = (acq_file.info or {}).get("forms", {}).get("json", {})
+        if not forms_json:
+            log.warning("No visit metadata found in file %s", acq_file.name)
+            return False
+
+        compare_fields = [FieldNames.PTID, self.__date_field]
+        if FieldNames.VISITNUM in self.__module_configs.required_fields:
+            compare_fields.append(FieldNames.VISITNUM)
+
+        for field in compare_fields:
+            stored = forms_json.get(field)
+            current = input_record.get(field)
+            if stored is None or current is None:
+                log.warning(
+                    "Missing %s in file %s or in the input record", field, acq_file.name
+                )
+                return False
+
+            stored_value = str(stored).strip()
+            current_value = str(current).strip()
+            if field == FieldNames.PTID:
+                stored_value = stored_value.lstrip("0")
+                current_value = current_value.lstrip("0")
+
+            if stored_value != current_value:
+                log.info(
+                    "Mismatching %s [%s != %s] in file %s",
+                    field,
+                    stored_value,
+                    current_value,
+                    acq_file.name,
+                )
+                return False
+
+        return True
+
+    def __stored_visit_passed_qc(self, acq_file: FileEntry) -> bool:
+        """Check whether the existing acquisition file passed QC checks.
+
+        Note: FileQCModel.get_file_status() reports PASS for an empty QC
+        metadata dict, so a file that has never been evaluated has to be
+        excluded before checking the status.
+
+        Args:
+            acq_file: existing acquisition file for the visit
+
+        Returns:
+            True if the file has QC metadata and all of it passed
+        """
+
+        acq_file = acq_file.reload()
+        if not acq_file.info or not acq_file.info.get("qc"):
+            log.warning("No QC metadata found in file %s", acq_file.name)
+            return False
+
+        try:
+            return FileQCModel.create(acq_file).get_file_status() == "PASS"
+        except ValidationError as error:
+            log.warning("Unexpected QC metadata in file %s: %s", acq_file.name, error)
+            return False
+
+    def __handle_rejected_visit(
+        self, *, input_record: Dict[str, Any], line_num: Optional[int] = None
+    ) -> None:
+        """Handle a rejected record for a visit that may already have an
+        acquisition file, then update the visit error log.
+
+        - If the existing visit passed QC, it is left untouched and a note is
+          added to the error message to report that it was not removed.
+        - Otherwise the QC metadata and status tags are cleared from the
+          existing visit file, so it doesn't carry a stale QC status. The visit
+          data itself is never removed.
+
+        Args:
+            input_record: rejected visit record
+            line_num (optional): line number in the CSV file
+        """
+
+        lookup_result, acq_file = self.__find_matching_acquisition(
+            input_record=input_record
+        )
+
+        visit_keys = DataIdentification.from_form_record_safe(
+            record=input_record, date_field=self.__date_field
+        )
+
+        if lookup_result == VisitFileLookup.ERROR:
+            log.error(
+                "Failed to check whether an existing visit file "
+                f"exists for row {line_num}"
+            )
+
+        if lookup_result == VisitFileLookup.FOUND:
+            assert acq_file, "matching acquisition file expected"
+            if self.__stored_visit_passed_qc(acq_file):
+                # capture the reasons before adding this note to the error writer
+                reasons = [error.message for error in self.__error_writer.errors()]
+                self.__error_writer.write(
+                    existing_visit_retained_error(
+                        filename=acq_file.name,
+                        date_field=self.__date_field,
+                        reasons=reasons,
+                        line=line_num,
+                        visit_keys=visit_keys,
+                    )
+                )
+            elif not reset_visit_qc_metadata(acq_file):
+                log.error(
+                    "Failed to reset the QC status of the existing "
+                    f"visit file {acq_file.name}"
+                )
+
+        self.__update_visit_error_log(input_record=input_record, qc_passed=False)
 
     def __get_module(self, row: Dict[str, Any]) -> str:
         """Returns the module from the row.

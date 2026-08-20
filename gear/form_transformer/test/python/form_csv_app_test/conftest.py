@@ -1,5 +1,6 @@
 """Shared test fixtures and factories for form_transformer tests."""
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Dict, Optional, Tuple
 from unittest.mock import MagicMock, Mock
@@ -7,6 +8,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 from configs.ingest_configs import ModuleConfigs
 from event_capture.event_capture import VisitEventCapture
+from flywheel.rest import ApiException
 from form_csv_app.main import CSVTransformVisitor
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
@@ -142,6 +144,156 @@ def _create_visitor_with_mocks(
     return visitor, mock_preprocessor
 
 
+def _create_np_module_configs() -> ModuleConfigs:
+    """Create ModuleConfigs for a date-keyed module without visitnum."""
+    module_configs = {
+        "hierarchy_labels": {
+            "session": {"template": "NP-RECORD-${npformdate}", "transform": "upper"},
+            "acquisition": {"template": "${module}", "transform": "upper"},
+            "filename": {
+                "template": "${subject}_${session}_${acquisition}.json",
+                "transform": "upper",
+            },
+        },
+        "required_fields": ["ptid", "adcid", "npformdate", "module"],
+        "initial_packets": ["NP"],
+        "followup_packets": [],
+        "versions": ["11.0"],
+        "date_field": "npformdate",
+        "preprocess_checks": ["duplicate-record"],
+    }
+    return ModuleConfigs.model_validate(module_configs)
+
+
+def _create_visit_file_mock(
+    *,
+    forms_json: Optional[Dict[str, Any]] = None,
+    qc: Optional[Dict[str, Any]] = None,
+    tags: Optional[list] = None,
+    name: str = "NACC000001_FORMS-VISIT-2_UDS.json",
+    include_forms: bool = True,
+    info: Optional[Dict[str, Any]] = None,
+) -> Mock:
+    """Create a mock acquisition file for an existing visit.
+
+    Args:
+        forms_json: contents of file.info.forms.json
+        qc: contents of file.info.qc, omitted when None
+        tags: file tags
+        name: file name
+        include_forms: whether to include the forms key in file.info
+        info: use this file.info verbatim, ignoring the other arguments
+
+    Returns:
+        the mock file object
+    """
+    if info is None:
+        info = {}
+        if include_forms:
+            info["forms"] = {"json": forms_json if forms_json is not None else {}}
+        if qc is not None:
+            info["qc"] = qc
+
+    visit_file = Mock()
+    visit_file.name = name
+    visit_file.info = info
+    visit_file.tags = list(tags) if tags else []
+    visit_file.reload.return_value = visit_file
+    return visit_file
+
+
+@dataclass
+class RejectionHarness:
+    """Mocks for exercising the rejected-visit handling paths."""
+
+    visitor: CSVTransformVisitor
+    preprocessor: Mock
+    project: Mock
+    subject: Mock
+    visit_file: Optional[Mock]
+
+
+def _create_rejection_harness(
+    *,
+    visit_file: Optional[Mock] = None,
+    subject_found: bool = True,
+    lookup_error: bool = False,
+    module_configs: Optional[ModuleConfigs] = None,
+    module: str = "UDS",
+    preprocess_result: bool = False,
+    transform_result: bool = True,
+) -> RejectionHarness:
+    """Create a visitor whose acquisition lookup is fully controlled.
+
+    Unlike `_create_visitor_with_mocks`, `find_acquisition_file` returns None
+    by default rather than a truthy Mock, so the no-existing-visit path is the
+    default.
+
+    Args:
+        visit_file: existing acquisition file to return from the lookup
+        subject_found: whether the subject exists in the project
+        lookup_error: whether the acquisition lookup raises an ApiException
+        module_configs: module configs, defaults to the UDS style configs
+        module: module label
+        preprocess_result: return value of the mock preprocessor
+        transform_result: whether the mock transformer returns the row
+
+    Returns:
+        the harness with the visitor and its mocks
+    """
+    configs = (
+        module_configs
+        if module_configs
+        else _create_module_configs_with_duplicate_check()
+    )
+    error_writer = ListErrorWriter(container_id="test-id", fw_path="test/path")
+
+    mock_preprocessor = Mock()
+    mock_preprocessor.is_existing_visit.return_value = False
+    mock_preprocessor.preprocess.return_value = preprocess_result
+
+    mock_transformer = MagicMock()
+    mock_transformer.transform.side_effect = (
+        (lambda row, line_num: dict(row))
+        if transform_result
+        else (lambda row, line_num: None)
+    )
+    mock_transformer_factory = MagicMock()
+    mock_transformer_factory.create.return_value = mock_transformer
+
+    mock_subject = Mock()
+    if lookup_error:
+        mock_subject.find_acquisition_file.side_effect = ApiException(
+            status=500, reason="boom"
+        )
+    else:
+        mock_subject.find_acquisition_file.return_value = visit_file
+
+    mock_project = Mock()
+    mock_project.group = "adrc42"
+    mock_project.label = "ingest-form"
+    mock_project.find_subject.return_value = mock_subject if subject_found else None
+
+    visitor = CSVTransformVisitor(
+        id_column=FieldNames.NACCID,
+        module=module,
+        error_writer=error_writer,
+        transformer_factory=mock_transformer_factory,
+        preprocessor=mock_preprocessor,
+        module_configs=configs,
+        gear_name="form-transformer",
+        project=mock_project,
+    )
+
+    return RejectionHarness(
+        visitor=visitor,
+        preprocessor=mock_preprocessor,
+        project=mock_project,
+        subject=mock_subject,
+        visit_file=visit_file,
+    )
+
+
 # Type alias for the factory callables exposed as fixtures
 CreateValidRowFactory = Callable[..., Dict[str, Any]]
 CreateVisitorFactory = Callable[..., Tuple[CSVTransformVisitor, Mock]]
@@ -157,3 +309,21 @@ def create_valid_row() -> CreateValidRowFactory:
 def create_visitor_with_mocks() -> CreateVisitorFactory:
     """Fixture that returns the create_visitor_with_mocks factory function."""
     return _create_visitor_with_mocks
+
+
+@pytest.fixture
+def create_rejection_harness() -> Callable[..., RejectionHarness]:
+    """Fixture that returns the create_rejection_harness factory function."""
+    return _create_rejection_harness
+
+
+@pytest.fixture
+def create_visit_file() -> Callable[..., Mock]:
+    """Fixture that returns the create_visit_file_mock factory function."""
+    return _create_visit_file_mock
+
+
+@pytest.fixture
+def np_module_configs() -> ModuleConfigs:
+    """Fixture returning ModuleConfigs for a date-keyed module."""
+    return _create_np_module_configs()

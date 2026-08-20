@@ -434,6 +434,62 @@ def partially_failed_file_error() -> FileError:
     )
 
 
+def existing_visit_retained_error(
+    *,
+    filename: str,
+    date_field: str,
+    reasons: Optional[List[str]] = None,
+    line: Optional[int] = None,
+    visit_keys: Optional[DataIdentification] = None,
+) -> FileError:
+    """Creates a FileError for a rejected record whose visit already has an
+    accepted acquisition file, which was left in place.
+
+    Args:
+      filename: name of the accepted acquisition file
+      date_field: date field name for the module
+      reasons (optional): messages explaining why the record was rejected
+      line (optional): line number of the rejected record
+      visit_keys (optional): visit identification information
+
+    Returns:
+      a FileError object initialized for a retained existing visit
+    """
+
+    visit_info = []
+    if visit_keys and visit_keys.ptid:
+        visit_info.append(f"PTID {visit_keys.ptid}")
+    if visit_keys and visit_keys.date:
+        visit_info.append(f"{date_field} {visit_keys.date}")
+    if visit_keys and visit_keys.visitnum:
+        visit_info.append(f"visit number {visit_keys.visitnum}")
+
+    reason_text = (
+        f"This update was not accepted due to following errors: {'; '.join(reasons)}."
+        if reasons
+        else ""
+    )
+
+    return FileError(
+        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_code="existing-visit-retained",  # pyright: ignore[reportCallIssue]
+        location=CSVLocation(line=line, column_name=date_field)
+        if line is not None
+        else None,
+        value=filename,
+        message=(
+            f"{reason_text} Previously submitted data for this visit ({filename}) "
+            f"is in QC PASS status and was not removed or replaced. "
+            "Correct the above errors and resubmit, "
+            "or request deletion of the existing visit file."
+        ),
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
+    )
+
+
 def existing_participant_error(
     field: str, value: str, line: int, message: Optional[str] = None
 ) -> FileError:
