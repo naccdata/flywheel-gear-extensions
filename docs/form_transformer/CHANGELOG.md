@@ -10,8 +10,7 @@ All notable changes to this gear are documented in this file.
 * Rejects PACKET=I for a UDS visit when the participant has UDSv3 visits, so the
   packet code of an existing I4 visit cannot be changed to I by a later update
 * On a transformation or pre-processing failure, checks whether a matching acquisition file already exists in the system
-* Sets the visit date as the timestamp for the session container, when the session
-  is created or when it does not have a timestamp
+* Sets the visit date as the timestamp for the session container, when the session is created or when it does not have a timestamp
 
 ## 2.0.1
 * Prevents gear crashing on data identification errors
