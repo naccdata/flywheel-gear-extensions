@@ -123,6 +123,7 @@ class SysErrorCodes:
     UDS_NOT_EXIST = "preprocess-031"
     MULTIPLE_SUBMISSIONS = "preprocess-032"
     DUPLICATE_LEGACY_VISIT = "preprocess-033"
+    UDS_I4_REQUIRED = "preprocess-034"
 
     # other errors for preprocessing issues that don't fall
     # in above categories

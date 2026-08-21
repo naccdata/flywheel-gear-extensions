@@ -6,6 +6,8 @@ from flywheel.file_spec import FileSpec
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
+from keys.keys import DefaultValues, MetadataKeys
+from nacc_common.error_models import FileQCModel
 from utils.decorators import api_retry
 
 from uploads.upload_error import UploaderError
@@ -80,6 +82,44 @@ def update_file_info_metadata(
         file.update_info(info)
     except ApiException as error:
         log.error("Error in setting file %s metadata - %s", file.name, error)
+        return False
+
+    return True
+
+
+@api_retry
+def reset_visit_qc_metadata(file: FileEntry) -> bool:
+    """Clear all QC metadata and gear status tags from a visit file.
+
+    Puts the file back into the not-yet-evaluated state so it carries no stale
+    QC verdict and is re-evaluated by the QC pipeline. The visit data in
+    `file.info.forms.json` is not modified.
+
+    Note: `validated-timestamp` is cleared as well. Otherwise the QC
+    coordinator treats a subsequent finalization trigger as outdated and skips
+    re-validating the visit whose QC verdict was just cleared.
+
+    Args:
+        file: Flywheel visit file object
+
+    Returns:
+        True if the QC metadata and tags were cleared
+    """
+
+    info = FileQCModel(qc={}).model_dump(by_alias=True)
+    info[MetadataKeys.VALIDATED_TIMESTAMP] = ""
+
+    try:
+        # update_info merges at the top level, info.forms is left as is
+        file.update_info(info)
+
+        # visit file is not tracked through gear context,
+        # need to directly remove tags from the FileEntry object
+        for tag in list(file.tags or []):
+            if tag.endswith(("-PASS", "-FAIL")) or tag == DefaultValues.FINALIZED_TAG:
+                file.delete_tag(tag)
+    except ApiException as error:
+        log.error("Error in resetting QC metadata for file %s - %s", file.name, error)
         return False
 
     return True

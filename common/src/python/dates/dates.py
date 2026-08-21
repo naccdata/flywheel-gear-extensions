@@ -1,10 +1,13 @@
 """Utility functions for converting datetime values."""
 
+import logging
 from datetime import datetime
 from typing import List, Optional
 
 import pytz
-from nacc_common.form_dates import DATE_FORMATS, parse_date
+from nacc_common.form_dates import DATE_FORMATS, DateFormatException, parse_date
+
+log = logging.getLogger(__name__)
 
 
 def get_localized_timestamp(datetime_obj: datetime) -> datetime:
@@ -22,6 +25,32 @@ def get_localized_timestamp(datetime_obj: datetime) -> datetime:
     # TODO: Could add a "get site timezone" function, using site location
     timezone = pytz.utc
     return timezone.localize(datetime_obj)
+
+
+def get_visit_timestamp(date_string: Optional[str]) -> Optional[datetime]:
+    """Converts a visit date to a localized timestamp for a Flywheel container.
+
+    Args:
+        date_string: the visit date, normally normalized to YYYY-MM-DD
+
+    Returns:
+        The localized timestamp or None if the date is missing or unparseable.
+        A container timestamp is supplementary information, it must never fail
+        a visit upload.
+    """
+
+    if not date_string:
+        return None
+
+    try:
+        return get_localized_timestamp(
+            parse_date(date_string=date_string.strip(), formats=DATE_FORMATS)
+        )
+    except DateFormatException as error:
+        log.warning(
+            "Cannot derive a session timestamp from date %s - %s", date_string, error
+        )
+        return None
 
 
 def normalize_date(

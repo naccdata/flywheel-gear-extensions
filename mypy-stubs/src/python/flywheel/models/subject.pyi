@@ -54,7 +54,10 @@ class Subject:
             type: Optional[str] = None):
         ...
 
-    def add_session(self, label: str) -> Session:
+    def add_session(self,
+                    label: str,
+                    timestamp: Optional[datetime] = None,
+                    timezone: Optional[str] = None) -> Session:
         ...
 
     def reload(self) -> Subject:

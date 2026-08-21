@@ -33,10 +33,19 @@ class TestFormsStore(FormsStore):
         """Set the form data to control what query_form_data returns."""
         self.__form_data = form_data
 
-    def set_legacy_form_data(self, legacy_data: List[Dict[str, Any]]) -> None:
-        """Reset form data and set legacy data to control what query_form_data
-        returns for legacy=True."""
-        self.__form_data = None
+    def set_legacy_form_data(
+        self, legacy_data: List[Dict[str, Any]], reset_form_data: bool = True
+    ) -> None:
+        """Set legacy data to control what query_form_data returns for
+        legacy=True.
+
+        Args:
+            legacy_data: records returned for legacy queries
+            reset_form_data: whether to clear the non-legacy form data,
+                pass False to keep both ingest and legacy records
+        """
+        if reset_form_data:
+            self.__form_data = None
         self.__legacy_data = legacy_data
 
     def query_form_data(self, **kwargs) -> Optional[List[Dict[str, Any]]]:
@@ -353,6 +362,119 @@ class TestFormPreprocessor:
         # pass when just FVP (ensured valid by other preprocessing checks)
         forms_store.set_legacy_form_data([])
         assert processor._check_udsv4_initial_visit(uds_pp_context)
+
+    def test_check_udsv4_initial_visit_i_packet(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Tests the _check_udsv4_initial_visit check for the I packet, which
+        is not accepted when the participant has UDSv3 visits."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+        uds_pp_context.input_record[FieldNames.PACKET] = "I"
+
+        # pass when there are no UDSv3 visits
+        assert processor._check_udsv4_initial_visit(uds_pp_context)
+        assert not error_writer.errors()
+
+        # fail when a UDSv3 visit exists, I4 is required instead
+        forms_store.set_legacy_form_data(
+            [
+                {
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2024-01-01",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "0",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I",
+                }
+            ]
+        )
+        assert not processor._check_udsv4_initial_visit(uds_pp_context)
+        self.__assert_error_raised(error_writer, SysErrorCodes.UDS_I4_REQUIRED)
+
+    def test_check_udsv4_initial_visit_non_uds_module(
+        self, np_module_configs, np_pp_context
+    ):
+        """Tests the _check_udsv4_initial_visit check is skipped for non-UDS
+        modules, even for an I packet."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.NP_MODULE, np_module_configs
+        )
+        np_pp_context.input_record[FieldNames.PACKET] = "I"
+        forms_store.set_legacy_form_data([{"dummy": "dummy"}])
+
+        assert processor._check_udsv4_initial_visit(np_pp_context)
+        assert not error_writer.errors()
+
+    def test_check_initial_visit_packet_change(
+        self, uds_module_configs, uds_pp_context
+    ):
+        """Tests the _check_initial_visit check allows a changed packet code
+        for an existing visit; validity of the new code is checked by
+        udsv4-ivp."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        # existing visit for the same visitdate/visitnum with a different packet
+        forms_store.set_form_data(
+            [
+                {
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I4",
+                }
+            ]
+        )
+
+        for packet in ["I", "I4"]:
+            uds_pp_context.input_record[FieldNames.PACKET] = packet
+            assert processor._check_initial_visit(uds_pp_context)
+            assert not error_writer.errors()
+
+    def test_preprocess_i4_changed_to_i(self, uds_module_configs, uds_pp_context):
+        """Tests the packet code of an existing I4 visit cannot be changed to I
+        when the participant has UDSv3 visits."""
+        processor, error_writer, forms_store = self.__setup_processor(
+            DefaultValues.UDS_MODULE, uds_module_configs
+        )
+
+        input_record = uds_pp_context.input_record
+        input_record.update(
+            {
+                FieldNames.PACKET: "I",
+                "modea1a": 0,
+                "modea2": 1,
+                "modeb1": 2,
+                "modeb3": 3,
+                "modeb5": 2,
+                "modeb6": 1,
+                "modeb7": 0,
+            }
+        )
+
+        # existing UDSv4 I4 visit for the same visitdate/visitnum
+        forms_store.set_form_data(
+            [
+                {
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2025-01-01",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "1",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I4",
+                }
+            ]
+        )
+        # earlier UDSv3 visit in the legacy project
+        forms_store.set_legacy_form_data(
+            [
+                {
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitdate": "2024-01-01",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.visitnum": "0",
+                    f"{MetadataKeys.FORM_METADATA_PATH}.packet": "I",
+                }
+            ],
+            reset_form_data=False,
+        )
+
+        assert not processor.preprocess(input_record=input_record, line_num=1)
+        self.__assert_error_raised(error_writer, SysErrorCodes.UDS_I4_REQUIRED)
 
     def test_check_supplement_module_exact_match(
         self, uds_module_configs, uds_pp_context
