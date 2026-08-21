@@ -113,7 +113,7 @@ class TestExistingSession:
         session.update.side_effect = ApiException(status=500, reason="error")
         subject = create_subject(session=session)
 
-        with caplog.at_level(logging.ERROR):
+        with caplog.at_level(logging.WARNING):
             assert upload(subject) == "file-entry"
 
         assert "Failed to set the timestamp for session" in caplog.text
