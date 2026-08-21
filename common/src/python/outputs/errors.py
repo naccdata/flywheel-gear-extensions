@@ -471,7 +471,7 @@ def existing_visit_retained_error(
     )
 
     return FileError(
-        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_type="warning",  # pyright: ignore[reportCallIssue]
         error_code="existing-visit-retained",  # pyright: ignore[reportCallIssue]
         location=CSVLocation(line=line, column_name=date_field)
         if line is not None

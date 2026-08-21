@@ -110,7 +110,7 @@ class TestExistingVisitPassedQC:
 
         assert visit_file.name in note.message
         assert "was not removed or replaced" in note.message
-        assert note.error_type == "error"
+        assert note.error_type == "warning"
         assert note.value == visit_file.name
         assert note.ptid == "110001"
         assert note.date == "2024-03-15"
