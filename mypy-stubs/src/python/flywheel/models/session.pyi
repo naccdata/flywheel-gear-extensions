@@ -1,4 +1,5 @@
-from typing import Any, Dict
+from datetime import datetime
+from typing import Any, Dict, Optional
 from flywheel.finder import Finder
 from flywheel.models.acquisition import Acquisition
 
@@ -15,6 +16,10 @@ class Session:
 
     @property
     def info(self) -> object:
+        ...
+
+    @property
+    def timestamp(self) -> Optional[datetime]:
         ...
 
     def reload(self) -> 'Session':

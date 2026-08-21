@@ -2,6 +2,7 @@
 specialized subject wrappers."""
 
 import logging
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from flywheel.file_spec import FileSpec
@@ -10,6 +11,7 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.models.session import Session
 from flywheel.models.subject import Subject
 from flywheel.models.subject_parents import SubjectParents
+from flywheel.rest import ApiException
 from keys.keys import MetadataKeys
 from pydantic import ValidationError
 from submissions.models import VisitInfo
@@ -60,15 +62,23 @@ class SubjectAdaptor:
         """Returns parents for this subject."""
         return self._subject.parents
 
-    def add_session(self, label: str) -> Session:
+    def add_session(
+        self, label: str, utc_timestamp: Optional[datetime] = None
+    ) -> Session:
         """Adds and returns a new session for this subject.
 
         Args:
           label: the label for the session
+          utc_timestamp(optional): the timestamp for the session (UTC)
         Returns:
           the added session
         """
-        return self._subject.add_session(label=label)
+        if not utc_timestamp:
+            return self._subject.add_session(label=label)
+
+        return self._subject.add_session(
+            label=label, timestamp=utc_timestamp, timezone="UTC"
+        )
 
     def find_session(self, label: str) -> Optional[Session]:
         """Finds the session with specified label.
@@ -175,6 +185,7 @@ class SubjectAdaptor:
         contents: str,
         content_type: str,
         skip_duplicates: bool = True,
+        session_timestamp: Optional[datetime] = None,
     ) -> Optional[FileEntry]:
         """Uploads a file to a given session/acquisition in this subject.
         Creates new containers if session/acquisition does not exist.
@@ -186,6 +197,9 @@ class SubjectAdaptor:
             contents: file contents
             content_type: contents type
             skip_duplicates: whether to skip upload if a duplicate file already exists
+            session_timestamp(optional): timestamp for the session container (UTC),
+                set when a new session is created or when the existing session
+                does not have a timestamp
 
         Returns:
             FileEntry(optional): Flywheel container for the newly uploaded file or None
@@ -201,7 +215,26 @@ class SubjectAdaptor:
                 session_label,
                 self.label,
             )
-            session = self.add_session(session_label)
+            session = self.add_session(session_label, utc_timestamp=session_timestamp)
+        elif session_timestamp and not session.timestamp:
+            # session created before timestamps were set, an existing timestamp
+            # is left as is - the visit date cannot change for an existing
+            # session without the session being deleted first
+            log.info(
+                "Setting timestamp for session %s in subject %s to %s",
+                session_label,
+                self.label,
+                session_timestamp,
+            )
+            try:
+                session.update({"timestamp": session_timestamp, "timezone": "UTC"})
+            except ApiException as error:
+                # timestamp is supplementary information, do not fail the upload
+                log.warning(
+                    "Failed to set the timestamp for session %s - %s",
+                    session_label,
+                    error,
+                )
 
         acquisition = session.acquisitions.find_first(f"label={acquisition_label}")
         if not acquisition:
