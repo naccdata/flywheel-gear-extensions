@@ -2,15 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.1.1
+* Prevents incorrect packet code changes, so the packet code of an existing I4 visit cannot be changed to I by a later update
+* On a transformation or pre-processing failure, checks whether a matching acquisition file already exists in the system
+* Sets the visit date as the timestamp for the session container, when the session is created or when it does not have a timestamp
+  
 ## 2.1.0
 * Captures duplicate-submit events to S3 when a visit is skipped as a duplicate
 * Adds `event_bucket` and `event_environment` config options for event capture
 * Adds `duplicate-submit` action type to visit event types
 * Refactors `CSVTransformVisitor` to remove redundant parameters
-* Rejects PACKET=I for a UDS visit when the participant has UDSv3 visits, so the
-  packet code of an existing I4 visit cannot be changed to I by a later update
-* On a transformation or pre-processing failure, checks whether a matching acquisition file already exists in the system
-* Sets the visit date as the timestamp for the session container, when the session is created or when it does not have a timestamp
 
 ## 2.0.1
 * Prevents gear crashing on data identification errors
