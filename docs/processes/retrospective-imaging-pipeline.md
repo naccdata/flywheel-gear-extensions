@@ -1,4 +1,4 @@
-# Mixed Protocol Imaging Pipeline
+# Retrospective Imaging Pipeline
 
 Reference for the gear rules configured on this project. For each gear: its **function**, **inputs**, **output**, and the **requirements that trigger it**.
 
