@@ -2,7 +2,7 @@
 
 Reference for the gear rules configured on this project. For each gear: its **function**, **inputs**, **output**, and the **requirements that trigger it**.
 
-These rules form a single DICOM-processing chain. Each gear tags the file when it finishes, and the next gear's rule is set to trigger on that tag, so the gears below are listed in the order they run. All rules match only `file.type = dicom`; the parent container is an acquisition unless noted. One gear in the chain, `phi-coordinator`, has **no active tag-triggered rule** — instead it runs on a nightly (overnight) schedule; it is marked with `*` below.
+These rules form a single DICOM-processing chain. Each gear tags the file when it finishes, and the next gear's rule is set to trigger on that tag, so the gears below are listed in the order they run. All rules match only `file.type = dicom`; the parent container is an acquisition unless noted. One gear in the chain, `phi-coordinator`, has **no active tag-triggered rule**; instead it runs on a nightly (overnight) schedule; it is marked with `*` below.
 
 | # | Gear rule | Gear | Runs after (trigger tag) | Adds tag |
 |---|-----------|------|--------------------------|----------|
@@ -17,7 +17,7 @@ These rules form a single DICOM-processing chain. Each gear tags the file when i
 | 5b | idea-lab-dicom-classifier&nbsp;`†` | `dicom-classifier` | `dicom-qc-checker-PASS` | `mr-classifier` |
 | 6 | nifti-conversion | `dcm2niix` | `file-classifier` | `nifti-conversion` |
 
-`*` `phi-coordinator` has no *active* tag-triggered gear rule; it runs on a nightly (overnight) schedule and finalizes the PHI tags from completed reader tasks (see its section below). A project rule for it exists but is disabled and named "(reference only)" — it exists solely so the gear's config is visible in the Rules UI, not to drive execution.
+`*` `phi-coordinator` has no *active* tag-triggered gear rule; it runs on a nightly (overnight) schedule and finalizes the PHI tags from completed reader tasks (see its section below). A project rule for it exists but is disabled and named "(reference only)": it exists solely so the gear's config is visible in the Rules UI, not to drive execution.
 
 `†` `idea-lab-dicom-classifier` is a **terminal side-branch**: it fires on the `dicom-qc-checker-PASS` tag but nothing downstream triggers on the `mr-classifier` tag it adds. The main chain continues `dicom-qc-checker` → `dicom-classifier` (`file-classifier`) → `nifti-conversion` (`dcm2niix`).
 
@@ -98,7 +98,7 @@ flowchart TD
 
 ## 2a. phi-coordinator: `phi-coordinator`
 
-> **No *active* tag-triggered gear rule is configured for this gear.** It is a Flywheel `utility` gear that runs on a nightly (overnight) schedule rather than on a file-event trigger. A project rule does exist for it but it is **disabled** and named "phi-coordinator (reference only)" — created so the gear's config is visible in the project's Rules UI, not to drive execution. The values below are the gear's defaults, and "Acts on" describes what it processes on each scheduled run.
+> **No *active* tag-triggered gear rule is configured for this gear.** It is a Flywheel `utility` gear that runs on a nightly (overnight) schedule rather than on a file-event trigger. A project rule does exist for it but it is **disabled** and named "phi-coordinator (reference only)", created so the gear's config is visible in the project's Rules UI, not to drive execution. The values below are the gear's defaults, and "Acts on" describes what it processes on each scheduled run.
 
 **Function:** Finalizes PHI review tags by reading completed reader-task form responses. For each completed task in the configured protocol, it reads the reviewer's yes/no answer and a deletion-acknowledgement checkbox answer, and resolves the file's PHI tags accordingly.
 
@@ -151,9 +151,9 @@ flowchart TD
 - `dicom` *(file, required, triggering file)*: the DICOM archive to validate.
 - `validation-schema` *(file, required)*: rule schema (`dicom_qc.json`, project file).
 
-**Config:** `check_instance_number_uniqueness`, `check_series_consistency`, and `check_slice_consistency` are enabled; `check_bed_moving`, `check_dicom_validator`, and `check_embedded_localizer` are **disabled**. `fail_on_critical_error = true`.
+**Config:** `check_instance_number_uniqueness` and `check_series_consistency` are enabled; `check_bed_moving`, `check_dicom_validator`, `check_embedded_localizer`, and `check_slice_consistency` are **disabled**. `fail_on_critical_error = true`.
 
-**Output:** QC results written to the file's metadata (`file.info.qc`); no new file is produced. Tags the file `dicom-qc` whenever the job succeeds (regardless of which checks pass) — this tag is just the trigger for **dicom-qc-checker** (step 4a), which is what actually gates the file on the QC outcome.
+**Output:** QC results written to the file's metadata (`file.info.qc`); no new file is produced. Tags the file `dicom-qc` whenever the job succeeds (regardless of which checks pass); this tag is just the trigger for **dicom-qc-checker** (step 4a), which is what actually gates the file on the QC outcome.
 
 **Triggered when:** a DICOM file in an acquisition is tagged `file-metadata-importer` and is **not** yet tagged `dicom-qc`.
 
@@ -170,7 +170,7 @@ flowchart TD
 
 **Triggered when:** a DICOM file in an acquisition is tagged `dicom-qc`.
 
-> **Caution:** this rule's `not` (exclusion) list is **empty** — unlike every other gear rule in this pipeline, it has no guard against re-matching the tag it just wrote. Since adding a tag is itself a file-modification event, this rule may re-evaluate and re-fire on the same file after tagging it, i.e. a potential unbounded retrigger loop.
+> **Note:** the rule's `not` exclusion `dicom-qc-.*` (regex) prevents re-firing on its own output. It does not match the bare `dicom-qc` trigger tag but does match the `dicom-qc-checker-PASS` / `-FAIL` tags it writes, so the rule fires once per file.
 
 ---
 
@@ -209,6 +209,6 @@ flowchart TD
 - `dcm2niix_input` *(file, required, triggering file)*: the DICOM archive to convert.
 - `rec_file_input` *(file, optional)*: PAR/REC `.rec` companion file.
 
-**Output:** A compressed NIfTI file (`.nii.gz`, `compress_images = y`) plus a BIDS JSON sidecar (`bids_sidecar = y`), written to the acquisition. Derived/localizer/2D images are skipped (`ignore_derived = true`). Tags the file `nifti-conversion`.
+**Output:** A compressed NIfTI file (`.nii.gz`, `compress_images = y`) plus a BIDS JSON sidecar (`bids_sidecar = y`), written to the acquisition. Derived/localizer/2D images are **not** skipped (`ignore_derived = false`), so they are converted too. Tags the file `nifti-conversion`.
 
 **Triggered when:** a DICOM file in an acquisition is tagged `file-classifier`.
