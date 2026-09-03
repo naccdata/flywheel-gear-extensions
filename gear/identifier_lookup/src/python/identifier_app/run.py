@@ -37,7 +37,13 @@ from identifiers.identifiers_repository import (
 )
 from identifiers.model import IdentifiersMode
 from inputs.center_validator import CenterValidator
-from inputs.csv_reader import AggregateCSVVisitor, CSVVisitor, visit_all_strategy
+from inputs.csv_reader import (
+    AggregateCSVVisitor,
+    AggregateRowValidator,
+    CSVVisitor,
+    visit_all_strategy,
+)
+from inputs.date_validator import DateValidator
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
@@ -197,7 +203,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
 
             module_configs = form_project_configs.module_configs.get(module)
 
-        center_validator = None
+        agg_validator = None
         if module_configs and self.__single_center:
             # Get basic project information
             parent_project = file_input.get_parent_project(self.proxy)
@@ -208,10 +214,17 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             except (ProjectError, TypeError) as error:
                 raise GearExecutionError(error) from error
 
-            center_validator = CenterValidator(
-                center_id=adcid,
-                date_field=module_configs.date_field,
-                error_writer=error_writer,
+            agg_validator = AggregateRowValidator(
+                [
+                    CenterValidator(
+                        center_id=adcid,
+                        date_field=module_configs.date_field,
+                        error_writer=error_writer,
+                    ),
+                    DateValidator(
+                        date_field=module_configs.date_field, error_writer=error_writer
+                    ),
+                ]
             )
 
         # Create identifier lookup visitor (always needed)
@@ -230,7 +243,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             module_name=module,
             required_fields=required_fields,
             error_writer=error_writer,
-            validator=center_validator,
+            validator=agg_validator,
             reset_errors_per_row=bool(self.__config_input),
         )
 
@@ -398,6 +411,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             # If there are any miscellaneous errors that can't be reported for a visit
             # add those to CSV file errors
             if misc_errors:
+                success = False
                 for error in misc_errors:
                     error_writer.write(error)
 

@@ -2,7 +2,27 @@
 
 All notable changes to this gear are documented in this file.
 
-## [Unreleased]
+## 2.7.2
+
+* Fixes `get_url` to fetch single SSM parameter by name instead of using path-based lookup (resolves authorization client creation failure)
+
+## 2.7.1
+
+* Fixes `authorization_path` default from `/prod/authorization/api-endpoint` to `/production/authorization/api-endpoint`
+
+## 2.7.0
+
+* Adds authorization resource hierarchy seeding to the project management gear
+  * Seeds parent relationships for pipelines, dashboards, and pages via the Authorization Service
+  * Enables inherited permissions through OpenFGA computed relations
+  * Skips redundant writes when parents already match, reducing unnecessary API calls
+  * Gracefully disables seeding when authorization client is unavailable
+* Adds `authorization_path` config parameter for specifying the Authorization API endpoint URL via SSM
+* Uses center-prefixed resource IDs in hierarchy seeder calls for consistent resource identification
+
+## 2.6.1
+
+* Skips disabled or deleted admin users when assigning admin roles to projects, preventing stale permissions from being propagated
 
 ## 2.6.0
 

@@ -15,6 +15,7 @@
 - **Gears**: Version is in `gear/{gear-name}/src/docker/manifest.json` (both `version` field and `custom.gear-builder.image` field)
 - **Gears**: Image tag is also in `gear/{gear-name}/src/docker/BUILD` file (`image_tags` parameter)
 - **Packages**: Version is in `{package-name}/pyproject.toml`
+- **nacc-common**: Version is ALSO in `nacc-common/BUILD` (`version` argument in `python_artifact()`) — the release workflow checks all three locations match
 
 ## Version Number Management
 

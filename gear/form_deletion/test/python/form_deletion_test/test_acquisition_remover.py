@@ -26,6 +26,7 @@ def make_remover(
     delete_request,
     dependent_modules=None,
     naccid=SUBJECT_LABEL,
+    skip_accepted_project=False,
 ):
     return AcquisitionRemover(
         proxy=proxy,
@@ -37,6 +38,7 @@ def make_remover(
         delete_request=delete_request,
         deleted_items=deleted_items,
         dependent_modules=dependent_modules,
+        skip_accepted_project=skip_accepted_project,
     )
 
 
@@ -423,6 +425,57 @@ class TestCleanupAcquisitions:
         result = remover.cleanup_acquisitions()
 
         assert not result
+
+    def test_accepted_project_skipped_when_configured(
+        self, form_configs, uds_module_configs, deleted_items, delete_request
+    ):
+        """With skip_accepted_project=True, a subject in the accepted project
+        is skipped without any deletion."""
+        acq_file = make_mock_acq_file()
+        mock_subject, _, _ = make_mock_hierarchy(acq_file=acq_file)
+        mock_subject.sessions.return_value = [MagicMock()]  # still has sessions
+
+        accepted_project = make_mock_project(label="accepted-nacc")
+        proxy = make_mock_proxy(subjects=[mock_subject], project=accepted_project)
+
+        remover = make_remover(
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
+            skip_accepted_project=True,
+        )
+        assert remover.cleanup_acquisitions()
+        proxy.delete_acquisition.assert_not_called()
+        assert not deleted_items.acquisitions
+
+    def test_accepted_project_deleted_by_default(
+        self, form_configs, uds_module_configs, deleted_items, delete_request
+    ):
+        """By default (skip_accepted_project=False), acquisitions in the
+        accepted project are deleted."""
+        acq_file = make_mock_acq_file()
+        mock_subject, _, mock_acquisition = make_mock_hierarchy(
+            acq_file=acq_file, empty_session_after_delete=True
+        )
+
+        accepted_project = make_mock_project(label="accepted-nacc")
+        proxy = make_mock_proxy(subjects=[mock_subject], project=accepted_project)
+
+        remover = make_remover(
+            proxy,
+            PROJECT_ID,
+            form_configs,
+            uds_module_configs,
+            deleted_items,
+            delete_request,
+        )
+        assert remover.cleanup_acquisitions()
+        proxy.delete_acquisition.assert_called_once_with(mock_acquisition.id)
+        expected_acq_path = f"{PROJECT_GROUP}/accepted-nacc/{FILENAME}"
+        assert expected_acq_path in deleted_items.acquisitions
 
 
 class TestCompareVisitDetails:

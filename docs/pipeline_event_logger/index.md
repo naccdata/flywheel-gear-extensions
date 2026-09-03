@@ -98,13 +98,18 @@ Gear configs are defined in [manifest.json](../../gear/pipeline_event_logger/src
   | Field | Type | Required | Description |
   |-------|------|----------|-------------|
   | `check_name` | string | Yes | Name of the check result to read (e.g., `"dicom-validator"`, `"validation"`) |
-  | `data_key` | string | No (default: `"data"`) | Key within the check result holding the error list |
-  | `field_mapping` | object | Yes | Maps source error fields to `FileError` fields |
+  | `data_key` | string | No (default: `"data"`) | Key within the check result holding the error data |
+  | `field_mapping` | object | Yes | Discriminated union describing expected data shape and how to produce `FileError` objects |
 
-  The `field_mapping` object:
+  The `field_mapping` object uses a `type` discriminator to declare the expected data shape:
+
+  #### `"type": "list"` — List of error dicts
+
+  For checks that produce a list of error objects in `data`. Each dict item is mapped to a `FileError` using field resolution.
 
   | Field | Type | Required | Description |
   |-------|------|----------|-------------|
+  | `type` | `"list"` | Yes | Discriminator |
   | `message` | string | Yes | Source key for the error message |
   | `error_type` | string | No (default: `"error"`) | Source key or literal for error type (`"error"`, `"warning"`, `"alert"`) |
   | `error_code` | string | No (default: `"qc-error"`) | Source key or literal for error code |
@@ -112,7 +117,27 @@ Gear configs are defined in [manifest.json](../../gear/pipeline_event_logger/src
 
   **Field resolution**: Each mapping value is first checked as a key in the source error object. If the key exists, the value from the source is used. Otherwise, the mapping value is treated as a literal string.
 
-  Example for a DICOM QC gear with two check types:
+  #### `"type": "string"` — String explanation
+
+  For checks that write a human-readable string to `data` on failure (e.g., `"Inconsistent slice intervals..."`). The string becomes the error message directly.
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `type` | `"string"` | Yes | Discriminator |
+  | `error_type` | string | No (default: `"error"`) | Literal error type |
+  | `error_code` | string | No (default: `"qc-error"`) | Literal error code |
+
+  #### `"type": "none"` — Null data with pass/fail state
+
+  For checks that write `null` to `data` regardless of outcome. Synthesizes a `"{check_name} failed"` error message when the check state is not PASS.
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `type` | `"none"` | Yes | Discriminator |
+  | `error_type` | string | No (default: `"error"`) | Literal error type |
+  | `error_code` | string | No (default: `"qc-error"`) | Literal error code |
+
+  Example for a DICOM QC gear with all three data shapes:
 
   ```json
   {
@@ -120,6 +145,7 @@ Gear configs are defined in [manifest.json](../../gear/pipeline_event_logger/src
       {
         "check_name": "dicom-validator",
         "field_mapping": {
+          "type": "list",
           "message": "name",
           "error_code": "dicom-validation"
         }
@@ -127,9 +153,24 @@ Gear configs are defined in [manifest.json](../../gear/pipeline_event_logger/src
       {
         "check_name": "jsonschema-validation",
         "field_mapping": {
+          "type": "list",
           "message": "error_message",
           "error_type": "error_type",
           "error_code": "jsonschema-validation"
+        }
+      },
+      {
+        "check_name": "slice_consistency",
+        "field_mapping": {
+          "type": "string",
+          "error_code": "slice-consistency"
+        }
+      },
+      {
+        "check_name": "check_zero_byte",
+        "field_mapping": {
+          "type": "none",
+          "error_code": "zero-byte"
         }
       }
     ]
@@ -137,8 +178,10 @@ Gear configs are defined in [manifest.json](../../gear/pipeline_event_logger/src
   ```
 
   In this example:
-  - For `dicom-validator`: each error object has a `"name"` key, so `message` resolves to `source["name"]`. `"dicom-validation"` is not a key in the source, so it's used as a literal error code.
-  - For `jsonschema-validation`: both `"error_message"` and `"error_type"` are keys in the source objects, so they resolve to the source values.
+  - `dicom-validator`: data is a list of dicts with a `"name"` key → `message` resolves to `source["name"]`. `"dicom-validation"` is not a source key → used as a literal error code.
+  - `jsonschema-validation`: data is a list of dicts with `"error_message"` and `"error_type"` keys → both resolve to source values.
+  - `slice_consistency`: data is a string like `"Inconsistent slice intervals..."` → becomes the error message directly.
+  - `check_zero_byte`: data is `null` → if the check failed, produces `"check_zero_byte failed"` as the error message.
 
 - **`event_actions`** (object, optional): Maps QC outcome keys to event action strings. If empty or not provided, no events are captured.
 
@@ -180,7 +223,12 @@ To prevent this, the gear waits for older instances of itself on the same projec
 
 1. **Read GearQC**: Reads `file.info.qc.{upstream_gear_name}` and constructs a `GearQC` object representing all check results for the upstream gear. Derives the aggregate QC status (PASS, FAIL, or IN REVIEW) using priority ordering: FAIL > IN REVIEW > PASS. Fails if missing or invalid.
 
-2. **Extract Errors**: If `error_configs` is provided, extracts errors from the targeted check results using the configured field mappings. Each matching check result's `data` (or configured `data_key`) is parsed into `FileError` objects. If no config is provided, an empty error list is used.
+2. **Extract Errors**: If `error_configs` is provided, extracts errors from the targeted check results using the configured field mappings. The `field_mapping.type` discriminator determines how data is handled:
+   - `"list"`: maps each dict item in the data list to a `FileError`
+   - `"string"`: uses the string data directly as the error message
+   - `"none"`: synthesizes a `"{check_name} failed"` message when state is not PASS
+   
+   If no config is provided, an empty error list is used.
 
 3. **Read Data Identification**: Reads `file.info.data_identification` and deserializes via `DataIdentification.from_visit_metadata()`. Fails if missing or invalid.
 
@@ -238,6 +286,7 @@ The rationale: the upstream gear's QC result is already safely stored in `file.i
     {
       "check_name": "dicom-validator",
       "field_mapping": {
+        "type": "list",
         "message": "name",
         "error_code": "dicom-validation"
       }
@@ -245,9 +294,38 @@ The rationale: the upstream gear's QC result is already safely stored in `file.i
     {
       "check_name": "jsonschema-validation",
       "field_mapping": {
+        "type": "list",
         "message": "error_message",
         "error_type": "error_type",
         "error_code": "jsonschema-validation"
+      }
+    },
+    {
+      "check_name": "slice_consistency",
+      "field_mapping": {
+        "type": "string",
+        "error_code": "slice-consistency"
+      }
+    },
+    {
+      "check_name": "instance_number_uniqueness",
+      "field_mapping": {
+        "type": "string",
+        "error_code": "instance-number-uniqueness"
+      }
+    },
+    {
+      "check_name": "check_zero_byte",
+      "field_mapping": {
+        "type": "none",
+        "error_code": "zero-byte"
+      }
+    },
+    {
+      "check_name": "embedded_localizer",
+      "field_mapping": {
+        "type": "none",
+        "error_code": "embedded-localizer"
       }
     }
   ],
@@ -272,6 +350,7 @@ For upstream gears that write `FileError` lists to `validation.data` (the NACC c
     {
       "check_name": "validation",
       "field_mapping": {
+        "type": "list",
         "message": "message",
         "error_type": "type",
         "error_code": "code"
@@ -307,6 +386,7 @@ When you only need to record the pass/fail status without detailed errors:
     {
       "check_name": "dicom-validator",
       "field_mapping": {
+        "type": "list",
         "message": "name",
         "error_code": "dicom-validation"
       }
@@ -347,7 +427,7 @@ The gear follows the standard NACC gear architecture:
 
 - `run.py`: Flywheel context management, dependency initialization, file/project retrieval, config parsing
 - `main.py`: Business logic — reads `GearQC`, extracts errors via config, updates QC log, captures events
-- `qc_reader.py`: Generic QC metadata reader — `GearQC`, `GearQCResult`, `QCErrorConfig`, and `ErrorFieldMapping` models
+- `qc_reader.py`: Generic QC metadata reader — `GearQC`, `GearQCResult`, `QCErrorConfig`, and discriminated `FieldMapping` models (`ListFieldMapping`, `StringFieldMapping`, `NoneFieldMapping`)
 
 The `qc_reader` module is intentionally independent of form-specific models (`FileQCModel`). It handles the general Flywheel QC convention where check results have a `state` field and gear-specific data. The `error_configs` mechanism allows the gear to extract errors from any upstream gear without hard-coding assumptions about the error structure.
 

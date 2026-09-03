@@ -19,7 +19,7 @@ You can use a release directly by referencing the release files in your package 
 For instance, adding the following line to `requirements.txt` for use with [pip](https://pip.pypa.io/en/stable/topics/vcs-support/#git):
 
 ```text
-nacc_common @ https://github.com/naccdata/flywheel-gear-extensions/releases/download/nacc-common%2Fv3.1.0/nacc_common-3.1.0-py3-none-any.whl
+nacc_common @ https://github.com/naccdata/flywheel-gear-extensions/releases/download/nacc-common%2Fv3.1.2/nacc_common-3.1.2-py3-none-any.whl
 ```
 
 The format of the URL stays consistent, so to use a newer version of the package replace the version number.

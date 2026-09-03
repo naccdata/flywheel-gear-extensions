@@ -2,10 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.4.4
+
+* Adds date validation to identifier-lookup to prevent invalid records proceeding further
+
 ## 2.4.3
 
 * Rebuilt for VisitEvent serialization fix (forward-compatible field passthrough)
-
+  
 ## 2.4.2
 
 * Rebuilt for module configs update

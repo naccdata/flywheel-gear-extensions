@@ -1,5 +1,12 @@
 # Pipeline Event Logger Changelog
 
+## 0.2.0
+
+* Discriminated field mapping for QC error extraction with three mapping types: `ListFieldMapping` (list-of-dicts), `StringFieldMapping` (string explanations), and `NoneFieldMapping` (null data on failure)
+* String check data used directly as error message; null data with non-PASS state synthesizes a generic failure message
+* State guard on `StringFieldMapping` for edge case handling
+* Added gear configuration files for deployment
+
 ## 0.1.1
 
 * Fix VisitEvent serialization: `modality` field is now included in serialized dicom events

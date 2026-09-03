@@ -109,6 +109,7 @@ class TestRunWithValidClient:
         """run() with a valid client creates ResourceHierarchySeeder."""
         mock_seeder_instance = MagicMock()
         mock_seeder_instance.failure_count = 0
+        mock_seeder_instance.skip_count = 0
         mock_seeder_class.return_value = mock_seeder_instance
 
         run(
@@ -134,6 +135,7 @@ class TestRunWithValidClient:
         """run() passes the seeder instance to StudyMappingVisitor."""
         mock_seeder_instance = MagicMock()
         mock_seeder_instance.failure_count = 0
+        mock_seeder_instance.skip_count = 0
         mock_seeder_class.return_value = mock_seeder_instance
 
         run(
@@ -171,6 +173,7 @@ class TestRunFailureCountWarning:
         """run() logs a warning when seeder has failures."""
         mock_seeder_instance = MagicMock()
         mock_seeder_instance.failure_count = 3
+        mock_seeder_instance.skip_count = 0
         mock_seeder_class.return_value = mock_seeder_instance
 
         with caplog.at_level(logging.WARNING):
@@ -198,6 +201,7 @@ class TestRunFailureCountWarning:
         """run() does not log failure warning when failure_count is 0."""
         mock_seeder_instance = MagicMock()
         mock_seeder_instance.failure_count = 0
+        mock_seeder_instance.skip_count = 0
         mock_seeder_class.return_value = mock_seeder_instance
 
         with caplog.at_level(logging.WARNING):

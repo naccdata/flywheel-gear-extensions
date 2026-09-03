@@ -83,6 +83,10 @@ preprocess_errors = {
         "To submit an Initial UDSv4 Visit Packet (PACKET=I4), "
         "participant must have an existing UDSv3 Visit Packet"
     ),
+    SysErrorCodes.UDS_I4_REQUIRED: (
+        "Participant with an existing UDSv3 Visit Packet must use PACKET=I4 for the "
+        "Initial UDSv4 Visit Packet, PACKET=I is not accepted"
+    ),
     SysErrorCodes.MISSING_UDS_I4: (
         "Participant must have an existing Initial UDSv4 Visit Packet (PACKET=I4) "
         "submitted before the Follow-Up Visit Packet (PACKET=F)"
@@ -230,6 +234,29 @@ def empty_field_error(
         visitnum=visit_keys.visitnum if visit_keys else None,
         date=visit_keys.date if visit_keys else None,
         naccid=visit_keys.naccid if visit_keys else None,
+    )
+
+
+def date_parse_error(
+    field: str,
+    value: str,
+    line: int,
+) -> FileError:
+    """Creates a FileError for a date field that cannot be parsed.
+
+    Args:
+      field: the field name
+      value: the unparseable date value
+      line: the line number in the CSV
+    Returns:
+      a FileError for the date parse failure
+    """
+    return FileError(
+        error_type="error",  # pyright: ignore[reportCallIssue]
+        error_code="date-parse-error",  # pyright: ignore[reportCallIssue]
+        location=CSVLocation(line=line, column_name=field),
+        value=value,
+        message=f"Unable to parse date value '{value}' for field '{field}'",
     )
 
 
@@ -404,6 +431,62 @@ def partially_failed_file_error() -> FileError:
             "Some records in this file did not pass validation, "
             "check the respective record level qc status"
         ),
+    )
+
+
+def existing_visit_retained_error(
+    *,
+    filename: str,
+    date_field: str,
+    reasons: Optional[List[str]] = None,
+    line: Optional[int] = None,
+    visit_keys: Optional[DataIdentification] = None,
+) -> FileError:
+    """Creates a FileError for a rejected record whose visit already has an
+    accepted acquisition file, which was left in place.
+
+    Args:
+      filename: name of the accepted acquisition file
+      date_field: date field name for the module
+      reasons (optional): messages explaining why the record was rejected
+      line (optional): line number of the rejected record
+      visit_keys (optional): visit identification information
+
+    Returns:
+      a FileError object initialized for a retained existing visit
+    """
+
+    visit_info = []
+    if visit_keys and visit_keys.ptid:
+        visit_info.append(f"PTID {visit_keys.ptid}")
+    if visit_keys and visit_keys.date:
+        visit_info.append(f"{date_field} {visit_keys.date}")
+    if visit_keys and visit_keys.visitnum:
+        visit_info.append(f"visit number {visit_keys.visitnum}")
+
+    reason_text = (
+        f"This update was not accepted due to following errors: {'; '.join(reasons)}."
+        if reasons
+        else ""
+    )
+
+    return FileError(
+        error_type="warning",  # pyright: ignore[reportCallIssue]
+        error_code="existing-visit-retained",  # pyright: ignore[reportCallIssue]
+        location=CSVLocation(line=line, column_name=date_field)
+        if line is not None
+        else None,
+        value=filename,
+        message=(
+            f"{reason_text} Previously submitted data for this visit ({filename}) "
+            f"is in QC PASS status and was not removed or replaced. "
+            "Correct the above errors and resubmit, "
+            "or request deletion of the existing visit file."
+        ),
+        ptid=visit_keys.ptid if visit_keys else None,
+        visitnum=visit_keys.visitnum if visit_keys else None,
+        date=visit_keys.date if visit_keys else None,
+        naccid=visit_keys.naccid if visit_keys else None,
     )
 
 

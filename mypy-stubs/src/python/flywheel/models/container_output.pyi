@@ -1,7 +1,11 @@
-from typing import List
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+from flywheel.finder import Finder
+from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_parents import ContainerParents
 from flywheel.models.file_entry import FileEntry
+from flywheel.models.subject import Subject
 
 
 class ContainerOutput:
@@ -12,7 +16,40 @@ class ContainerOutput:
     def label(self) -> str: ...
 
     @property
+    def container_type(self) -> str: ...
+
+    @property
     def parents(self) -> ContainerParents: ...
 
     @property
     def files(self) -> List[FileEntry]: ...
+
+    @property
+    def info(self) -> Dict[str, Any]: ...
+
+    @property
+    def subject(self) -> Subject: ...
+
+    @property
+    def project(self) -> str: ...
+
+    @property
+    def tags(self) -> List[str]: ...
+
+    @property
+    def timestamp(self) -> Optional[datetime]: ...
+
+    @property
+    def created(self) -> Optional[datetime]: ...
+
+    def reload(self) -> "ContainerOutput": ...
+
+    def sessions(self) -> Finder["ContainerOutput"]: ...
+
+    def acquisitions(self) -> Finder[Acquisition]: ...
+
+    def add_tag(self, tag: str, **kwargs: Any) -> None: ...
+
+    def delete_tag(self, tag: str, **kwargs: Any) -> None: ...
+
+    def update_info(self, info: Dict[str, Any], **kwargs: Any) -> None: ...

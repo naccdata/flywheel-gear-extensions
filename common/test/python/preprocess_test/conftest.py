@@ -82,6 +82,47 @@ def uds_pp_context():
 
 
 @pytest.fixture(scope="function")
+def uds_module_configs_with_release_dates():
+    """Create UDS ModuleConfigs with an optional form (d1c) that has a release
+    date configured in release_dates."""
+    configs = {
+        "hierarchy_labels": {
+            "session": {"template": "FORMS-VISIT-${visitnum}", "transform": "upper"},
+            "acquisition": {"template": "${module}", "transform": "upper"},
+            "filename": {"template": "${subject}_${session}_${acquisition}.json"},
+        },
+        "required_fields": [
+            "ptid",
+            "adcid",
+            "visitnum",
+            "visitdate",
+            "packet",
+            "formver",
+        ],
+        "initial_packets": ["I", "I4"],
+        "followup_packets": ["F"],
+        "versions": ["4.0"],
+        "date_field": "visitdate",
+        "optional_forms": {
+            "4.0": {
+                "I": ["a1a", "b1", "b3", "b5", "b6", "b7", "d1c"],
+            }
+        },
+        "release_dates": {"I": {"d1c": "2026-05-01"}},
+        "preprocess_checks": [
+            "duplicate-record",
+            "version",
+            "packet",
+            "optional-forms",
+            "ivp",
+            "udsv4-ivp",
+            "visit-conflict",
+        ],
+    }
+    return ModuleConfigs(**configs)
+
+
+@pytest.fixture(scope="function")
 def np_module_configs():
     """Create NP ModuleConfigs."""
     configs = {

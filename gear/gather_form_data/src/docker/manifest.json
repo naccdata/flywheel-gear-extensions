@@ -2,7 +2,7 @@
   "name": "gather-form-data",
   "label": "Gather Form Data",
   "description": "Gathers form data across centers",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "author": "NACC",
   "maintainer": "NACC <nacchelp@uw.edu>",
   "cite": "",
@@ -15,7 +15,7 @@
   "custom": {
     "gear-builder": {
       "category": "utility",
-      "image": "naccdata/gather-form-data:0.2.1"
+      "image": "naccdata/gather-form-data:0.3.1"
     },
     "flywheel": {
       "suite": "Utility",
@@ -69,6 +69,21 @@
       "description": "Split output CSVs by form version (one file per module/formver, e.g. uds-v3.csv, uds-v4.csv). Each file has a column set restricted to that exact form version; rows are not column-unioned across versions.",
       "type": "boolean",
       "default": false
+    },
+    "output_file_prefix": {
+      "description": "Prefix for output file names. Output files are named {prefix}-{module}-{date}.csv (or {prefix}-{module}-{formver}-{date}.csv when formver_split is enabled).",
+      "type": "string",
+      "default": ""
+    },
+    "batch_size": {
+      "description": "Number of NACCIDs per batch for OR-list queries (subject resolution and file queries)",
+      "type": "integer",
+      "default": 100
+    },
+    "reload_workers": {
+      "description": "Number of concurrent threads for reloading file metadata",
+      "type": "integer",
+      "default": 10
     }
   },
   "command": "/bin/run"

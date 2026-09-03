@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 import yaml
 from configs.ingest_configs import UploadTemplateInfo
+from dates.dates import get_visit_timestamp
 from error_logging.error_logger import update_error_log_and_qc_metadata
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
@@ -286,6 +287,9 @@ class FormJSONUploader:
                         filename=visit_file_name,
                         contents=json.dumps(record),
                         content_type="application/json",
+                        session_timestamp=get_visit_timestamp(
+                            record.get(visitdate_key)
+                        ),
                     )
                 except (SubjectError, TypeError, UploaderError) as error:
                     log.error(error)

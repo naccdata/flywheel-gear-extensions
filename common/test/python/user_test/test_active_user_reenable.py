@@ -182,6 +182,7 @@ class TestActiveUserProcessReEnable:
         unclaimed_person.is_claimed.return_value = False
         mock_environment.user_registry.get.return_value = [unclaimed_person]
         mock_environment.user_registry.has_bad_claim.return_value = False
+        mock_environment.user_registry.get_bad_claim.return_value = []
 
         process = ActiveUserProcess(mock_environment, collector)
         process.visit(sample_active_entry)

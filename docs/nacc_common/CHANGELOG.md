@@ -4,6 +4,20 @@ Documentation of release versions of the `nacc-common` package.
 
 ## Unreleased
 
+## v3.1.3
+
+### Bug Fixes
+
+* Fix `QC_FILENAME_PATTERN` to handle all visitnum formats: plain integers (7, 011), decimals (04.00), and alphanumeric codes (FU6). Previously only decimal visitnums matched, causing integer and alphanumeric visitnums to be absorbed into the module group.
+* Restrict module group to `[a-zA-Z]+` to prevent ambiguity with visitnum values.
+
+## v3.1.2
+
+### Bug Fixes
+
+* Fix `QC_FILENAME_PATTERN` to match qc-status log files that include a visitnum segment (e.g., `2851_2025-09-02_10.00_uds_qc-status.log`). Files in the new format were previously invisible to all consumers of this pattern.
+* Switch pattern consumers (`extract_visit_keys`, `ProjectReportVisitor`, `_should_include_file`) to named capture groups for clarity.
+
 ## v3.1.1
 
 ### Bug Fixes

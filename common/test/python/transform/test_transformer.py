@@ -1,6 +1,17 @@
+import json
+
+from configs.ingest_configs import FormReleaseDates
+from keys.keys import SysErrorCodes
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
-from transform.transformer import DateTransformer, FieldFilter, VersionMap
+from test_mocks.mock_configs import uds_ingest_configs
+from transform.transformer import (
+    DateTransformer,
+    ReleaseDateTransformation,
+    TransformationSchema,
+    VersionMap,
+    VersionMapTransformation,
+)
 
 
 class TestVersionMap:
@@ -19,9 +30,9 @@ class TestVersionMap:
     # TODO: should not having the fieldname as a key be an error?
 
 
-class TestFieldFilter:
+class TestVersionMapTransformation:
     def test_empty_fields(self):
-        field_filter = FieldFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -31,12 +42,12 @@ class TestFieldFilter:
             "dummy": "alpha-raw",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
 
         assert record == input_record
 
     def test_drop_fields(self):
-        field_filter = FieldFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -52,12 +63,13 @@ class TestFieldFilter:
             "b2": "",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
         assert record
-        assert [k for k in record if k in input_record and k not in ["b1", "b2"]]
+        assert "b1" not in record and "b2" not in record
+        assert set(record.keys()) == {"dummy", "common1", "common2", "a1", "a2"}
 
     def test_drop_fields_nofill_true(self):
-        field_filter = FieldFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -72,12 +84,12 @@ class TestFieldFilter:
             "b1": "b1-val",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
 
         assert not record
 
     def test_diff_fields_nofill_false(self):
-        field_filter = FieldFilter(
+        field_filter = VersionMapTransformation(
             version_map=VersionMap(
                 fieldname="dummy", value_map={"alpha-raw": "beta"}, default="alpha"
             ),
@@ -92,7 +104,7 @@ class TestFieldFilter:
             "b1": "b1-val",
         }
         error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
-        record = field_filter.apply(input_record, error_writer, 1, "visitdate")
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
 
         assert record
         assert [k for k in record if k in input_record and k != "b1"]
@@ -121,3 +133,264 @@ class TestDateTransformer:
 
         record = transformer.transform({FieldNames.DATE_COLUMN: "01012024"}, 0)
         assert not record
+
+
+class TestReleaseDateTransformation:
+    RELEASE_DATES = FormReleaseDates({"I": {"d1c": "2026-05-01"}})
+
+    @staticmethod
+    def __filter() -> ReleaseDateTransformation:
+        return ReleaseDateTransformation(
+            form_name="d1c",
+            fields=["d1c1", "d1c2"],
+            header_fields=["frmdated1c"],
+            retain_modes=["1", "2"],
+        )
+
+    @staticmethod
+    def __error_writer() -> ListErrorWriter:
+        return ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+    def __apply(self, release_filter, input_record, error_writer=None):
+        module_configs = uds_ingest_configs().model_copy(
+            update={"release_dates": self.RELEASE_DATES}
+        )
+        return release_filter.apply(
+            input_record,
+            error_writer or self.__error_writer(),
+            1,
+            module_configs,
+        )
+
+    def test_before_release_not_submitted_empty(self):
+        """Pre-release, not submitted, data fields empty: data, header, and
+        mode fields are dropped; unrelated fields kept."""
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "",
+            "d1c2": "",
+            "frmdated1c": "2025-01-01",
+            "ptid": "dummy-ptid",
+        }
+        record = self.__apply(self.__filter(), input_record)
+        assert record == {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "ptid": "dummy-ptid",
+        }
+
+    def test_before_release_not_submitted_data_filled_nofill(self):
+        """Pre-release, not submitted, a data field is filled with nofill:
+
+        record rejected with an EXCLUDED_FIELDS error.
+        """
+        error_writer = self.__error_writer()
+        input_record = {
+            "packet": "I",
+            "naccid": "NACC000000",
+            "ptid": "dummy-ptid",
+            "adcid": "0",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "some-value",
+            "d1c2": "",
+        }
+        record = self.__apply(self.__filter(), input_record, error_writer)
+        assert record is None
+        errors = error_writer.errors()
+        assert len(errors) == 1
+        assert errors[0].error_code == SysErrorCodes.EXCLUDED_FIELDS
+
+    def test_before_release_not_submitted_header_filled_nofill(self):
+        """Pre-release, not submitted, only a header field filled with nofill:
+
+        no error; data, header, and mode fields dropped.
+        """
+        error_writer = self.__error_writer()
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "",
+            "d1c2": "",
+            "frmdated1c": "2025-01-01",
+        }
+        record = self.__apply(self.__filter(), input_record, error_writer)
+        assert record == {"packet": "I", "visitdate": "2025-01-01"}
+        assert not error_writer.errors()
+
+    def test_before_release_not_submitted_data_filled_no_nofill(self):
+        """Pre-release, not submitted, data field filled but nofill=False:
+
+        fields dropped, no error.
+        """
+        release_filter = ReleaseDateTransformation(
+            form_name="d1c",
+            fields=["d1c1", "d1c2"],
+            nofill=False,
+        )
+        error_writer = self.__error_writer()
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "some-value",
+        }
+        record = self.__apply(release_filter, input_record, error_writer)
+        assert record == {"packet": "I", "visitdate": "2025-01-01"}
+        assert not error_writer.errors()
+
+    def test_before_release_submitted(self):
+        """Pre-release but submitted (mode == 1): nothing dropped."""
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": "1",
+            "d1c1": "some-value",
+        }
+        record = self.__apply(self.__filter(), input_record)
+        assert record == input_record
+
+    def test_before_release_alternate_retain_mode(self):
+        """Pre-release with a second accepted retain mode (mode == 2):
+
+        nothing dropped.
+        """
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": "2",
+            "d1c1": "some-value",
+        }
+        record = self.__apply(self.__filter(), input_record)
+        assert record == input_record
+
+    def test_before_release_integer_mode_retained(self):
+        """Mode value supplied as an integer that maps to a retain mode:
+
+        nothing dropped (integer is coerced to string for comparison).
+        """
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": 1,
+            "d1c1": "some-value",
+        }
+        record = self.__apply(self.__filter(), input_record)
+        assert record == input_record
+
+    def test_before_release_integer_mode_dropped(self):
+        """Mode value supplied as an integer not in retain modes: data, header,
+        and mode fields are dropped (integer is coerced to string)."""
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": 0,
+            "d1c1": "",
+            "d1c2": "",
+            "frmdated1c": "2025-01-01",
+        }
+        record = self.__apply(self.__filter(), input_record)
+        assert record == {"packet": "I", "visitdate": "2025-01-01"}
+
+    def test_on_or_after_release(self):
+        """Visit on/after the release date: nothing dropped."""
+        input_record = {
+            "packet": "I",
+            "visitdate": "2026-06-01",
+            "moded1c": "0",
+            "d1c1": "some-value",
+        }
+        record = self.__apply(self.__filter(), input_record)
+        assert record == input_record
+
+    def test_missing_visit_date(self):
+        """No visit date: nothing dropped."""
+        input_record = {"packet": "I", "moded1c": "0", "d1c1": "some-value"}
+        record = self.__apply(self.__filter(), input_record)
+        assert record == input_record
+
+    def test_packet_not_in_release_dates(self):
+        """Visit packet has no configured release date for the form: treated as
+        already released, nothing dropped."""
+        release_filter = self.__filter()
+        input_record = {
+            "packet": "F",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "some-value",
+        }
+        record = self.__apply(release_filter, input_record)
+        assert record == input_record
+
+    def test_form_not_in_release_dates(self):
+        """Form has no configured release date: treated as already released,
+
+        nothing dropped.
+        """
+        release_filter = self.__filter()
+        input_record = {
+            "packet": "I",
+            "visitdate": "2025-01-01",
+            "moded1c": "0",
+            "d1c1": "some-value",
+        }
+        module_configs = uds_ingest_configs().model_copy(
+            update={
+                "release_dates": FormReleaseDates({"I": {"otherform": "2026-05-01"}})
+            }
+        )
+        record = release_filter.apply(
+            input_record,
+            self.__error_writer(),
+            1,
+            module_configs,
+        )
+        assert record == input_record
+
+
+class TestTransformationSchema:
+    def test_grouped_transformations(self):
+        """A module with both categories parses to the correct concrete
+        transformation subclasses in each category list."""
+        schema = {
+            "UDS": {
+                "field_transformations": [
+                    {
+                        "transform_type": "version_map",
+                        "version_map": {
+                            "fieldname": "packet",
+                            "value_map": {"F": "IVP"},
+                            "default": "FVP",
+                        },
+                        "fields": {"FVP": ["newinf"], "IVP": ["birthmo"]},
+                    }
+                ],
+                "form_transformations": [
+                    {
+                        "transform_type": "release_date",
+                        "form_name": "d1c",
+                        "fields": ["d1c1"],
+                        "header_fields": ["frmdated1c"],
+                    }
+                ],
+            }
+        }
+        transformations = TransformationSchema.model_validate_json(json.dumps(schema))
+        module_transforms = transformations.get("UDS")
+        assert module_transforms
+        assert len(module_transforms.field_transformations) == 1
+        assert len(module_transforms.form_transformations) == 1
+        assert isinstance(
+            module_transforms.field_transformations[0], VersionMapTransformation
+        )
+        assert isinstance(
+            module_transforms.form_transformations[0], ReleaseDateTransformation
+        )
+
+    def test_unknown_module_returns_none(self):
+        """get() returns None for a module with no transformations."""
+        transformations = TransformationSchema()
+        assert transformations.get("UDS") is None
