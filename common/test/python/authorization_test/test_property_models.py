@@ -5,6 +5,7 @@ Properties tested: 2, 10
 """
 
 import json
+from typing import ClassVar
 
 import pytest
 from authorization.client import AuthorizationClient
@@ -12,18 +13,22 @@ from authorization.exceptions import ParseError
 from authorization.models import (
     BatchError,
     BatchOperation,
+    BatchOperationModel,
     BatchResult,
+    GrantRequest,
     GrantResult,
     HealthResult,
     InheritanceSource,
     ParentRelationship,
     PermissionEntry,
     ResourceParents,
+    RevokeRequest,
     RevokeResult,
     UserPermissions,
 )
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from pydantic import ValidationError
 
 from .conftest import CapturingTransport, MockResponse, no_sleep
 
@@ -269,6 +274,25 @@ class TestProperty2ResponseRoundTrip:
         restored = BatchResult.model_validate_json(json_bytes)
         assert restored == model
 
+    def test_batch_result_null_errors_coerced_to_empty_list(self) -> None:
+        """A null ``errors`` field parses as an empty list, not an error.
+
+        Some API responses send ``"errors": null`` on a clean batch. The
+        client must tolerate this rather than fail parsing.
+        """
+        json_bytes = b'{"total": 3, "succeeded": 3, "failed": 0, "errors": null}'
+        restored = BatchResult.model_validate_json(json_bytes)
+        assert restored.errors == []
+        assert restored.total == 3
+        assert restored.succeeded == 3
+        assert restored.failed == 0
+
+    def test_batch_result_missing_errors_defaults_to_empty_list(self) -> None:
+        """An omitted ``errors`` field still defaults to an empty list."""
+        json_bytes = b'{"total": 3, "succeeded": 3, "failed": 0}'
+        restored = BatchResult.model_validate_json(json_bytes)
+        assert restored.errors == []
+
     @settings(max_examples=100)
     @given(model=user_permissions())
     def test_user_permissions_round_trip(self, model: UserPermissions) -> None:
@@ -412,3 +436,79 @@ class TestProperty10MalformedResponseParseError:
             )
 
         assert exc_info.value.raw_content == bad_body
+
+
+class TestResourceObjectValidation:
+    """Validation of type / resource_id on grant, revoke, and batch models.
+
+    The Authorization API validates the combined resource object
+    ``f"{type}:{resourceId}"`` for length and non-whitespace content.
+    The request models strip leading/trailing whitespace and enforce the
+    combined length is between 3 and 255 characters.
+    """
+
+    REQUEST_MODELS: ClassVar[list[type]] = [
+        GrantRequest,
+        RevokeRequest,
+        BatchOperationModel,
+    ]
+
+    @staticmethod
+    def _build(model_cls, **overrides):
+        """Build a request model with sensible defaults for shared fields."""
+        kwargs = {
+            "user_id": "Registry100000@naccdata.org",
+            "relation": "viewer",
+            "type": "dashboard",
+            "resource_id": "south-texas_dashboard-reports-adrc",
+        }
+        if model_cls is BatchOperationModel:
+            kwargs["action"] = "grant"
+        kwargs.update(overrides)
+        return model_cls(**kwargs)
+
+    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
+    def test_leading_trailing_whitespace_stripped(self, model_cls) -> None:
+        """Leading and trailing whitespace is stripped from both fields."""
+        model = self._build(
+            model_cls,
+            type="  dashboard  ",
+            resource_id="  south-texas_dashboard-reports-adrc \n",
+        )
+        assert model.type == "dashboard"
+        assert model.resource_id == "south-texas_dashboard-reports-adrc"
+
+    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
+    def test_interior_whitespace_preserved(self, model_cls) -> None:
+        """Interior whitespace is not altered (only ends are stripped)."""
+        model = self._build(
+            model_cls,
+            resource_id="South Texas ADRC_dashboard-reports-adrc",
+        )
+        assert model.resource_id == "South Texas ADRC_dashboard-reports-adrc"
+
+    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
+    def test_empty_after_strip_rejected(self, model_cls) -> None:
+        """Whitespace-only fields collapse to empty and are rejected."""
+        with pytest.raises(ValidationError):
+            self._build(model_cls, type="   ", resource_id="   ")
+
+    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
+    def test_minimum_combined_length_accepted(self, model_cls) -> None:
+        """A combined length of exactly 3 (``a:b``) is accepted."""
+        model = self._build(model_cls, type="a", resource_id="b")
+        assert model.type == "a"
+        assert model.resource_id == "b"
+
+    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
+    def test_maximum_combined_length_accepted(self, model_cls) -> None:
+        """A combined length of exactly 255 is accepted."""
+        # 3 + 1 (":") + 251 == 255
+        model = self._build(model_cls, type="abc", resource_id="x" * 251)
+        assert len(model.type) + 1 + len(model.resource_id) == 255
+
+    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
+    def test_over_maximum_combined_length_rejected(self, model_cls) -> None:
+        """A combined length of 256 is rejected."""
+        with pytest.raises(ValidationError):
+            self._build(model_cls, type="abc", resource_id="x" * 252)
