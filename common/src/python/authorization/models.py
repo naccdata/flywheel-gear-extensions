@@ -2,34 +2,82 @@
 
 from typing import Any, Callable, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+# The Authorization API validates the combined resource object
+# ``f"{type}:{resourceId}"`` against ``^[^\s]{2,256}$`` — 2 to 256
+# characters with no whitespace at any position. Locally we require the
+# combined ``type:resource_id`` string (which includes the ":" separator)
+# to be 3 to 255 characters, so that ``type`` and ``resource_id`` each
+# contribute at least one character and the whole stays within the API
+# ceiling.
+_MIN_RESOURCE_OBJECT_LENGTH = 3
+_MAX_RESOURCE_OBJECT_LENGTH = 255
 
 # --- Request Models ---
 
 
-class GrantRequest(BaseModel):
+class _ResourceObjectValidatorMixin(BaseModel):
+    """Mixin that sanitizes and validates ``type`` and ``resource_id``.
+
+    Strips leading/trailing whitespace from both fields, then requires
+    the combined resource object ``f"{type}:{resource_id}"`` to be
+    between ``_MIN_RESOURCE_OBJECT_LENGTH`` and
+    ``_MAX_RESOURCE_OBJECT_LENGTH`` characters. The combined length
+    includes the ":" separator, so the bounds guarantee each of ``type``
+    and ``resource_id`` contributes at least one character and the
+    object stays within the Authorization API's length ceiling.
+    """
+
+    type: str
+    resource_id: str = Field(alias="resourceId")
+
+    @field_validator("type", "resource_id", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: Any) -> Any:
+        """Strip leading and trailing whitespace from string values."""
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
+    @model_validator(mode="after")
+    def check_resource_object_length(self) -> "_ResourceObjectValidatorMixin":
+        """Validate the combined ``type:resource_id`` length."""
+        combined_length = len(self.type) + len(":") + len(self.resource_id)
+        if not (
+            _MIN_RESOURCE_OBJECT_LENGTH
+            <= combined_length
+            <= _MAX_RESOURCE_OBJECT_LENGTH
+        ):
+            raise ValueError(
+                f"Combined 'type:resource_id' length must be between "
+                f"{_MIN_RESOURCE_OBJECT_LENGTH} and "
+                f"{_MAX_RESOURCE_OBJECT_LENGTH} characters "
+                f"(got {combined_length}): "
+                f"type={self.type!r}, resource_id={self.resource_id!r}"
+            )
+        return self
+
+
+class GrantRequest(_ResourceObjectValidatorMixin):
     """Request model for granting a user a relation on a resource."""
 
     model_config = ConfigDict(populate_by_name=True)
 
     user_id: str = Field(alias="userId")
     relation: str
-    type: str
-    resource_id: str = Field(alias="resourceId")
 
 
-class RevokeRequest(BaseModel):
+class RevokeRequest(_ResourceObjectValidatorMixin):
     """Request model for revoking a user's relation on a resource."""
 
     model_config = ConfigDict(populate_by_name=True)
 
     user_id: str = Field(alias="userId")
     relation: str
-    type: str
-    resource_id: str = Field(alias="resourceId")
 
 
-class BatchOperationModel(BaseModel):
+class BatchOperationModel(_ResourceObjectValidatorMixin):
     """A single operation within a batch request payload."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -37,8 +85,6 @@ class BatchOperationModel(BaseModel):
     action: Literal["grant", "revoke"]
     user_id: str = Field(alias="userId")
     relation: str
-    type: str
-    resource_id: str = Field(alias="resourceId")
 
 
 class BatchRequestModel(BaseModel):
