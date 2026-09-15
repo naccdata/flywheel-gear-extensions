@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.4
+
+* Fixes authorization-sync failures caused by the shared `common/authorization` client
+  * Tolerates a null `errors` field in the Authorization API batch response (`POST /grants/batch`), which previously made the whole response unparseable and masked the real batch outcome
+  * Sanitizes and validates the `type` and `resource_id` fields in grant/revoke/batch request models: strips leading/trailing whitespace and enforces that the combined `type:resource_id` length is between 3 and 255 characters, so malformed resource objects are caught locally instead of surfacing as opaque server-side errors
+
 ## 4.4.3
 
 * Fixes `portal_url_path` default from `/prod/flywheel/portal` to `/prod/flywheel/portal/url` to match actual SSM parameter name
