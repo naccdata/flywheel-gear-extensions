@@ -269,6 +269,25 @@ class TestProperty2ResponseRoundTrip:
         restored = BatchResult.model_validate_json(json_bytes)
         assert restored == model
 
+    def test_batch_result_null_errors_coerced_to_empty_list(self) -> None:
+        """A null ``errors`` field parses as an empty list, not an error.
+
+        Some API responses send ``"errors": null`` on a clean batch. The
+        client must tolerate this rather than fail parsing.
+        """
+        json_bytes = b'{"total": 3, "succeeded": 3, "failed": 0, "errors": null}'
+        restored = BatchResult.model_validate_json(json_bytes)
+        assert restored.errors == []
+        assert restored.total == 3
+        assert restored.succeeded == 3
+        assert restored.failed == 0
+
+    def test_batch_result_missing_errors_defaults_to_empty_list(self) -> None:
+        """An omitted ``errors`` field still defaults to an empty list."""
+        json_bytes = b'{"total": 3, "succeeded": 3, "failed": 0}'
+        restored = BatchResult.model_validate_json(json_bytes)
+        assert restored.errors == []
+
     @settings(max_examples=100)
     @given(model=user_permissions())
     def test_user_permissions_round_trip(self, model: UserPermissions) -> None:

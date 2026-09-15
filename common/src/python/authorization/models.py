@@ -140,6 +140,20 @@ class BatchResult(BaseModel):
     failed: int
     errors: list[BatchError] = []
 
+    @field_validator("errors", mode="before")
+    @classmethod
+    def coerce_null_errors(cls, v: Any) -> Any:
+        """Coerce a null or missing ``errors`` field to an empty list.
+
+        The API omits ``errors`` on a clean batch, but some responses
+        send ``"errors": null`` explicitly. A null value would otherwise
+        fail list validation and make the whole response unparseable,
+        masking the real batch outcome. Treat null as "no errors".
+        """
+        if v is None:
+            return []
+        return v
+
 
 class InheritanceSource(BaseModel):
     """Source of an inherited permission."""
