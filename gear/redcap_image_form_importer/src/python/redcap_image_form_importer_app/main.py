@@ -219,12 +219,9 @@ def verify_flywheel_matches_redcap(
     """
     fw_record_dict = fw_record.model_dump(exclude_none=True)
     for var in fw_record.required_fields:
-        if (
-            var == "redcap_data_access_group"
-            and fw_record_dict.get(var) == ""
-            and fw_record_dict.get("adcid") == 0
-        ):
-            log.info(f"Note: skipping agreement of {var} for test center")
+        # redcap_data_access_group is required for export to REDCap, but not from REDCap
+        if var == "redcap_data_access_group":
+            log.info(f"Note: skipping agreement of {var}")
             continue
         if var not in fw_record_dict:
             tag_fail(
