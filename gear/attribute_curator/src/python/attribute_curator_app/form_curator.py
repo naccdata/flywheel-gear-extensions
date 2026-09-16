@@ -298,6 +298,10 @@ class FormCurator(Curator):
             subject: Subject to pre-process
             subject_table: SymbolTable containing subject-specific metadata
         """
+        # clear previous-record state for the new subject
+        self.__prev_record = None
+        self.__prev_scope = None
+
         # if forcing new curation, wipe the subject metadata
         # related to curation.
         if self.force_curate:
