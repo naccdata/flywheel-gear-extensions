@@ -50,7 +50,7 @@ def test_prev_record_carried_within_subject(curator: FormCurator) -> None:
     _seed_prev_uds_visit(curator, genman=1)
 
     table = _resolvable_table()
-    curator.prepare_table(_uds_file(), table, FormScope.UDS)
+    curator.prepare_table(_uds_file(), table, FormScope.UDS)  # type: ignore[arg-type]
 
     assert table.get("_prev_record.info") == {"resolved": {"genman": 1}}
 
@@ -63,6 +63,6 @@ def test_prev_record_not_leaked_across_subjects(curator: FormCurator) -> None:
     curator.pre_curate(SimpleNamespace(label="NACC977299"), SymbolTable(), [])
 
     table = _resolvable_table()
-    curator.prepare_table(_uds_file(), table, FormScope.UDS)
+    curator.prepare_table(_uds_file(), table, FormScope.UDS)  # type: ignore[arg-type]
 
     assert table.get("_prev_record.info") is None
