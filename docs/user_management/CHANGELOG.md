@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.6
+
+* Fixes authorization sync revoking a user's access to every study except the last one synced
+  * Center user authorization sync was processing one study at a time, but each per-study sync queried the user's current grants across all studies, so it revoked the grants added for previously synced studies — leaving the user with access to only the final study
+  * Authorization sync now aggregates all of a user's study authorizations into a single desired set, queries current grants once, and applies one batch diff so grants across studies are preserved
+
 ## 4.4.5
 
 * Fixes authorization sync using the center group's display label instead of its ID when building resource identifiers
