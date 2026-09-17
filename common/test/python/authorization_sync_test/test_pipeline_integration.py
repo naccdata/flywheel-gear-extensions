@@ -134,13 +134,17 @@ class TestUpdateCenterUserProcessSyncIntegration:
         """Create a UserEventCollector."""
         return UserEventCollector()
 
-    def test_sync_called_after_visitor_with_correct_arguments(
+    def test_sync_called_after_visitor_with_all_studies_together(
         self,
         mock_sync_service: Mock,
         collector: UserEventCollector,
     ) -> None:
-        """UpdateCenterUserProcess invokes sync_user for each study
-        authorization with registry_id and center_group_id.
+        """UpdateCenterUserProcess invokes sync_users once with all study
+        authorizations, the registry_id, and the center_group_id.
+
+        Syncing every study in a single call is required to avoid
+        cross-study revocation, where each per-study sync revokes the
+        grants added by the previously-synced study.
 
         Validates: Requirement 8.1
         """
@@ -185,23 +189,15 @@ class TestUpdateCenterUserProcessSyncIntegration:
         # Execute
         process.visit(entry)
 
-        # Verify sync_user was called for each study authorization
-        assert mock_sync_service.sync_user.call_count == 2
+        # Verify sync_users was called exactly once with both studies,
+        # and that per-study sync_user was not used.
+        mock_sync_service.sync_user.assert_not_called()
+        assert mock_sync_service.sync_users.call_count == 1
 
-        # Verify correct arguments for first call
-        call_args_list = mock_sync_service.sync_user.call_args_list
-
-        # First study authorization
-        call_1 = call_args_list[0]
-        assert call_1.kwargs["registry_id"] == "user@institution.edu"
-        assert call_1.kwargs["authorizations"] == study_auth_1
-        assert call_1.kwargs["center_group_id"] == "washington"
-
-        # Second study authorization
-        call_2 = call_args_list[1]
-        assert call_2.kwargs["registry_id"] == "user@institution.edu"
-        assert call_2.kwargs["authorizations"] == study_auth_2
-        assert call_2.kwargs["center_group_id"] == "washington"
+        call = mock_sync_service.sync_users.call_args
+        assert call.kwargs["registry_id"] == "user@institution.edu"
+        assert call.kwargs["center_group_id"] == "washington"
+        assert list(call.kwargs["authorizations"]) == [study_auth_1, study_auth_2]
 
     def test_sync_failure_does_not_prevent_flywheel_role_assignment(
         self,
@@ -214,7 +210,7 @@ class TestUpdateCenterUserProcessSyncIntegration:
         Validates: Requirement 8.5
         """
         # Setup sync to raise an exception
-        mock_sync_service.sync_user.side_effect = RuntimeError(
+        mock_sync_service.sync_users.side_effect = RuntimeError(
             "Authorization API unavailable"
         )
 
