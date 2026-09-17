@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.5
+
+* Fixes authorization sync using the center group's display label instead of its ID when building resource identifiers
+  * Center-scoped resource IDs now use the group ID (a whitespace-free slug) rather than the free-form label (e.g. "South Texas ADRC"), which the Authorization API rejected for containing whitespace
+  * Resolves the bulk of the authorization-sync batch failures
+
 ## 4.4.4
 
 * Fixes authorization-sync failures caused by the shared `common/authorization` client
