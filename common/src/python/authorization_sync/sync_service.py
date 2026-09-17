@@ -2,6 +2,7 @@
 operations."""
 
 import logging
+from collections.abc import Iterable
 from typing import Protocol
 
 from authorization.exceptions import AuthorizationClientError
@@ -128,11 +129,18 @@ class AuthorizationSyncService:
         authorizations: Authorizations,
         center_group_id: str | None = None,
     ) -> None:
-        """Synchronize grants for a user's authorizations.
+        """Synchronize grants for a single set of user authorizations.
 
         Translates the authorizations to desired grants, queries current
         grants from the API, computes the diff, and applies changes via
         batch.
+
+        Use this for a user's general (non-center) authorizations. For a
+        user's center authorizations, which span multiple studies that
+        share a center group, use ``sync_users`` so the desired set covers
+        all studies at once. Syncing studies one at a time against the
+        user's full current grant set causes each study to revoke the
+        grants of the previously-synced studies.
 
         Catches all AuthorizationClientError exceptions and reports via
         the event collector without raising.
@@ -143,12 +151,53 @@ class AuthorizationSyncService:
             center_group_id: The Flywheel group ID for the center, or
                 None for general authorizations.
         """
+        self.sync_users(
+            registry_id=registry_id,
+            authorizations=[authorizations],
+            center_group_id=center_group_id,
+        )
+
+    def sync_users(
+        self,
+        registry_id: str,
+        authorizations: Iterable[Authorizations],
+        center_group_id: str | None = None,
+    ) -> None:
+        """Synchronize grants for several authorization sets in one diff.
+
+        Translates every authorization set to desired grants and unions
+        them into a single desired set, queries the user's current grants
+        once, computes a single diff, and applies all changes in one
+        batch.
+
+        All authorization sets must share the same ``center_group_id``,
+        since the resource IDs of the desired grants are built relative to
+        it. This is the case for a center user, whose studies all belong to
+        one center group.
+
+        Aggregating the studies before diffing is what prevents cross-study
+        revocation: the current grant set returned by the API spans all of
+        the user's studies, so it must be diffed against the desired grants
+        for all studies, not one study at a time.
+
+        Catches all AuthorizationClientError exceptions and reports via
+        the event collector without raising.
+
+        Args:
+            registry_id: The user's registry ID (ePPN).
+            authorizations: The authorization sets to sync together. All
+                must share the given ``center_group_id``.
+            center_group_id: The Flywheel group ID for the center, or
+                None for general authorizations.
+        """
         try:
-            desired = translate(
-                registry_id=registry_id,
-                authorizations=authorizations,
-                center_group_id=center_group_id,
-            )
+            desired: set[DesiredGrant] = set()
+            for authorization in authorizations:
+                desired |= translate(
+                    registry_id=registry_id,
+                    authorizations=authorization,
+                    center_group_id=center_group_id,
+                )
 
             # Query current permissions per type (type is required per ADR-015)
             current: set[DesiredGrant] = set()
