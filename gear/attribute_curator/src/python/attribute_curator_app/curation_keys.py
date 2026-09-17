@@ -5,6 +5,12 @@ from nacc_attribute_deriver.utils.scope import (
     MixedProtocolScope,
 )
 
+# Subject-level locations back-propagation reads from. The -v1v3 location holds
+# the V1-3 value for quasi-cross-sectional variables (NACCNIHR, NACCEDULVL),
+# which is applied to V1-3 files in place of the subject-level value.
+CROSS_SECTIONAL_LOCATION = "subject.info.derived.cross-sectional."
+CROSS_SECTIONAL_V1V3_LOCATION = "subject.info.derived.cross-sectional-v1v3."
+
 # Scopes that need back-propagation applied to it. This ensures cross-sectional
 # variables are applied to all files in the scope (e.g. pushed back longitudinally)
 # In the case of UDS/NP/MLST, they share the cross-module variables, and need those
