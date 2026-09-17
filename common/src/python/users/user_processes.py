@@ -736,7 +736,7 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
         # Sync authorizations to the Authorization API (if available)
         sync_service = self.__env.authorization_sync
         if sync_service is not None:
-            center_group_id = center_group.label
+            center_group_id = center_group.id
             for study_auth in authorizations.values():
                 try:
                     sync_service.sync_user(

@@ -55,13 +55,15 @@ def create_mock_registry_person(
 
 def create_mock_environment(
     authorization_sync=None,
-    center_group_label: str = "washington",
+    center_group_label: str = "University of Washington",
+    center_group_id: str = "washington",
 ):
     """Create a mock UserProcessEnvironment for integration tests.
 
     Args:
         authorization_sync: The sync service (or None to skip sync).
-        center_group_label: The label for the center group.
+        center_group_label: The display label for the center group.
+        center_group_id: The (slug) group ID for the center group.
     """
     from users.user_process_environment import UserProcessEnvironment
 
@@ -70,9 +72,11 @@ def create_mock_environment(
     mock_env.authorization_map = Mock()
     mock_env.authorization_map.get = Mock(return_value=[])
 
-    # Setup admin_group with center
+    # Setup admin_group with center. The group id (a slug) is what the
+    # sync uses for resource IDs; the label is a free-form display name.
     mock_center_group = Mock()
     mock_center_group.label = center_group_label
+    mock_center_group.id = center_group_id
     mock_project_info = Mock()
     mock_project_info.apply = Mock()
     mock_center_group.get_project_info.return_value = mock_project_info
@@ -146,7 +150,7 @@ class TestUpdateCenterUserProcessSyncIntegration:
 
         mock_env = create_mock_environment(
             authorization_sync=mock_sync_service,
-            center_group_label="washington",
+            center_group_id="washington",
         )
 
         process = UpdateCenterUserProcess(
@@ -218,7 +222,7 @@ class TestUpdateCenterUserProcessSyncIntegration:
 
         mock_env = create_mock_environment(
             authorization_sync=mock_sync_service,
-            center_group_label="washington",
+            center_group_id="washington",
         )
 
         process = UpdateCenterUserProcess(
