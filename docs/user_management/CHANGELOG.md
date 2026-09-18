@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.7
+
+* Fixes authorization sync revoking grants that belong to a scope other than the one being reconciled
+  * The permissions endpoint returns every grant a user holds across all scopes, but each sync call builds a desired set for only one scope (general, or a single center's studies); diffing that scope's desired set against the user's full current grant set revoked grants from the other scopes — the general sync revoked a user's center grants, and a center sync revoked their general or other-center grants
+  * Revocation is now restricted to grants whose scope matches the scope being reconciled, using the structured resource scope the Authorization API returns; grants whose scope the API does not report are never revoked, so the change fails closed rather than over-revoking
+* Handles Flywheel project reload 404s gracefully during authorization/processing so a transient reload failure no longer aborts user updates
+
 ## 4.4.6
 
 * Fixes authorization sync revoking a user's access to every study except the last one synced
