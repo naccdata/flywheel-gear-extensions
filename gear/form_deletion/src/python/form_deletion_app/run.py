@@ -121,7 +121,11 @@ class FormDeletionVisitor(GearExecutionEnvironment):
         parent_project = self.__request_file_input.get_parent_project(
             proxy=self.proxy, file=file
         )
-        project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
+        project = ProjectAdaptor.from_project(project=parent_project, proxy=self.proxy)
+        if not project:
+            raise GearExecutionError(
+                f"Unable to access parent project {parent_project.id}"
+            )
 
         try:
             adcid = project.get_pipeline_adcid()

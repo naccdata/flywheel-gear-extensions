@@ -118,7 +118,9 @@ class LegacySanityCheckVisitor(GearExecutionEnvironment):
                 ) from error
 
         p_project = self.__file_input.get_parent_project(self.proxy, file=file)
-        project = ProjectAdaptor(project=p_project, proxy=self.proxy)
+        project = ProjectAdaptor.from_project(project=p_project, proxy=self.proxy)
+        if not project:
+            raise GearExecutionError(f"Unable to access parent project {p_project.id}")
 
         try:
             metadata_project = ProjectAdaptor.create(

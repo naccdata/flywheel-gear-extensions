@@ -280,21 +280,16 @@ class REDCapFlywheelTransferVisitor(GearExecutionEnvironment):
         if not group_adaptor:
             raise GearExecutionError(f"Cannot find Flywheel group {self.__group_id}")
 
-        project = self.proxy.get_project_by_id(self.__project_id)
-        if not project:
-            raise GearExecutionError(
-                f"Cannot find Flywheel project {self.__project_id}"
-            )
-        project_adaptor = ProjectAdaptor(project=project, proxy=self.proxy)
+        project_adaptor = self.get_project_adaptor(self.__project_id)
 
         redcap_projects = get_redcap_projects_metadata(
-            group_adaptor=group_adaptor, project_label=project.label
+            group_adaptor=group_adaptor, project_label=project_adaptor.label
         )
 
         if not redcap_projects:
             raise GearExecutionError(
                 "REDCap project information not found for "
-                f"{group_adaptor.label}/{project.label}"
+                f"{group_adaptor.label}/{project_adaptor.label}"
             )
 
         success = True

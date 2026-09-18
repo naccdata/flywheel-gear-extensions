@@ -12,7 +12,6 @@ from configs.ingest_configs import (
 )
 from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
@@ -196,10 +195,7 @@ class FormSchedulerVisitor(GearExecutionEnvironment):
         )
 
         # Get the project
-        fw_project = self.proxy.get_project_by_id(project_id)
-        if not fw_project:
-            raise GearExecutionError(f"Cannot find project with ID {project_id}")
-        project = ProjectAdaptor(project=fw_project, proxy=self.proxy)
+        project = self.get_project_adaptor(project_id)
 
         # Create the queue
         queue = FormSchedulerQueue(
