@@ -109,6 +109,76 @@ class TestVersionMapTransformation:
         assert record
         assert [k for k in record if k in input_record and k != "b1"]
 
+    def __mode_transformation(self, nofill: bool = True):
+        """Creates a transformation where the indicator field is one of the
+        fields it drops, as the COVID mode variables are configured."""
+        return VersionMapTransformation(
+            version_map=VersionMap(
+                fieldname="modef2",
+                value_map={"1": "F2_SUBMITTED", "2": "F2_SUBMITTED"},
+                default="F2_NOT_SUBMITTED",
+            ),
+            nofill=nofill,
+            fields={
+                "F2_SUBMITTED": [],
+                "F2_NOT_SUBMITTED": ["modef2", "c19cdr"],
+            },
+        )
+
+    def test_indicator_field_exempt_from_nofill(self):
+        """The indicator field is dropped without being checked for a value.
+
+        Its value is what selected the fields to drop, so it is not
+        stray data.
+        """
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "0", "c19cdr": "", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert record == {"ptid": "dummy-ptid"}
+        assert not error_writer.errors()
+
+    def test_indicator_field_blank(self):
+        """A blank indicator field drops the same fields."""
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "", "c19cdr": "", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert record == {"ptid": "dummy-ptid"}
+        assert not error_writer.errors()
+
+    def test_data_fields_still_checked(self):
+        """Exempting the indicator field does not exempt the data fields."""
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "0", "c19cdr": "5", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert not record
+        assert len(error_writer.errors()) == 1
+        file_error = error_writer.errors()[0]
+        assert file_error.error_code == SysErrorCodes.EXCLUDED_FIELDS
+        # only the data field is reported, not the indicator field
+        assert "c19cdr" in file_error.message
+        assert "modef2" not in file_error.message
+
+    def test_indicator_field_retained_when_submitted(self):
+        """Nothing is dropped when the indicator selects an empty field
+        list."""
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "1", "c19cdr": "5", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert record == input_record
+        assert not error_writer.errors()
+
 
 class TestDateTransformer:
     def test_nodate(self):
