@@ -143,6 +143,30 @@ preprocess_errors = {
         "Duplicate record with the same visit date exists in the legacy submissions "
         "for this participant/module"
     ),
+    SysErrorCodes.HIGHER_IVP_VISITDATE: (
+        "Initial Visit Packet visit date (VISITDATE) cannot be equal to or from a "
+        "date after an existing Follow-Up Visit Packet for this participant"
+    ),
+    SysErrorCodes.MISSING_IVP_FORMS: (
+        "Cannot find an existing Initial Visit Packet with form(s) {0} for this "
+        "participant. Follow-Up visit cannot be submitted without an existing IVP."
+    ),
+    SysErrorCodes.DIFF_PACKET: (
+        "Two visits cannot have the same visit date (VISITDATE) if they have "
+        "different packet codes (PACKET). An existing visit on this date was "
+        "submitted with PACKET={0}; delete that visit before resubmitting with a "
+        "different packet code"
+    ),
+    SysErrorCodes.COVID_FORMS_REQUIRED: (
+        "At least one of the form(s) {0} must be submitted with this visit packet"
+    ),
+    SysErrorCodes.COVID_FORM_CONFLICT: (
+        "List of forms previously submitted for this visitdate {0} does not match "
+        "with the list of forms in current submission {1}. If this was intentional, "
+        "delete the existing visit before resubmitting, else use a different visitdate "
+        "as two different records are not allowed for the same visitdate for the same "
+        "participant"
+    ),
 }
 
 
