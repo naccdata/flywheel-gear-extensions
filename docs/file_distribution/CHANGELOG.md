@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.2
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 1.1.1
 
 * Adds option to check if the uploaded center file would be a duplicate of an existing file - if so, does not replace it
