@@ -182,7 +182,11 @@ def run(  # noqa: C901
         raise GearExecutionError(
             f"Failed to find the project with ID {file.parents.project}"
         )
-    project_adaptor = ProjectAdaptor(project=project, proxy=proxy)
+    project_adaptor = ProjectAdaptor.from_project(project=project, proxy=proxy)
+    if not project_adaptor:
+        raise GearExecutionError(
+            f"Failed to access the project with ID {file.parents.project}"
+        )
 
     if (
         module not in form_project_configs.accepted_modules

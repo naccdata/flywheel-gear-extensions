@@ -85,7 +85,12 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
             return
 
         parent_project = self.__file_input.get_parent_project(self.proxy)
-        project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
+        project = ProjectAdaptor.from_project(project=parent_project, proxy=self.proxy)
+        if not project:
+            raise GearExecutionError(
+                f"Unable to access parent project {parent_project.id}"
+            )
+
         try:
             adcid = project.get_pipeline_adcid()
         except ProjectError as error:

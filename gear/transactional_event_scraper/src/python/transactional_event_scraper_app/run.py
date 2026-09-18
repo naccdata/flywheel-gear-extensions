@@ -104,7 +104,9 @@ class TransactionalEventScraperVisitor(GearExecutionEnvironment):
         if not fw_project:
             raise GearExecutionError(f"Cannot find project with ID {project_id}")
 
-        project = ProjectAdaptor(project=fw_project, proxy=proxy)
+        project = ProjectAdaptor.from_project(project=fw_project, proxy=proxy)
+        if not project:
+            raise GearExecutionError(f"Cannot access project with ID {project_id}")
 
         # Optional: form module configs, used to resolve the module-specific
         # date field when extracting visit metadata.

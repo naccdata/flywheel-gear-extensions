@@ -891,10 +891,10 @@ class TestVisitorRun:
                 return_value=mock_proxy,
             ),
             patch(
-                "image_identifier_lookup_app.run.ProjectAdaptor",
-                return_value=mock_project,
-            ),
+                "image_identifier_lookup_app.run.ProjectAdaptor"
+            ) as mock_adaptor_class,
         ):
+            mock_adaptor_class.from_project.return_value = mock_project
             # Act
             visitor.run(mock_gear_context)
 
@@ -1158,10 +1158,10 @@ class TestDataIdentificationFileWrite:
                 return_value=mock_proxy,
             ),
             patch(
-                "image_identifier_lookup_app.run.ProjectAdaptor",
-                return_value=mock_project,
-            ),
+                "image_identifier_lookup_app.run.ProjectAdaptor"
+            ) as mock_adaptor_class,
         ):
+            mock_adaptor_class.from_project.return_value = mock_project
             visitor.run(mock_gear_context)
 
         # Find the call that wrote data_identification
@@ -1219,10 +1219,10 @@ class TestDataIdentificationFileWrite:
                 return_value=mock_proxy,
             ),
             patch(
-                "image_identifier_lookup_app.run.ProjectAdaptor",
-                return_value=mock_project,
-            ),
+                "image_identifier_lookup_app.run.ProjectAdaptor"
+            ) as mock_adaptor_class,
         ):
+            mock_adaptor_class.from_project.return_value = mock_project
             visitor.run(mock_gear_context)
 
         # Verify no call wrote data_identification
@@ -1292,10 +1292,10 @@ class TestDataIdentificationFileWrite:
                 return_value=mock_proxy,
             ),
             patch(
-                "image_identifier_lookup_app.run.ProjectAdaptor",
-                return_value=mock_project,
-            ),
+                "image_identifier_lookup_app.run.ProjectAdaptor"
+            ) as mock_adaptor_class,
         ):
+            mock_adaptor_class.from_project.return_value = mock_project
             # Should NOT raise
             visitor.run(mock_gear_context)
 
@@ -1375,10 +1375,10 @@ class TestDryRunBehavior:
                 return_value=mock_proxy,
             ),
             patch(
-                "image_identifier_lookup_app.run.ProjectAdaptor",
-                return_value=mock_project,
-            ),
+                "image_identifier_lookup_app.run.ProjectAdaptor"
+            ) as mock_adaptor_class,
         ):
+            mock_adaptor_class.from_project.return_value = mock_project
             dry_run_visitor.run(mock_gear_context)
 
         # Assert - no metadata writes occurred

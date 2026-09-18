@@ -322,7 +322,14 @@ class QCCoordinator:
         if not self.__project:
             raise GearExecutionError("Project not available for updating error log")
 
-        project_adaptor = ProjectAdaptor(project=self.__project, proxy=self.__proxy)
+        project_adaptor = ProjectAdaptor.from_project(
+            project=self.__project, proxy=self.__proxy
+        )
+        if not project_adaptor:
+            raise GearExecutionError(
+                f"Unable to access project {self.__project.id} for updating error log"
+            )
+
         qc_manager = QCStatusLogManager(
             error_log_template=ErrorLogTemplate(),
             visit_annotator=FileVisitAnnotator(project_adaptor),

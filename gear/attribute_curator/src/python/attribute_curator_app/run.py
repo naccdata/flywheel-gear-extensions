@@ -97,7 +97,11 @@ class AttributeCuratorVisitor(GearExecutionEnvironment):
             raise GearExecutionError("Cannot define both include and exclude lists")
 
         fw_project = get_project_from_destination(context=context, proxy=proxy)
-        project = ProjectAdaptor(project=fw_project, proxy=proxy)
+        project = ProjectAdaptor.from_project(project=fw_project, proxy=proxy)
+        if not project:
+            raise GearExecutionError(
+                f"Unable to access destination project {fw_project.id}"
+            )
 
         if options.get("debug", False):
             logging.basicConfig(level=logging.DEBUG)

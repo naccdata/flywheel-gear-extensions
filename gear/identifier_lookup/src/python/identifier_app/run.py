@@ -207,7 +207,13 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         if module_configs and self.__single_center:
             # Get basic project information
             parent_project = file_input.get_parent_project(self.proxy)
-            project = ProjectAdaptor(project=parent_project, proxy=self.proxy)
+            project = ProjectAdaptor.from_project(
+                project=parent_project, proxy=self.proxy
+            )
+            if not project:
+                raise GearExecutionError(
+                    f"Unable to access parent project {parent_project.id}"
+                )
 
             try:
                 adcid = project.get_pipeline_adcid()
@@ -254,6 +260,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # (QC logging requires a project context which is only available for
         # single center mode)
         if module_configs and self.__single_center:
+            assert project is not None, "project set when single center"
             error_log_template = ErrorLogTemplate()
             visit_annotator = FileVisitAnnotator(project=project)
             qc_log_manager = QCStatusLogManager(
@@ -274,6 +281,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # Add event capture visitor if we have event capture, module configs,
         # and single center mode (event capture requires project context)
         if self.__event_capture and module_configs and self.__single_center:
+            assert project is not None, "project set when single center"
             # Extract center label and project label from project adaptor
             center_label = project.group  # Use group as center label
             project_label = project.label

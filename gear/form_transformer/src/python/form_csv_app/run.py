@@ -178,12 +178,6 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 f"Failed to find the input file: {error}"
             ) from error
 
-        project = proxy.get_project_by_id(file.parents.project)
-        if not project:
-            raise GearExecutionError(
-                f"Failed to find the project with ID {file.parents.project}"
-            )
-
         gear_name = self.get_gear_name(context, "form-transformer")
 
         # Initialize visit event capture from config
@@ -195,7 +189,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
             context.config.opts.get("downstream_gears", None)
         )
 
-        prj_adaptor = ProjectAdaptor(project=project, proxy=proxy)
+        prj_adaptor = self.get_project_adaptor(file.parents.project)
 
         error_writer = ListErrorWriter(
             container_id=file_id, fw_path=proxy.get_lookup_path(file)
