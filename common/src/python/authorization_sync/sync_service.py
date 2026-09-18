@@ -10,6 +10,7 @@ from authorization.models import (
     AuthorizationModelMetadata,
     BatchOperation,
     BatchResult,
+    PermissionEntry,
     UserPermissions,
     UserProfile,
     UserProfileRequest,
@@ -42,6 +43,74 @@ _SYNC_RESOURCE_TYPES: frozenset[str] = frozenset(
         for resource_type, _ in pairs
     }
 )
+
+
+def _entry_in_scope(
+    entry: PermissionEntry,
+    center_group_id: str | None,
+) -> bool:
+    """Report whether a permission entry belongs to the scope being synced.
+
+    A sync call reconciles exactly one scope: a specific center (when
+    ``center_group_id`` is set) or the general, non-center scope (when it
+    is None). The entry's scope is read from the structured ``resource``
+    the API returns (``resource.center``), not by parsing the resource
+    id.
+
+    Grants are only revoked within the scope being reconciled, so an
+    entry is in scope when its center matches the call's center. When the
+    API does not return structured scope for the entry (``resource`` is
+    None, e.g. a catalog gap), the scope cannot be confirmed and the
+    entry is treated as out of scope so it is never revoked.
+
+    Args:
+        entry: The permission entry from the API.
+        center_group_id: The center group id being reconciled, or None
+            for the general scope.
+
+    Returns:
+        True if the entry belongs to the scope being reconciled.
+    """
+    if entry.resource is None:
+        # Scope cannot be confirmed; never eligible for revocation.
+        return False
+
+    return entry.resource.center == center_group_id
+
+
+def _grants_in_scope(
+    permissions: UserPermissions,
+    center_group_id: str | None,
+) -> set[DesiredGrant]:
+    """Build the set of current grants that belong to the synced scope.
+
+    Only entries whose scope matches ``center_group_id`` (per
+    :func:`_entry_in_scope`) are included, so the returned grants are the
+    revoke-eligible subset of the user's current grants for this call.
+
+    Args:
+        permissions: The user's current permissions for one resource
+            type.
+        center_group_id: The center group id being reconciled, or None
+            for the general scope.
+
+    Returns:
+        Set of DesiredGrant objects for the in-scope current grants.
+    """
+    grants: set[DesiredGrant] = set()
+    for resource_type, entries in permissions.permissions.items():
+        for entry in entries:
+            if not _entry_in_scope(entry, center_group_id):
+                continue
+            grants.add(
+                DesiredGrant(
+                    user_id=permissions.user_id,
+                    resource_type=resource_type,
+                    resource_id=entry.resource_id,
+                    relation=entry.relation,
+                )
+            )
+    return grants
 
 
 class AuthorizationClientProtocol(Protocol):
@@ -180,6 +249,16 @@ class AuthorizationSyncService:
         the user's studies, so it must be diffed against the desired grants
         for all studies, not one study at a time.
 
+        Revocation is scoped to the center being reconciled (or the
+        general, non-center scope when ``center_group_id`` is None). The
+        current grant set returned by the API spans every scope the user
+        holds, so revoke candidates are first restricted to grants whose
+        center matches this call's ``center_group_id``. This prevents a
+        call for one scope from revoking another scope's grants — for
+        example, the general sync no longer revokes a user's center grants,
+        and a center sync no longer revokes the user's general grants.
+        Grants whose scope the API does not report are never revoked.
+
         Catches all AuthorizationClientError exceptions and reports via
         the event collector without raising.
 
@@ -201,15 +280,25 @@ class AuthorizationSyncService:
 
             # Query current permissions per type (type is required per ADR-015)
             current: set[DesiredGrant] = set()
+            in_scope_current: set[DesiredGrant] = set()
             for resource_type in _SYNC_RESOURCE_TYPES:
                 permissions = self._client.get_user_permissions(
                     user_id=registry_id,
                     type_filter=resource_type,
                 )
                 current |= permissions.to_grants(DesiredGrant)
+                in_scope_current |= _grants_in_scope(permissions, center_group_id)
 
+            # Adds may target any scope this call knows about; a grant already
+            # present anywhere is not re-added.
             grants_to_add = desired - current
-            grants_to_revoke = current - desired
+
+            # Revokes are restricted to grants that belong to the scope being
+            # reconciled by this call (the center, or general when
+            # center_group_id is None). A grant is revoked only when its own
+            # scope no longer desires it, so grants in other scopes — and
+            # grants whose scope cannot be determined — are never revoked here.
+            grants_to_revoke = in_scope_current - desired
 
             if not grants_to_add and not grants_to_revoke:
                 log.info(
