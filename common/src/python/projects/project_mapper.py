@@ -83,7 +83,13 @@ def generate_project_map(
                 + "possibly a permissions issue?"
             )
 
-        project = ProjectAdaptor(project=fw_project, proxy=proxy)
+        project = ProjectAdaptor.from_project(project=fw_project, proxy=proxy)
+        if not project:
+            raise GearExecutionError(
+                f"Cannot access staging project with ID {staging_project_id}, "
+                + "possibly a permissions issue?"
+            )
+
         return {f"adcid-{adcid}": project for adcid in centers}
 
     # else build project map from ADCID to corresponding
