@@ -17,16 +17,35 @@ from authorization.models import (
     BatchOperation,
     BatchResult,
     PermissionEntry,
+    ResourceObject,
     UserPermissions,
 )
 from authorization_sync.sync_service import AuthorizationSyncService
 from users.authorizations import (
     Activities,
     Activity,
+    Authorizations,
     DatatypeResource,
+    PageResource,
     StudyAuthorizations,
 )
 from users.event_models import UserEventCollector
+
+
+def _resource_object(resource_type: str, resource_id: str) -> ResourceObject:
+    """Build the structured resource the real API returns for a grant.
+
+    The API enriches each permission entry with the resource's parents
+    from the catalog. This models the center parent the way ADR-016
+    resource ids encode it: center-scoped ids are ``{center}_{label}``
+    (center names never contain underscores), and general (non-center)
+    ids have no such prefix. Study is left unset — the sync's scope
+    filter keys on center, and studies within a center share its scope.
+    """
+    center: str | None = None
+    if "_" in resource_id:
+        center = resource_id.split("_", 1)[0]
+    return ResourceObject(type=resource_type, id=resource_id, center=center)
 
 
 @dataclass
@@ -36,12 +55,17 @@ class StatefulAuthorizationClient:
     Models the real API closely enough to expose cross-study revocation:
     ``get_user_permissions`` returns every grant the user currently
     holds of the requested type, regardless of which study it belongs
-    to.
+    to. Each entry is enriched with a structured ``resource`` carrying
+    the grant's center parent, as the real API does, so the sync's scope
+    filter can distinguish center scopes from the general scope.
     """
 
     # (user_id, resource_type, resource_id, relation)
     grants: set[tuple[str, str, str, str]] = field(default_factory=set)
     batch_calls: list[list[BatchOperation]] = field(default_factory=list)
+    # resource ids for which the API returns no structured scope (catalog
+    # gap): entries for these are returned with resource=None.
+    scopeless_resource_ids: set[str] = field(default_factory=set)
 
     def get_user_permissions(
         self,
@@ -50,7 +74,15 @@ class StatefulAuthorizationClient:
         relation_filter: str | None = None,
     ) -> UserPermissions:
         entries: list[PermissionEntry] = [
-            PermissionEntry(resource_id=resource_id, relation=relation)
+            PermissionEntry(
+                resource_id=resource_id,
+                relation=relation,
+                resource=(
+                    None
+                    if resource_id in self.scopeless_resource_ids
+                    else _resource_object(rtype, resource_id)
+                ),
+            )
             for (uid, rtype, resource_id, relation) in self.grants
             if uid == user_id and rtype == type_filter
         ]
@@ -205,3 +237,181 @@ class TestMultiStudySyncNoRevocation:
 
         assert _revoke_ops(client) == []
         assert len(client.grants) > 0
+
+
+def _general_page_auth(page: str) -> Authorizations:
+    """Build general (non-center) authorizations with one page view."""
+    activities = Activities()
+    resource = PageResource(page=page)
+    activities.add(resource, Activity(resource=resource, action="view"))
+    return Authorizations(activities=activities)
+
+
+class TestCrossScopeSyncNoRevocation:
+    """Revokes stay within the scope being reconciled by a sync call.
+
+    The permissions endpoint returns every grant a user holds across all
+    scopes. A sync call reconciles one scope — a specific center, or the
+    general (non-center) scope. Revokes must be confined to that scope
+    so a general sync never revokes center grants and a center sync
+    never revokes general or other-center grants.
+    """
+
+    def test_general_sync_does_not_revoke_center_grants(self) -> None:
+        """The general sync leaves a user's center grants untouched.
+
+        Reproduces the production over-revoke: a user with an empty (or
+        page-only) general authorization set but real center grants had
+        those center grants revoked by the general sync.
+        """
+        client = StatefulAuthorizationClient()
+        # Pre-seed a center grant the general sync must not touch.
+        client.grants.add(
+            (
+                "user@institution.edu",
+                "data_pipeline",
+                "washington_ingest-form-study-1",
+                "submitter",
+            )
+        )
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        # General sync (center_group_id=None) with only a page grant.
+        service.sync_user(
+            registry_id="user@institution.edu",
+            authorizations=_general_page_auth("community-resources"),
+        )
+
+        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
+        assert "washington_ingest-form-study-1" not in revoked_ids
+        # The center grant survives in API state.
+        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
+        assert "washington_ingest-form-study-1" in surviving
+
+    def test_general_sync_with_empty_desired_revokes_nothing_out_of_scope(
+        self,
+    ) -> None:
+        """An empty general desired set revokes no center grants.
+
+        This is the Registry100821 case: general activities are empty,
+        so the desired set is empty, but the user holds center grants.
+        The general sync must not revoke them (previously it revoked
+        all).
+        """
+        client = StatefulAuthorizationClient()
+        for datatype in ("form", "enrollment", "dicom"):
+            client.grants.add(
+                (
+                    "user@institution.edu",
+                    "data_pipeline",
+                    f"washington_ingest-{datatype}-study-1",
+                    "submitter",
+                )
+            )
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        # Empty general authorizations -> empty desired set.
+        service.sync_user(
+            registry_id="user@institution.edu",
+            authorizations=Authorizations(),
+        )
+
+        assert _revoke_ops(client) == []
+        assert len(client.grants) == 3
+
+    def test_center_sync_does_not_revoke_general_grants(self) -> None:
+        """A center sync leaves the user's general grants untouched."""
+        client = StatefulAuthorizationClient()
+        # Pre-seed a general (non-center) page grant.
+        client.grants.add(
+            (
+                "user@institution.edu",
+                "page",
+                "page-community-resources",
+                "viewer",
+            )
+        )
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        service.sync_users(
+            registry_id="user@institution.edu",
+            authorizations=[_study_auth("study-1", "form")],
+            center_group_id="washington",
+        )
+
+        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
+        assert "page-community-resources" not in revoked_ids
+        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
+        assert "page-community-resources" in surviving
+
+    def test_center_sync_does_not_revoke_other_center_grants(self) -> None:
+        """A sync for center A leaves center B's grants untouched."""
+        client = StatefulAuthorizationClient()
+        # Pre-seed a grant belonging to a different center.
+        client.grants.add(
+            (
+                "user@institution.edu",
+                "data_pipeline",
+                "columbia_ingest-form-study-1",
+                "submitter",
+            )
+        )
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        service.sync_users(
+            registry_id="user@institution.edu",
+            authorizations=[_study_auth("study-1", "form")],
+            center_group_id="washington",
+        )
+
+        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
+        assert "columbia_ingest-form-study-1" not in revoked_ids
+        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
+        assert "columbia_ingest-form-study-1" in surviving
+
+    def test_grant_with_unknown_scope_is_never_revoked(self) -> None:
+        """A current grant with no API-reported scope is never revoked.
+
+        Models a catalog gap: the permissions endpoint returns the grant
+        with resource=None. Scope cannot be confirmed, so the grant must
+        be left alone even when it is absent from the desired set and
+        would otherwise look in-scope.
+        """
+        client = StatefulAuthorizationClient()
+        client.grants.add(
+            (
+                "user@institution.edu",
+                "data_pipeline",
+                "washington_ingest-form-orphan",
+                "submitter",
+            )
+        )
+        # The API cannot report scope for this resource.
+        client.scopeless_resource_ids.add("washington_ingest-form-orphan")
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        service.sync_users(
+            registry_id="user@institution.edu",
+            authorizations=[_study_auth("study-1", "form")],
+            center_group_id="washington",
+        )
+
+        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
+        assert "washington_ingest-form-orphan" not in revoked_ids
+        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
+        assert "washington_ingest-form-orphan" in surviving
