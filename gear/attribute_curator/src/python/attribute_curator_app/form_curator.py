@@ -34,6 +34,8 @@ from utils.decorators import api_retry
 
 from .curation_keys import (
     BACKPROP_SCOPES,
+    CROSS_SECTIONAL_LOCATION,
+    CROSS_SECTIONAL_V1V3_LOCATION,
     RESOLVED_SCOPES,
     FormCurationTags,
 )
@@ -73,15 +75,28 @@ class FormCurator(Curator):
         # these will get back-propagated at the end of each subject's curation
         self.__scope_reference: Dict[str, Set[str]] = {}
 
+        # quasi-cross-sectional variables, which carry a separate V1-3 value
+        # applied only to V1-3 files (see back_propagate_scopes)
+        self.__era_scope_reference: Dict[str, Set[str]] = {}
+
         for scope, child_scopes in BACKPROP_SCOPES.items():
             if scope not in self.__scope_reference:
                 self.__scope_reference[scope] = set([])
+                self.__era_scope_reference[scope] = set([])
 
             self.__scope_reference[scope].update(self.__extract_attributes(scope))
+            self.__era_scope_reference[scope].update(
+                self.__extract_attributes(scope, CROSS_SECTIONAL_V1V3_LOCATION)
+            )
 
             for child_scope in child_scopes:
                 self.__scope_reference[scope].update(
                     self.__extract_attributes(child_scope)
+                )
+                self.__era_scope_reference[scope].update(
+                    self.__extract_attributes(
+                        child_scope, CROSS_SECTIONAL_V1V3_LOCATION
+                    )
                 )
 
         if rxclass_concepts is not None:
@@ -93,11 +108,14 @@ class FormCurator(Curator):
                 ALL_RX_CLASSES, combination_rx_classes=COMBINATION_RX_CLASSES
             )
 
-    def __extract_attributes(self, scope: str) -> Set[str]:
+    def __extract_attributes(
+        self, scope: str, parent_location: str = CROSS_SECTIONAL_LOCATION
+    ) -> Set[str]:
         """Extracts the attributes for the given scope.
 
         Args:
             scope: the scope to extract rules for
+            parent_location: the subject-level prefix to select rules by
         Returns:
             List of attributes (locations)
         """
@@ -112,10 +130,8 @@ class FormCurator(Curator):
             for assignment in rule.assignments:
                 attributes.append(assignment.attribute)
 
-        # in this context we only care about those at
-        # subject.info.derived.cross-sectional,
-        # so parse out and strip down to the derived variable name
-        parent_location = "subject.info.derived.cross-sectional."
+        # in this context we only care about those under the given parent
+        # location, so parse out and strip down to the derived variable name
         return set(
             [
                 x.replace(parent_location, "")
@@ -298,6 +314,10 @@ class FormCurator(Curator):
             subject: Subject to pre-process
             subject_table: SymbolTable containing subject-specific metadata
         """
+        # clear previous-record state for the new subject
+        self.__prev_record = None
+        self.__prev_scope = None
+
         # if forcing new curation, wipe the subject metadata
         # related to curation.
         if self.force_curate:
@@ -401,6 +421,7 @@ class FormCurator(Curator):
             scoped_files,
             "derived",
             derived.get("cross-sectional", None),
+            derived.get("cross-sectional-v1v3", None),
         )
 
         # 6. push curation to FW
@@ -507,6 +528,7 @@ class FormCurator(Curator):
         scoped_files: Dict[ScopeLiterals, List[FileModel]],
         category: str,
         cs_variables: Dict[str, Any] | None,
+        era_variables: Dict[str, Any] | None = None,
     ) -> None:
         """Performs back-propagation on cross-sectional variables.
 
@@ -514,11 +536,18 @@ class FormCurator(Curator):
         subject has completed and need to be applied back to each
         corresponding file's file.info
 
+        Quasi-cross-sectional variables carry a separate V1-3 value, which
+        overrides the subject-level one on V1-3 files only. V4 files keep the
+        subject-level value, so a participant can hold one value for their
+        V1-3 visits and another for their V4 visits.
+
         Args:
             subject: The subject
             scoped_files: The curated files, scoped
             category: The variable category (derived vs resolved)
             cs_variables: The cross-sectional variables, if any
+            era_variables: The V1-3 values for quasi-cross-sectional
+                variables, if any
         """
         if not cs_variables:
             log.debug(
@@ -536,8 +565,20 @@ class FormCurator(Curator):
                 if k in scoped_vars:
                     result[scope][k] = v
 
+        # the V1-3 values for quasi-cross-sectional variables, applied over the
+        # above for V1-3 files only
+        era_result: Dict[str, Dict[str, Any]] = {
+            scope: {} for scope in self.__era_scope_reference
+        }
+
+        for k, v in (era_variables or {}).items():
+            for scope, scoped_vars in self.__era_scope_reference.items():
+                if k in scoped_vars:
+                    era_result[scope][k] = v
+
         # remove scope if there is nothing in it
         result = {k: v for k, v in result.items() if v}
+        era_result = {k: v for k, v in era_result.items() if v}
 
         if not result:
             log.debug(
@@ -568,7 +609,30 @@ class FormCurator(Curator):
                 if category not in file_info:
                     file_info[category] = {}
 
-                file_info[category].update(result[scope])
+                values = result[scope]
+                era_values = era_result.get(scope)
+                if era_values and self.is_pre_v4(file):
+                    values = {**values, **era_values}
+
+                file_info[category].update(values)
+
+    @staticmethod
+    def is_pre_v4(file: FileModel) -> bool:
+        """Whether the file is a UDS V1-3 form.
+
+        Files with no or unreadable formver are treated as not V1-3, so they
+        keep the subject-level cross-sectional value.
+        """
+        file_info = file.file_info if file.file_info else {}
+        formver = file_info.get("forms", {}).get("json", {}).get("formver")
+
+        if formver is None:
+            return False
+
+        try:
+            return float(formver) < 4
+        except (TypeError, ValueError):
+            return False
 
     @api_retry
     def apply_file_curation(self, file: FileModel, affiliate: int) -> None:
