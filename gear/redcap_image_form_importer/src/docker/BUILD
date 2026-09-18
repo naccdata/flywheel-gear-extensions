@@ -7,5 +7,5 @@ docker_image(
         ":manifest",
         "gear/redcap_image_form_importer/src/python/redcap_image_form_importer_app:bin",
     ],
-    image_tags=["0.0.19", "latest"],
+    image_tags=["0.0.20", "latest"],
 )
