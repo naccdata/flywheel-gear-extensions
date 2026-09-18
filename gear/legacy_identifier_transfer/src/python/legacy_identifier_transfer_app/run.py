@@ -155,11 +155,8 @@ class LegacyIdentifierTransferVisitor(GearExecutionEnvironment):
         group_id, project_id = get_destination_group_and_project(dest_container)
         log.info(f"group_id: {group_id}")
 
-        project = self.proxy.get_project_by_id(project_id=project_id)
-        if project is None:
-            raise GearExecutionError(f"Unable to find project {project_id}")
+        project_adaptor = self.get_project_adaptor(project_id)
 
-        project_adaptor = ProjectAdaptor(project=project, proxy=self.proxy)
         try:
             adcid = project_adaptor.get_pipeline_adcid()
         except ProjectError as error:

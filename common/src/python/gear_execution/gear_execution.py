@@ -15,7 +15,11 @@ from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
+from flywheel_adaptor.flywheel_proxy import (
+    FlywheelError,
+    FlywheelProxy,
+    ProjectAdaptor,
+)
 from fw_client.client import FWClient
 from fw_gear import GearContext
 from fw_gear.utils.sdk_helpers import get_container_from_ref
@@ -381,6 +385,31 @@ class GearExecutionEnvironment(ABC):
             return NACCGroup.create(proxy=proxy, group_id=admin_id)
         except FlywheelError as error:
             raise GearExecutionError(str(error)) from error
+
+    def get_project_adaptor(self, project_id: str) -> ProjectAdaptor:
+        """Returns the adaptor for the project with the given ID.
+
+        Loading the adaptor reloads the project from Flywheel to fetch the
+        complete container. Both the initial lookup and the reload can fail to
+        resolve a project (e.g. index lag after a platform change), so this
+        raises rather than returning None.
+
+        Args:
+          project_id: the ID of the project
+        Returns:
+          the adaptor for the project
+        Raises:
+          GearExecutionError if the project cannot be found or accessed
+        """
+        project = self.proxy.get_project_by_id(project_id)
+        if not project:
+            raise GearExecutionError(f"Cannot find project with ID {project_id}")
+
+        adaptor = ProjectAdaptor.from_project(project=project, proxy=self.proxy)
+        if not adaptor:
+            raise GearExecutionError(f"Cannot access project with ID {project_id}")
+
+        return adaptor
 
     @property
     def proxy(self) -> FlywheelProxy:
