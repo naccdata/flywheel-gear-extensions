@@ -60,7 +60,10 @@ class CenterGroup(CenterAdaptor):
         if not project:
             raise CenterError(f"Unable to create center from group {group.label}")
 
-        metadata_project = ProjectAdaptor(project=project, proxy=proxy)
+        metadata_project = ProjectAdaptor.from_project(project=project, proxy=proxy)
+        if not metadata_project:
+            raise CenterError(f"Unable to access metadata project for {group.label}")
+
         metadata_info = metadata_project.get_info()
         if "adcid" not in metadata_info:
             raise CenterError(
@@ -232,11 +235,12 @@ class CenterGroup(CenterAdaptor):
         if pattern is not None:
             project_pattern = re.compile(rf"^{pattern}$")
 
-        return [
-            ProjectAdaptor(project=project, proxy=self.proxy())
+        adaptors = [
+            ProjectAdaptor.from_project(project=project, proxy=self.proxy())
             for project in self.projects()
             if project_pattern.match(project.label)
         ]
+        return [adaptor for adaptor in adaptors if adaptor is not None]
 
     @classmethod
     def get_datatype(cls, *, stage: str, label: str) -> Optional[str]:

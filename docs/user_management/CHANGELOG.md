@@ -2,6 +2,25 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.4.7
+
+* Fixes authorization sync revoking grants that belong to a scope other than the one being reconciled
+  * The permissions endpoint returns every grant a user holds across all scopes, but each sync call builds a desired set for only one scope (general, or a single center's studies); diffing that scope's desired set against the user's full current grant set revoked grants from the other scopes — the general sync revoked a user's center grants, and a center sync revoked their general or other-center grants
+  * Revocation is now restricted to grants whose scope matches the scope being reconciled, using the structured resource scope the Authorization API returns; grants whose scope the API does not report are never revoked, so the change fails closed rather than over-revoking
+* Handles Flywheel project reload 404s gracefully during authorization/processing so a transient reload failure no longer aborts user updates
+
+## 4.4.6
+
+* Fixes authorization sync revoking a user's access to every study except the last one synced
+  * Center user authorization sync was processing one study at a time, but each per-study sync queried the user's current grants across all studies, so it revoked the grants added for previously synced studies — leaving the user with access to only the final study
+  * Authorization sync now aggregates all of a user's study authorizations into a single desired set, queries current grants once, and applies one batch diff so grants across studies are preserved
+
+## 4.4.5
+
+* Fixes authorization sync using the center group's display label instead of its ID when building resource identifiers
+  * Center-scoped resource IDs now use the group ID (a whitespace-free slug) rather than the free-form label (e.g. "South Texas ADRC"), which the Authorization API rejected for containing whitespace
+  * Resolves the bulk of the authorization-sync batch failures
+
 ## 4.4.4
 
 * Fixes authorization-sync failures caused by the shared `common/authorization` client

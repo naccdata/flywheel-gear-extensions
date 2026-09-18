@@ -11,6 +11,9 @@ All notable changes to this gear are documented in this file.
 * Passes the visits accepted so far in the current batch to the pre-processing checks
 * Exempts the `version_map` indicator field from the `nofill` check, so a form whose submission status is `0` can be excluded without the record being rejected
 
+## 2.1.2
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 2.1.1
 * Prevents incorrect packet code changes, so the packet code of an existing I4 visit cannot be changed to I by a later update
 * On a transformation or pre-processing failure, checks whether a matching acquisition file already exists in the system

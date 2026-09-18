@@ -736,26 +736,28 @@ class UpdateCenterUserProcess(BaseUserProcess[CenterUserEntry]):
         # Sync authorizations to the Authorization API (if available)
         sync_service = self.__env.authorization_sync
         if sync_service is not None:
-            center_group_id = center_group.label
-            for study_auth in authorizations.values():
-                try:
-                    sync_service.sync_user(
-                        registry_id=registry_id,
-                        authorizations=study_auth,
-                        center_group_id=center_group_id,
-                    )
-                except Exception as error:
-                    # Safety net for programming errors (e.g., TypeError,
-                    # KeyError). Expected API failures are handled inside
-                    # sync_user via the event collector and do not propagate.
-                    log.error(
-                        "Authorization sync failed for user %s, study %s: %s",
-                        registry_id,
-                        study_auth.study_id,
-                        error,
-                    )
-                    # Fault isolation: sync failure must not affect
-                    # Flywheel role assignment
+            # Sync all of the user's studies together in a single diff. The
+            # studies share this center group, so their desired grants must be
+            # reconciled against the user's current grants as one set. Syncing
+            # study-by-study would make each study revoke the grants added by
+            # the previous study.
+            try:
+                sync_service.sync_users(
+                    registry_id=registry_id,
+                    authorizations=list(authorizations.values()),
+                    center_group_id=center_group.id,
+                )
+            except Exception as error:
+                # Safety net for programming errors (e.g., TypeError,
+                # KeyError). Expected API failures are handled inside
+                # sync_users via the event collector and do not propagate.
+                log.error(
+                    "Authorization sync failed for user %s: %s",
+                    registry_id,
+                    error,
+                )
+                # Fault isolation: sync failure must not affect
+                # Flywheel role assignment
 
             _try_sync_profile(sync_service, registry_id, entry)
 

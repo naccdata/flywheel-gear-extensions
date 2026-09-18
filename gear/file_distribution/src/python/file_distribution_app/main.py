@@ -53,7 +53,13 @@ def run(
                 + "possibly a permissions issue?"
             )
 
-        staging_project = ProjectAdaptor(project=fw_project, proxy=proxy)
+        staging_project = ProjectAdaptor.from_project(project=fw_project, proxy=proxy)
+        if not staging_project:
+            raise GearExecutionError(
+                f"Cannot access staging project with ID {staging_project_id}, "
+                + "possibly a permissions issue?"
+            )
+
         copy_file(file, staging_project, proxy.dry_run, replace_duplicates)
         return
 

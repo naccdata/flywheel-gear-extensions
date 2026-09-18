@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.2.2
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 0.2.1
 
 * Fix VisitEvent serialization: `modality` field is now included in serialized dicom events

@@ -371,7 +371,11 @@ class FlywheelProxy:
         """
         projects = self.__fw.projects.find(f"info.pipeline_adcid={adcid}")
 
-        return [ProjectAdaptor(project=project, proxy=self) for project in projects]
+        adaptors = [
+            ProjectAdaptor.from_project(project=project, proxy=self)
+            for project in projects
+        ]
+        return [adaptor for adaptor in adaptors if adaptor is not None]
 
     def get_roles(self) -> dict[str, RoleOutput]:
         """Gets all user roles for the FW instance.
@@ -1116,15 +1120,8 @@ class GroupAdaptor:
             self._project_cache[label] = None
             return None
 
-        try:
-            adaptor = ProjectAdaptor(project=project, proxy=self._fw)
-        except ApiException as error:
-            log.warning(
-                "Unable to access project %s in group %s: %s",
-                label,
-                self._group.id,
-                error,
-            )
+        adaptor = ProjectAdaptor.from_project(project=project, proxy=self._fw)
+        if not adaptor:
             self._project_cache[label] = None
             return None
 
@@ -1148,7 +1145,7 @@ class GroupAdaptor:
             log.warning("No project found with ID %s", project_id)
             return None
 
-        return ProjectAdaptor(project=project, proxy=self._fw)
+        return ProjectAdaptor.from_project(project=project, proxy=self._fw)
 
     def find_project(self, label: str) -> Optional["ProjectAdaptor"]:
         """Returns the project adaptor in the group with the label.
@@ -1162,7 +1159,7 @@ class GroupAdaptor:
         if not projects:
             return None
 
-        return ProjectAdaptor(project=projects[0], proxy=self._fw)
+        return ProjectAdaptor.from_project(project=projects[0], proxy=self._fw)
 
 
 class ProjectError(Exception):
@@ -1175,6 +1172,35 @@ class ProjectAdaptor:
     def __init__(self, *, project: flywheel.Project, proxy: FlywheelProxy) -> None:
         self._project = project.reload()
         self._fw = proxy
+
+    @classmethod
+    def from_project(
+        cls, *, project: flywheel.Project, proxy: FlywheelProxy
+    ) -> Optional["ProjectAdaptor"]:
+        """Creates a project adaptor for the project, or None if it cannot be
+        accessed.
+
+        Constructing the adaptor reloads the project from Flywheel, which can
+        raise a 404 for a project that a search/listing returned but that a
+        direct fetch by ID no longer resolves (e.g. index lag after a platform
+        change). This centralizes handling that spurious failure so callers can
+        simply skip the project instead of aborting.
+
+        Args:
+          project: the Flywheel project to wrap
+          proxy: the Flywheel proxy
+        Returns:
+          the adaptor for the project, or None if it cannot be accessed
+        """
+        try:
+            return cls(project=project, proxy=proxy)
+        except ApiException as error:
+            log.warning(
+                "Unable to access project %s: %s",
+                getattr(project, "id", project),
+                error,
+            )
+            return None
 
     @classmethod
     def create(
@@ -1195,7 +1221,11 @@ class ProjectAdaptor:
         if not projects:
             raise ProjectError(f"Could not find project {group_id}/{project_label}")
 
-        return ProjectAdaptor(project=projects[0], proxy=proxy)
+        adaptor = cls.from_project(project=projects[0], proxy=proxy)
+        if not adaptor:
+            raise ProjectError(f"Could not access project {group_id}/{project_label}")
+
+        return adaptor
 
     def __pull_project(self) -> None:
         """Pulls the referenced project from Flywheel instance."""

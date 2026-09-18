@@ -140,7 +140,12 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         else:
             project = self.__file_input.get_parent_project(proxy, file=file)
 
-        destination = ProjectAdaptor(project=project, proxy=proxy)
+        destination = ProjectAdaptor.from_project(project=project, proxy=proxy)
+        if not destination:
+            raise GearExecutionError(
+                f"Unable to access destination project {project.id}"
+            )
+
         template_map = self.__load_template(self.__hierarchy_labels)
 
         provenance = FileProvenance.create_from_parent(proxy, file)
