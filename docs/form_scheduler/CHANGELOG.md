@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.4
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 1.4.3
 * Rebuilt for VisitEvent serialization fix (forward-compatible field passthrough)
 

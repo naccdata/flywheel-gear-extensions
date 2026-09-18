@@ -1,5 +1,8 @@
 # Pipeline Event Logger Changelog
 
+## 0.2.1
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 0.2.0
 
 * Discriminated field mapping for QC error extraction with three mapping types: `ListFieldMapping` (list-of-dicts), `StringFieldMapping` (string explanations), and `NoneFieldMapping` (null data on failure)

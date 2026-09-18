@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.2
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 1.4.1
 
 * Updates `nacc-attribute-deriver` to `2.4.1` - bugfixes and removal of NACCNVST
