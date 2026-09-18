@@ -265,6 +265,8 @@ class CSVTransformVisitor(CSVVisitor):
             # process in order of visit date
             sorted_visits = sorted(visits.items())
             ivp_packet = None
+            # visits accepted so far in this batch, in ascending visit date order
+            accepted_records: List[Dict[str, Any]] = []
             prev_visit_nums = []
             for visitdate, list_visits in sorted_visits:
                 self.__error_writer.clear()
@@ -326,6 +328,7 @@ class CSVTransformVisitor(CSVVisitor):
                     input_record=transformed_row,
                     line_num=line_num,
                     ivp_record=ivp_packet,
+                    batch_records=accepted_records,
                 ):
                     log.error(
                         "Failed pre-processing checks in line %s - visit date %s",
@@ -353,6 +356,7 @@ class CSVTransformVisitor(CSVVisitor):
                     continue
 
                 self.__transformed[subject][error_log_name] = transformed_row
+                accepted_records.append(transformed_row)
                 # If IVP packet found in same batch and passed pre-processing checks,
                 # pass it along for FVP packet checks
                 if is_ivp:

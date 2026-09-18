@@ -121,7 +121,13 @@ class VersionMapTransformation(FieldTransformation):
         for field, value in input_record.items():
             if field in drop_fields:
                 # report error if excluded fields expected to be empty, but filled
-                if self.nofill and input_record.get(field):
+                # the version indicator field is dropped without being checked,
+                # its value is what selected the fields to drop
+                if (
+                    self.nofill
+                    and field != self.version_map.fieldname
+                    and input_record.get(field)
+                ):
                     incorrectly_filled.append(field)
 
                 continue

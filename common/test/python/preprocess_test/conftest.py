@@ -175,3 +175,66 @@ def np_pp_context():
         input_record=input_record,
         line_num=1,
     )
+
+
+@pytest.fixture(scope="function")
+def covid_module_configs():
+    """Create COVID ModuleConfigs.
+
+    Mirrors the COVID module configuration, note that the module has no
+    visitnum and accepts more than one initial visit packet.
+    """
+    configs = {
+        "hierarchy_labels": {
+            "session": {"template": "COVID-RECORD-${visitdate}", "transform": "upper"},
+            "acquisition": {"template": "${module}", "transform": "upper"},
+            "filename": {
+                "template": "${subject}_${session}_${acquisition}.json",
+                "transform": "upper",
+            },
+        },
+        "required_fields": [
+            "ptid",
+            "adcid",
+            "visitdate",
+            "packet",
+            "formver",
+        ],
+        "initial_packets": ["CV"],
+        "followup_packets": ["FCV"],
+        "versions": ["2.0"],
+        "date_field": "visitdate",
+        "optional_forms": {"2.0": {"CV": ["f2", "f3"], "FCV": ["f2", "f3"]}},
+        "preprocess_checks": [
+            "duplicate-record",
+            "version",
+            "packet",
+            "visit-conflict",
+            "covid-forms",
+            "covid-visit-conflict",
+            "covid-ivp",
+        ],
+        "longitudinal": False,
+    }
+    return ModuleConfigs(**configs)
+
+
+@pytest.fixture(scope="function")
+def covid_pp_context():
+    """Creates a dummy COVID PreprocessingContext for testing."""
+    naccid = "NACC000000"
+    input_record = {
+        "naccid": naccid,
+        "ptid": "dummy-ptid",
+        "adcid": "0",
+        "visitdate": "2020-09-01",
+        "packet": "FCV",
+        "formver": "2.0",
+        "module": "COVID",
+    }
+
+    return PreprocessingContext(
+        subject_lbl=naccid,
+        input_record=input_record,
+        line_num=1,
+    )

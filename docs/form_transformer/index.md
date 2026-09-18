@@ -69,6 +69,10 @@ This information is used to determine which fields to exclude:
 The transformation also includes the full lists of fields for each version of
 the module under `fields`.
 
+When `nofill` is `true`, the `indicator-field` itself is exempt from the check,
+so it can be listed among the fields to exclude. Its value is what selects the
+fields to drop, it is not treated as data that should have been empty.
+
 ### Form transformations
 
 #### `release_date`
