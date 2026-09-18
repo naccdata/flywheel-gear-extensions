@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.1
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 1.1.0
 
 * Adds `destination_project` config option to specify a Flywheel project path (group/project) where split files should be uploaded, enabling cross-project splitting. Defaults to the input file's parent project when empty.

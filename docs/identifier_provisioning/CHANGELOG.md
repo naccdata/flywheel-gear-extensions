@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.4
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+
 ## 2.2.2, 2.2.3
 * Fixes a bug in reporting CSV column header errors
   
