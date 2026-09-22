@@ -32,20 +32,32 @@ from users.authorizations import (
 from users.event_models import UserEventCollector
 
 
-def _resource_object(resource_type: str, resource_id: str) -> ResourceObject:
+def _resource_object(
+    resource_type: str,
+    resource_id: str,
+    community: str | None = None,
+) -> ResourceObject:
     """Build the structured resource the real API returns for a grant.
 
     The API enriches each permission entry with the resource's parents
     from the catalog. This models the center parent the way ADR-016
     resource ids encode it: center-scoped ids are ``{center}_{label}``
     (center names never contain underscores), and general (non-center)
-    ids have no such prefix. Study is left unset — the sync's scope
-    filter keys on center, and studies within a center share its scope.
+    ids have no such prefix. Study is left unset — a center sync owns
+    every study under the center, so the scope filter keys on center,
+    not study. A ``community`` parent is set only when explicitly
+    requested, modeling a community-scoped resource the center sync must
+    not revoke.
     """
     center: str | None = None
     if "_" in resource_id:
         center = resource_id.split("_", 1)[0]
-    return ResourceObject(type=resource_type, id=resource_id, center=center)
+    return ResourceObject(
+        type=resource_type,
+        id=resource_id,
+        center=center,
+        community=community,
+    )
 
 
 @dataclass
@@ -66,6 +78,10 @@ class StatefulAuthorizationClient:
     # resource ids for which the API returns no structured scope (catalog
     # gap): entries for these are returned with resource=None.
     scopeless_resource_ids: set[str] = field(default_factory=set)
+    # resource id -> community parent: entries for these are returned with
+    # a community-scoped resource, which a center/general sync must not
+    # revoke.
+    community_resource_ids: dict[str, str] = field(default_factory=dict)
 
     def get_user_permissions(
         self,
@@ -80,7 +96,11 @@ class StatefulAuthorizationClient:
                 resource=(
                     None
                     if resource_id in self.scopeless_resource_ids
-                    else _resource_object(rtype, resource_id)
+                    else _resource_object(
+                        rtype,
+                        resource_id,
+                        community=self.community_resource_ids.get(resource_id),
+                    )
                 ),
             )
             for (uid, rtype, resource_id, relation) in self.grants
@@ -415,3 +435,39 @@ class TestCrossScopeSyncNoRevocation:
         assert "washington_ingest-form-orphan" not in revoked_ids
         surviving = {resource_id for (_, _, resource_id, _) in client.grants}
         assert "washington_ingest-form-orphan" in surviving
+
+    def test_center_sync_does_not_revoke_community_scoped_grant(self) -> None:
+        """A community-scoped grant is never revoked by a center sync.
+
+        The API can return a resource that carries both a center and a
+        community parent. Such a resource belongs to the community
+        scope, which this gear does not reconcile, so a center sync must
+        leave it alone even though its center matches the call's center
+        and it is absent from the desired set.
+        """
+        client = StatefulAuthorizationClient()
+        client.grants.add(
+            (
+                "user@institution.edu",
+                "page",
+                "washington_page-shared-community",
+                "viewer",
+            )
+        )
+        # The API reports this resource under a community parent.
+        client.community_resource_ids["washington_page-shared-community"] = "nacc"
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        service.sync_users(
+            registry_id="user@institution.edu",
+            authorizations=[_study_auth("study-1", "form")],
+            center_group_id="washington",
+        )
+
+        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
+        assert "washington_page-shared-community" not in revoked_ids
+        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
+        assert "washington_page-shared-community" in surviving

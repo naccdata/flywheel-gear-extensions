@@ -15,6 +15,12 @@ from authorization.models import (
     UserProfile,
     UserProfileRequest,
 )
+from authorization_sync.models import DesiredGrant
+from authorization_sync.translator import (
+    ACTIVITY_RELATION_MAP,
+    translate,
+    validate_activity_relation_map,
+)
 from users.authorizations import Authorizations
 from users.event_models import (
     EventCategory,
@@ -24,13 +30,6 @@ from users.event_models import (
     UserProcessEvent,
 )
 from users.user_entry import UserEntry
-
-from authorization_sync.models import DesiredGrant
-from authorization_sync.translator import (
-    ACTIVITY_RELATION_MAP,
-    translate,
-    validate_activity_relation_map,
-)
 
 log = logging.getLogger(__name__)
 
@@ -53,15 +52,23 @@ def _entry_in_scope(
 
     A sync call reconciles exactly one scope: a specific center (when
     ``center_group_id`` is set) or the general, non-center scope (when it
-    is None). The entry's scope is read from the structured ``resource``
-    the API returns (``resource.center``), not by parsing the resource
-    id.
+    is None). A center sync owns every study under that center — the
+    caller aggregates all of the user's studies for the center into one
+    call — so scope is keyed on the center, not the study. This is what
+    lets a dropped study's grants be revoked while the studies the user
+    still holds are preserved.
 
-    Grants are only revoked within the scope being reconciled, so an
-    entry is in scope when its center matches the call's center. When the
-    API does not return structured scope for the entry (``resource`` is
-    None, e.g. a catalog gap), the scope cannot be confirmed and the
-    entry is treated as out of scope so it is never revoked.
+    The entry's scope is read from the structured ``resource`` the API
+    returns, never parsed out of the flat resource id (per the
+    Authorization API contract). An entry is in scope when its center
+    matches the call's center **and** it carries no community parent —
+    a community-scoped resource is a different scope even if it also
+    names a center, and this gear never reconciles community grants.
+
+    When the API does not return structured scope for the entry
+    (``resource`` is None, e.g. a catalog gap), the scope cannot be
+    confirmed and the entry is treated as out of scope so it is never
+    revoked.
 
     Args:
         entry: The permission entry from the API.
@@ -73,6 +80,11 @@ def _entry_in_scope(
     """
     if entry.resource is None:
         # Scope cannot be confirmed; never eligible for revocation.
+        return False
+
+    # A community-scoped resource is out of scope for center/general sync,
+    # even when it also carries a center parent.
+    if entry.resource.community is not None:
         return False
 
     return entry.resource.center == center_group_id
@@ -252,12 +264,16 @@ class AuthorizationSyncService:
         Revocation is scoped to the center being reconciled (or the
         general, non-center scope when ``center_group_id`` is None). The
         current grant set returned by the API spans every scope the user
-        holds, so revoke candidates are first restricted to grants whose
-        center matches this call's ``center_group_id``. This prevents a
-        call for one scope from revoking another scope's grants — for
-        example, the general sync no longer revokes a user's center grants,
-        and a center sync no longer revokes the user's general grants.
-        Grants whose scope the API does not report are never revoked.
+        holds, so revoke candidates are restricted to grants whose center
+        matches this call's ``center_group_id`` and that carry no community
+        parent. A center sync owns every study under that center — the
+        studies are aggregated into one call — so a dropped study's grant
+        is still revoked while the studies the user still holds are kept.
+        This prevents a call for one scope from revoking another scope's
+        grants: the general sync no longer revokes a user's center grants,
+        and a center sync no longer revokes the user's general or
+        other-center grants. Grants whose scope the API does not report are
+        never revoked.
 
         Catches all AuthorizationClientError exceptions and reports via
         the event collector without raising.
@@ -295,9 +311,11 @@ class AuthorizationSyncService:
 
             # Revokes are restricted to grants that belong to the scope being
             # reconciled by this call (the center, or general when
-            # center_group_id is None). A grant is revoked only when its own
-            # scope no longer desires it, so grants in other scopes — and
-            # grants whose scope cannot be determined — are never revoked here.
+            # center_group_id is None). A center sync owns every study under
+            # that center, so a stale study's grant is still revoked, but
+            # grants in other scopes — a different center, the general scope,
+            # a community resource — and grants whose scope cannot be
+            # determined are never revoked here.
             grants_to_revoke = in_scope_current - desired
 
             if not grants_to_add and not grants_to_revoke:
