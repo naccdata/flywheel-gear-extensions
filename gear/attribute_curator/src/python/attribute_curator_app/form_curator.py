@@ -620,8 +620,8 @@ class FormCurator(Curator):
     def is_pre_v4(file: FileModel) -> bool:
         """Whether the file is a UDS V1-3 form.
 
-        Files with no or unreadable formver are treated as not V1-3, so they
-        keep the subject-level cross-sectional value.
+        Files with no or unreadable formver are treated as not V1-3, so
+        they keep the subject-level cross-sectional value.
         """
         file_info = file.file_info if file.file_info else {}
         formver = file_info.get("forms", {}).get("json", {}).get("formver")
