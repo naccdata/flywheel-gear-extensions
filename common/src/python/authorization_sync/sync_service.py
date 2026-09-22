@@ -15,12 +15,6 @@ from authorization.models import (
     UserProfile,
     UserProfileRequest,
 )
-from authorization_sync.models import DesiredGrant
-from authorization_sync.translator import (
-    ACTIVITY_RELATION_MAP,
-    translate,
-    validate_activity_relation_map,
-)
 from users.authorizations import Authorizations
 from users.event_models import (
     EventCategory,
@@ -30,6 +24,13 @@ from users.event_models import (
     UserProcessEvent,
 )
 from users.user_entry import UserEntry
+
+from authorization_sync.models import DesiredGrant
+from authorization_sync.translator import (
+    ACTIVITY_RELATION_MAP,
+    translate,
+    validate_activity_relation_map,
+)
 
 log = logging.getLogger(__name__)
 
