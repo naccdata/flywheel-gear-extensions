@@ -94,8 +94,8 @@ def test_v1v3_values_applied_only_to_pre_v4_files(
     i4 = _uds_form(4.0, "I4.json")
 
     backprop_curator.back_propagate_scopes(
-        SimpleNamespace(label="NACC000002"),
-        {FormScope.UDS: [v3, i4]},
+        SimpleNamespace(label="NACC000002"),  # type: ignore[arg-type]
+        {FormScope.UDS: [v3, i4]},  # type: ignore[list-item]
         "derived",
         {"naccnihr": 7, "naccedulvl": 3, "naccsex": 1},
         {"naccnihr": 1, "naccedulvl": 6},
@@ -118,8 +118,8 @@ def test_backprop_unchanged_without_v1v3_values(
     i4 = _uds_form(4.0, "I4.json")
 
     backprop_curator.back_propagate_scopes(
-        SimpleNamespace(label="NACC000003"),
-        {FormScope.UDS: [v3, i4]},
+        SimpleNamespace(label="NACC000003"),  # type: ignore[arg-type]
+        {FormScope.UDS: [v3, i4]},  # type: ignore[list-item]
         "derived",
         {"naccnihr": 2, "naccedulvl": 4},
         None,
@@ -137,8 +137,8 @@ def test_missing_formver_keeps_subject_level_value(
     unreadable = _uds_form("not-a-number", "odd.json")
 
     backprop_curator.back_propagate_scopes(
-        SimpleNamespace(label="NACC000004"),
-        {FormScope.UDS: [no_formver, unreadable]},
+        SimpleNamespace(label="NACC000004"),  # type: ignore[arg-type]
+        {FormScope.UDS: [no_formver, unreadable]},  # type: ignore[list-item]
         "derived",
         {"naccnihr": 7},
         {"naccnihr": 1},
