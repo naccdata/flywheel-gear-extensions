@@ -11,6 +11,7 @@ from authorization.models import (
     BatchOperation,
     BatchResult,
     PermissionEntry,
+    ResourceObject,
     UserPermissions,
     UserProfile,
     UserProfileRequest,
@@ -91,6 +92,37 @@ def _entry_in_scope(
     return entry.resource.center == center_group_id
 
 
+def _grant_from_resource(
+    user_id: str,
+    resource: ResourceObject,
+    relation: str,
+) -> DesiredGrant:
+    """Build a DesiredGrant from a structured resource for ``to_grants``.
+
+    Adapts the ``(user_id, resource, relation)`` factory contract of
+    :meth:`UserPermissions.to_grants` to the keyword fields of
+    :class:`DesiredGrant`. The identity — type, label, and parent fields —
+    is read from the structured ``resource``, never from a flat id.
+
+    Args:
+        user_id: The user the grant belongs to.
+        resource: The structured resource returned by the API.
+        relation: The relation of the grant.
+
+    Returns:
+        A DesiredGrant built from the structured resource fields.
+    """
+    return DesiredGrant(
+        user_id=user_id,
+        resource_type=resource.type,
+        relation=relation,
+        resource_label=resource.label,
+        center=resource.center,
+        study=resource.study,
+        community=resource.community,
+    )
+
+
 def _grants_in_scope(
     permissions: UserPermissions,
     center_group_id: str | None,
@@ -115,12 +147,22 @@ def _grants_in_scope(
         for entry in entries:
             if not _entry_in_scope(entry, center_group_id):
                 continue
+            # _entry_in_scope returns False when resource is None, so the
+            # resource here is guaranteed non-None; the explicit guard also
+            # narrows the type for the checker. Read the identity from its
+            # structured fields, never a flat id.
+            r = entry.resource
+            if r is None:
+                continue
             grants.add(
                 DesiredGrant(
                     user_id=permissions.user_id,
                     resource_type=resource_type,
-                    resource_id=entry.resource_id,
                     relation=entry.relation,
+                    resource_label=r.label,
+                    center=r.center,
+                    study=r.study,
+                    community=r.community,
                 )
             )
     return grants
@@ -303,7 +345,7 @@ class AuthorizationSyncService:
                     user_id=registry_id,
                     type_filter=resource_type,
                 )
-                current |= permissions.to_grants(DesiredGrant)
+                current |= permissions.to_grants(_grant_from_resource)
                 in_scope_current |= _grants_in_scope(permissions, center_group_id)
 
             # Adds may target any scope this call knows about; a grant already

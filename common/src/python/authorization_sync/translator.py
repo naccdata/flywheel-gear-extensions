@@ -1,9 +1,9 @@
 """Activity-to-relation mapping for the Authorization API.
 
 Maps the gear's internal Activity (action + Resource) to the
-Authorization API's grant vocabulary (resource_type, relation,
-resource_id) and produces a set of DesiredGrant objects for a user's
-authorizations.
+Authorization API's grant vocabulary (resource_type, relation, and the
+structured resource label plus parent fields) and produces a set of
+DesiredGrant objects for a user's authorizations.
 """
 
 import logging
@@ -12,10 +12,7 @@ from authorization.models import AuthorizationModelMetadata
 from users.authorizations import Authorizations, StudyAuthorizations
 
 from authorization_sync.models import DesiredGrant
-from authorization_sync.resource_ids import (
-    build_label_for_resource_prefix,
-    build_resource_id,
-)
+from authorization_sync.resource_ids import build_label_for_resource_prefix
 
 log = logging.getLogger(__name__)
 
@@ -45,12 +42,14 @@ def translate(
     Iterates activities in the authorizations and maps each to grants
     using ACTIVITY_RELATION_MAP.
 
-    Resource ID format follows ADR-016:
-    - Center-scoped: "{center}_{label}-{study_id}"
-    - Non-center: "{label}-{study_id}"
-
-    The study_id is always explicit.  For data_pipeline resources the
-    label includes the ingest stage prefix (e.g., "ingest-form").
+    Each grant carries the Structured Identity of the resource: the
+    resource label from build_label_for_resource_prefix (e.g.,
+    "ingest-form" for a data_pipeline resource) plus the applicable
+    parent fields. The center parent is the center group id (None for
+    general scope), the study parent comes from StudyAuthorizations
+    (else None), and community is always None on the grant path. No flat
+    resource id is built here; the client assembles identity from these
+    structured fields.
 
     Works with both Authorizations (general) and StudyAuthorizations
     (center-scoped) since StudyAuthorizations extends Authorizations.
@@ -91,19 +90,17 @@ def translate(
             continue
 
         label = build_label_for_resource_prefix(resource_prefix, resource_name)
-        resource_id = build_resource_id(
-            label,
-            center_id=center_group_id,
-            study_id=study_id,
-        )
 
         for api_resource_type, relation in mapped_pairs:
             grants.add(
                 DesiredGrant(
                     user_id=registry_id,
                     resource_type=api_resource_type,
-                    resource_id=resource_id,
                     relation=relation,
+                    resource_label=label,
+                    center=center_group_id,
+                    study=study_id,
+                    community=None,
                 )
             )
 

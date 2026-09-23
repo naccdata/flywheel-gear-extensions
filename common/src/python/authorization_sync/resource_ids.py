@@ -63,7 +63,6 @@ def build_label_for_resource_prefix(
     - "datatype" -> "ingest-{name}"
     - "dashboard" -> "dashboard-{name}"
     - "page" -> "page-{name}"
-    - other -> "{name}"
 
     Args:
         resource_prefix: The resource type prefix from the gear
@@ -72,8 +71,12 @@ def build_label_for_resource_prefix(
 
     Returns:
         The label for the resource.
+
+    Raises:
+        ValueError: If resource_prefix is not one of "datatype",
+            "dashboard", or "page".
     """
     prefix_label = _PREFIX_LABELS.get(resource_prefix)
-    if prefix_label:
-        return f"{prefix_label}-{resource_name}"
-    return resource_name
+    if prefix_label is None:
+        raise ValueError(f"Unsupported resource prefix: {resource_prefix!r}")
+    return f"{prefix_label}-{resource_name}"
