@@ -71,8 +71,7 @@ class TestSetResourceParents:
         """Verify 200 response is parsed into ResourceParents."""
         response_body = json.dumps(
             {
-                "type": "study",
-                "resourceId": "study-456",
+                "resource": {"type": "study", "label": "study-456"},
                 "parents": [
                     {
                         "structuralRelation": "parent_center",
@@ -109,8 +108,9 @@ class TestSetResourceParents:
         )
 
         assert isinstance(result, ResourceParents)
-        assert result.type == "study"
-        assert result.resource_id == "study-456"
+        assert result.resource is not None
+        assert result.resource.type == "study"
+        assert result.resource.label == "study-456"
         assert len(result.parents) == 2
         assert result.parents[0].structural_relation == "parent_center"
         assert result.parents[0].parent_type == "research_center"

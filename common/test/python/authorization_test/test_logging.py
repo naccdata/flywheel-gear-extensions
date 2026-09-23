@@ -131,7 +131,7 @@ class TestLoggingDebugSuccess:
             client.grant(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -159,7 +159,7 @@ class TestLoggingDebugSuccess:
             client.revoke(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -203,7 +203,7 @@ class TestLoggingDebugIdempotent:
             client.grant(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -221,7 +221,7 @@ class TestLoggingDebugIdempotent:
             client.revoke(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -268,7 +268,7 @@ class TestLoggingWarningRetry:
             client.grant(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -301,7 +301,7 @@ class TestLoggingWarningRetry:
             client.grant(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -332,7 +332,7 @@ class TestLoggingErrorOnFailure:
             client.grant(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -368,7 +368,7 @@ class TestLoggingUsesNamedLogger:
             client.grant(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
@@ -403,7 +403,7 @@ class TestLoggingUsesNamedLogger:
             client.grant(
                 user_id="user@example.com",
                 resource_type="study",
-                resource_id="study-1",
+                resource_label="study-1",
                 relation="member",
             )
 
