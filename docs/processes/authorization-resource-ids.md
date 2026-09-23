@@ -1,35 +1,40 @@
 # Authorization Resource IDs and Labels
 
-Resources in the Authorization API are identified by a resource ID following
-the ADR-016 format. This document defines the parts of that ID, and in
-particular the **resource label**, so the definition can be referenced rather
-than re-derived.
+Resources in the Authorization API are identified structurally: a resource
+**type**, a resource **label**, and explicit parent references (`study`,
+`center`, `community`). This document defines the **resource label**, so the
+definition can be referenced rather than re-derived.
 
-## Resource ID format
+The API also exposes a flat, opaque identifier (`resource.flat_id`) that encodes
+the same information as a single string. Clients **do not construct or parse**
+the flat ID — the Authorization API owns it. See the section below.
 
-```
-{center}_{label}-{study_id}
-```
+## The flat ID is server-owned (do not construct)
 
-Both scoping parts are optional:
+Historically clients built a flat resource ID by concatenating the label with a
+center prefix and study suffix. **That is no longer done.** Under the structured
+`resource` contract (Increment 5 of the Authorization API client migration
+notes), identity travels in the structured `resource` field — the label plus
+the parent references — and the flat form is:
 
-- Center-scoped: `{center}_{label}-{study_id}`
-- Non-center: `{label}-{study_id}`
-- Without study: `{center}_{label}` or `{label}`
+- **On requests:** never sent. Send `type`, `label`, and the parent fields.
+- **On responses:** returned as the read-only `resource.flat_id` handle. Treat
+  it as an opaque value you may echo back verbatim (for example, as a
+  `{resourceId}` path segment on a GET read), but never build or split it.
 
-The `_` separator before the label is safe because center names never contain
-underscores. The `study_id`, when present, is always explicit.
-
-The ID is assembled by `build_resource_id` in
-`common/src/python/authorization_sync/resource_ids.py`, which only adds the
-`{center}_` prefix and `-{study_id}` suffix. The caller supplies the label.
+For reference, the server's flat form follows the ADR-016 shape
+`{center}_{label}-{study_id}` (both scoping parts optional; `study_id` explicit
+when present; the `_` separator is safe because center names never contain
+underscores). This is documented only so the handle is recognizable — clients
+must not reproduce this assembly.
 
 ## Resource label
 
-A **resource label** is the resource-identifying core of a resource ID — the
-part left after stripping the optional `{center}_` prefix and `-{study_id}`
-suffix. It says *what* the resource is, independent of which center or study it
-belongs to.
+A **resource label** is the resource-identifying core of a resource — it says
+*what* the resource is, independent of which center or study it belongs to. It
+is the value carried in the structured `resource.label` field, and (in the
+server-owned flat ID) the part left after stripping the optional `{center}_`
+prefix and `-{study_id}` suffix.
 
 A label has the form:
 
@@ -56,7 +61,9 @@ A label has the form:
 
 ## Where labels are built
 
-Two producers build labels and then share `build_resource_id` for formatting:
+Two producers build labels. Each supplies the label (plus the resource type and
+parent references) to the structured `resource` field of an API request; neither
+assembles a flat ID.
 
 - **Grant path (user_management gear)** —
   `common/src/python/authorization_sync/translator.py` builds labels via

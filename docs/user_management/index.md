@@ -187,8 +187,13 @@ Grants that already exist are not re-sent.
 
 ### Scoping
 
-- For center-scoped authorizations (study-specific), the resource ID is `{center_group_id}_{resource_label}-{study_id}`
-- For general authorizations (not center-specific), the resource ID is `{resource_label}-{study_id}`
+Each grant identifies its resource structurally — a resource type, a resource
+label, and explicit parent references — rather than by a client-built flat ID.
+Scope is expressed through the parent references:
+
+- Center-scoped authorizations (study-specific) carry both `center` (the center
+  group ID) and `study`.
+- General authorizations (not center-specific) carry `study` without a `center`.
 
 The resource label depends on the resource type:
 
@@ -196,7 +201,11 @@ The resource label depends on the resource type:
 - Dashboards: `dashboard-{name}` (e.g., `dashboard-reports`)
 - Pages: `page-{name}` (e.g., `page-enrollment`)
 
-For example, a center-scoped data pipeline for the `form` datatype in center `washington` and study `adrc` would have resource ID: `washington_ingest-form-adrc`.
+For example, a center-scoped data pipeline for the `form` datatype sends
+`type=data_pipeline`, `label=ingest-form`, `center=washington`, `study=adrc`.
+The Authorization API owns the flat identifier for that resource; the gear never
+constructs or parses it. See
+[Authorization Resource IDs and Labels](../processes/authorization-resource-ids.md).
 
 ### Failure behavior
 
