@@ -109,6 +109,10 @@ class FormQCCheckerVisitor(GearExecutionEnvironment):
 
         try:
             redcap_con = REDCapReportConnection.create_from(redcap_params)
+            # Check whether it is possible to connect to QC checks REDCap project
+            # Identify a REDCap outage and prevent silently skipping error code mapping
+            if redcap_con:
+                redcap_con.export_project_info()
         except REDCapConnectionError as error:
             raise GearExecutionError(error) from error
 
