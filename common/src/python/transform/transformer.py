@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional, Set
 
 from configs.ingest_configs import ModuleConfigs
-from keys.keys import SysErrorCodes
+from keys.keys import DefaultValues, SysErrorCodes
 from nacc_common.data_identification import (
     DataIdentification,
 )
@@ -325,7 +325,11 @@ class RecordTransformer(BaseRecordTransformer):
 
 
 class DateTransformer(BaseRecordTransformer):
-    """Defines a transformer that normalizes date fields."""
+    """Defines a transformer that normalizes date fields.
+
+    Normalizes the module's date field and the form date fields of the
+    record.
+    """
 
     def __init__(
         self, error_writer: ErrorWriter, date_field: Optional[str] = None
@@ -336,7 +340,7 @@ class DateTransformer(BaseRecordTransformer):
     def transform(
         self, input_record: Dict[str, Any], line_num: int
     ) -> Optional[Dict[str, Any]]:
-        """Normalizes the date column of the record.
+        """Normalizes the date column and the form date columns of the record.
 
         Args:
             input_record: input record from CSV file
@@ -346,30 +350,75 @@ class DateTransformer(BaseRecordTransformer):
             Transformed record or None if there's processing errors
         """
 
-        if self._date_field not in input_record:
-            return input_record
-
-        normalized_date = convert_date(
-            date_string=input_record[self._date_field],
-            date_format=DEFAULT_DATE_FORMAT,
-        )  # type: ignore
-        if not normalized_date:
-            visit_keys = DataIdentification.from_form_record_safe(
-                record=input_record, date_field=self._date_field
-            )
-            self._error_writer.write(
-                unexpected_value_error(
-                    field=self._date_field,
-                    value=input_record[self._date_field],
-                    expected="",
-                    message="Expected a valid date string",
-                    line=line_num,
-                    visit_keys=visit_keys,
+        if self._date_field in input_record:
+            normalized_date = convert_date(
+                date_string=input_record[self._date_field],
+                date_format=DEFAULT_DATE_FORMAT,
+            )  # type: ignore
+            if not normalized_date:
+                visit_keys = DataIdentification.from_form_record_safe(
+                    record=input_record, date_field=self._date_field
                 )
-            )
-            return None
+                self._error_writer.write(
+                    unexpected_value_error(
+                        field=self._date_field,
+                        value=input_record[self._date_field],
+                        expected="",
+                        message="Expected a valid date string",
+                        line=line_num,
+                        visit_keys=visit_keys,
+                    )
+                )
+                return None
 
-        input_record[self._date_field] = normalized_date
+            input_record[self._date_field] = normalized_date
+
+        return self._normalize_form_dates(input_record, line_num)
+
+    def _normalize_form_dates(
+        self, input_record: Dict[str, Any], line_num: int
+    ) -> Dict[str, Any]:
+        """Normalizes the form date fields of the record.
+
+        A form date field is any field whose name starts with frmdate, e.g.
+        frmdated1c. These fields are blank when the form was not submitted, so
+        a blank value is left as is. A value that cannot be parsed is logged
+        and left as submitted, the QC checks report on the form dates.
+
+        Args:
+            input_record: input record from CSV file
+            line_num: line number in CSV file
+
+        Returns:
+            the record with the form date fields normalized
+        """
+        form_date_fields = [
+            field
+            for field in input_record
+            if field.lower().startswith(DefaultValues.FORM_DATE_PREFIX)
+            and field != self._date_field
+        ]
+
+        for field in form_date_fields:
+            value = input_record[field]
+            date_string = str(value).strip() if value is not None else ""
+            if not date_string:
+                continue
+
+            normalized_date = convert_date(
+                date_string=date_string, date_format=DEFAULT_DATE_FORMAT
+            )
+            if not normalized_date:
+                log.warning(
+                    "Line %s: cannot normalize form date field %s with value %s",
+                    line_num,
+                    field,
+                    date_string,
+                )
+                continue
+
+            input_record[field] = normalized_date
+
         return input_record
 
 

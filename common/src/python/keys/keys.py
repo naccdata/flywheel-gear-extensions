@@ -56,6 +56,7 @@ class DefaultValues:
     DELETION_PIPELINE = "deletion"
     FINALIZED_TAG = "submission-completed"
     MODULE_PATTERN = "a-zA-Z1-9_"
+    FORM_DATE_PREFIX = "frmdate"  # prefix of the per-form date fields, e.g. frmdated1c
 
 
 CLINICAL_MODULES = [

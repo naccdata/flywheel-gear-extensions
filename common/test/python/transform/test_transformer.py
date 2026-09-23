@@ -204,6 +204,100 @@ class TestDateTransformer:
         record = transformer.transform({FieldNames.DATE_COLUMN: "01012024"}, 0)
         assert not record
 
+    @staticmethod
+    def __transformer(date_field: str | None = None) -> DateTransformer:
+        return DateTransformer(
+            ListErrorWriter(container_id="dummy", fw_path="dummy/dummy"),
+            date_field=date_field,
+        )
+
+    def test_form_dates_normalized(self):
+        """Any field named frmdate* is normalized along with the date field."""
+        transformer = self.__transformer()
+        record = transformer.transform(
+            {
+                FieldNames.DATE_COLUMN: "2024/1/1",
+                "frmdated1c": "2024/1/2",
+                "frmdatea1": "20240103",
+            },
+            1,
+        )
+        assert record == {
+            FieldNames.DATE_COLUMN: "2024-01-01",
+            "frmdated1c": "2024-01-02",
+            "frmdatea1": "2024-01-03",
+        }
+
+    def test_form_date_blank_skipped(self):
+        """A form date is blank when the form was not submitted, so a blank
+        value is left as is and is not an error."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer)
+        record = transformer.transform(
+            {
+                FieldNames.DATE_COLUMN: "2024/1/1",
+                "frmdated1c": "",
+                "frmdateb1": "   ",
+            },
+            1,
+        )
+        assert record == {
+            FieldNames.DATE_COLUMN: "2024-01-01",
+            "frmdated1c": "",
+            "frmdateb1": "   ",
+        }
+        assert not error_writer.errors()
+
+    def test_form_date_invalid_kept(self):
+        """An unparsable form date is left as submitted without an error, and
+        the remaining form dates are still normalized."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer)
+        record = transformer.transform(
+            {
+                FieldNames.DATE_COLUMN: "2024/1/1",
+                "frmdated1c": "01012024",
+                "frmdatea1": "2024/1/3",
+            },
+            1,
+        )
+        assert record == {
+            FieldNames.DATE_COLUMN: "2024-01-01",
+            "frmdated1c": "01012024",
+            "frmdatea1": "2024-01-03",
+        }
+        assert not error_writer.errors()
+
+    def test_form_date_case_insensitive(self):
+        """The field name is matched regardless of case."""
+        record = self.__transformer().transform({"FRMDATED1C": "2024/1/2"}, 1)
+        assert record == {"FRMDATED1C": "2024-01-02"}
+
+    def test_invalid_date_skips_form_dates(self):
+        """A record rejected for the date field is returned unnormalized."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer)
+        input_record = {
+            FieldNames.DATE_COLUMN: "01012024",
+            "frmdated1c": "2024/1/2",
+        }
+        assert not transformer.transform(input_record, 1)
+        assert input_record["frmdated1c"] == "2024/1/2"
+        assert len(error_writer.errors()) == 1
+
+    def test_no_date_field_normalizes_form_dates(self):
+        """The form dates are normalized when the record has no date field."""
+        record = self.__transformer().transform({"frmdated1c": "2024/1/2"}, 1)
+        assert record == {"frmdated1c": "2024-01-02"}
+
+    def test_form_date_as_date_field(self):
+        """A form date configured as the date field is handled by the date
+        field check, and is not reported twice."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer, date_field=FieldNames.ENRLFRM_DATE)
+        assert not transformer.transform({FieldNames.ENRLFRM_DATE: "01012024"}, 1)
+        assert len(error_writer.errors()) == 1
+
 
 class TestReleaseDateTransformation:
     RELEASE_DATES = FormReleaseDates({"I": {"d1c": "2026-05-01"}})

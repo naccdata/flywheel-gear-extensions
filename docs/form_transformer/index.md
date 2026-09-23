@@ -43,6 +43,21 @@ in the future.
 If `nofill` is set to `true` on a transformation, the fields it would drop must
 be empty; otherwise the record is rejected with an error.
 
+### Date normalization
+
+Before any of the transformations above are applied, the date fields of the
+record are normalized to `YYYY-MM-DD`. This covers the module's date field
+(`date_field` in the module ingest configuration) and every form date field,
+which is any field named `frmdate` followed by the form name (e.g.
+`frmdated1c`).
+
+A date field that cannot be parsed is handled differently for the two:
+
+- the module's date field is required, so the record is rejected with an error
+- a form date field is blank when the form was not submitted, so a blank value
+  is left as is, and a value that cannot be parsed is left as submitted for the
+  QC checks to report on
+
 ### Field transformations
 
 #### `version_map`
