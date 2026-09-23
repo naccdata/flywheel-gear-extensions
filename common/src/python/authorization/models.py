@@ -1,90 +1,103 @@
 """Pydantic request and response models for the Authorization API."""
 
+import json
+import logging
 from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-# The Authorization API validates the combined resource object
-# ``f"{type}:{resourceId}"`` against ``^[^\s]{2,256}$`` — 2 to 256
-# characters with no whitespace at any position. Locally we require the
-# combined ``type:resource_id`` string (which includes the ":" separator)
-# to be 3 to 255 characters, so that ``type`` and ``resource_id`` each
-# contribute at least one character and the whole stays within the API
-# ceiling.
-_MIN_RESOURCE_OBJECT_LENGTH = 3
-_MAX_RESOURCE_OBJECT_LENGTH = 255
+log = logging.getLogger(__name__)
+
+# Organization types carry no parent fields of their own. They are the
+# structural containers in the Authorization API hierarchy (see the
+# ``parent_type`` values used by the seed path in
+# ``projects/hierarchy_seeder.py``: ``study``, ``research_center``,
+# ``community``). ``ResourceObject`` uses this set to distinguish an
+# organization type (which must carry none of ``study``/``center``/
+# ``community``) from a resource type (which follows the per-type
+# parent-field combination table). A type that is neither in this set nor
+# in the per-type table is treated as a forward-compatible resource type
+# and carries no parent-field combination constraint.
+_ORGANIZATION_TYPES: frozenset[str] = frozenset(
+    {"study", "research_center", "community"}
+)
 
 # --- Request Models ---
 
 
-class _ResourceObjectValidatorMixin(BaseModel):
-    """Mixin that sanitizes and validates ``type`` and ``resource_id``.
+class GrantRequest(BaseModel):
+    """Request model for granting a user a relation on a resource.
 
-    Strips leading/trailing whitespace from both fields, then requires
-    the combined resource object ``f"{type}:{resource_id}"`` to be
-    between ``_MIN_RESOURCE_OBJECT_LENGTH`` and
-    ``_MAX_RESOURCE_OBJECT_LENGTH`` characters. The combined length
-    includes the ":" separator, so the bounds guarantee each of ``type``
-    and ``resource_id`` contributes at least one character and the
-    object stays within the Authorization API's length ceiling.
+    Carries the resource identity as a structured
+    :class:`ResourceObject` rather than a flat ``type``/``resourceId``
+    pair. The request body is built by :meth:`request_body`, which emits
+    ``{userId, relation, resource: resource.request_dump()}``.
     """
 
-    type: str
-    resource_id: str = Field(alias="resourceId")
+    model_config = ConfigDict(populate_by_name=True)
 
-    @field_validator("type", "resource_id", mode="before")
-    @classmethod
-    def strip_whitespace(cls, v: Any) -> Any:
-        """Strip leading and trailing whitespace from string values."""
-        if isinstance(v, str):
-            return v.strip()
-        return v
+    user_id: str = Field(alias="userId")
+    relation: str
+    resource: "ResourceObject"
 
-    @model_validator(mode="after")
-    def check_resource_object_length(self) -> "_ResourceObjectValidatorMixin":
-        """Validate the combined ``type:resource_id`` length."""
-        combined_length = len(self.type) + len(":") + len(self.resource_id)
-        if not (
-            _MIN_RESOURCE_OBJECT_LENGTH
-            <= combined_length
-            <= _MAX_RESOURCE_OBJECT_LENGTH
-        ):
-            raise ValueError(
-                f"Combined 'type:resource_id' length must be between "
-                f"{_MIN_RESOURCE_OBJECT_LENGTH} and "
-                f"{_MAX_RESOURCE_OBJECT_LENGTH} characters "
-                f"(got {combined_length}): "
-                f"type={self.type!r}, resource_id={self.resource_id!r}"
-            )
-        return self
+    def request_body(self) -> bytes:
+        """Serialize this request to a JSON-encoded body.
+
+        Emits ``userId``, ``relation``, and a structured ``resource`` (via
+        :meth:`ResourceObject.request_dump`, which excludes ``flat_id``).
+        No top-level ``type``/``resourceId`` is emitted.
+        """
+        payload = {
+            "userId": self.user_id,
+            "relation": self.relation,
+            "resource": self.resource.request_dump(),
+        }
+        return json.dumps(payload).encode()
 
 
-class GrantRequest(_ResourceObjectValidatorMixin):
-    """Request model for granting a user a relation on a resource."""
+class RevokeRequest(BaseModel):
+    """Request model for revoking a user's relation on a resource.
+
+    Mirrors :class:`GrantRequest`: identity is a structured
+    :class:`ResourceObject`, and the request body is built by
+    :meth:`request_body`.
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
     user_id: str = Field(alias="userId")
     relation: str
+    resource: "ResourceObject"
+
+    def request_body(self) -> bytes:
+        """Serialize this request to a JSON-encoded body.
+
+        Emits ``userId``, ``relation``, and a structured ``resource`` (via
+        :meth:`ResourceObject.request_dump`, which excludes ``flat_id``).
+        No top-level ``type``/``resourceId`` is emitted.
+        """
+        payload = {
+            "userId": self.user_id,
+            "relation": self.relation,
+            "resource": self.resource.request_dump(),
+        }
+        return json.dumps(payload).encode()
 
 
-class RevokeRequest(_ResourceObjectValidatorMixin):
-    """Request model for revoking a user's relation on a resource."""
+class BatchOperationModel(BaseModel):
+    """A single operation within a batch request payload.
 
-    model_config = ConfigDict(populate_by_name=True)
-
-    user_id: str = Field(alias="userId")
-    relation: str
-
-
-class BatchOperationModel(_ResourceObjectValidatorMixin):
-    """A single operation within a batch request payload."""
+    Carries the resource identity as a structured
+    :class:`ResourceObject`; ``action``/``user_id``/``relation`` are
+    unchanged.
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
     action: Literal["grant", "revoke"]
     user_id: str = Field(alias="userId")
     relation: str
+    resource: "ResourceObject"
 
 
 class BatchRequestModel(BaseModel):
@@ -119,50 +132,156 @@ class SetParentsRequestModel(BaseModel):
 class ResourceObject(BaseModel):
     """Structured resource identity with explicit parent fields.
 
-    Replaces opaque flat resource IDs at the API boundary. Parent fields
-    vary by resource type based on the authorization model's
-    validParentCombinations.
+    Replaces opaque flat resource IDs at the API boundary. A single
+    model is used for both request serialization and response parsing.
 
-    During the transition period, this appears alongside legacy type and
-    resourceId fields. When both are present in a request, the resource
-    field takes precedence.
+    Identity is the structured tuple of ``type``, ``label``, and the
+    applicable parent fields (``study``, ``center``, ``community``). The
+    ``flat_id`` field is a server-owned, read-only handle: it is only
+    populated when parsing a response and is never emitted on a request.
+
+    ``extra="ignore"`` drops any legacy ``id`` field supplied on parsed
+    input so it is never serialized back. Requests are serialized via
+    :meth:`request_dump`, which excludes ``flat_id``.
     """
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     type: str
-    id: str
-    flat_id: str | None = None
+    label: str = Field(min_length=1)
+    flat_id: str | None = Field(default=None, alias="flatId")
     name: str | None = None
     study: str | None = None
     center: str | None = None
     community: str | None = None
+
+    @model_validator(mode="after")
+    def check_parent_fields(self) -> "ResourceObject":
+        """Validate the parent-field combination against the resource type.
+
+        Which parent fields (``study``, ``center``, ``community``) a
+        resource may carry depends on its ``type``:
+
+        - organization type (``study``/``research_center``/``community``):
+          none of the parent fields
+        - ``data_pipeline``: (``study`` + ``center``) or (``study`` alone)
+        - ``dashboard``: (``study`` + ``center``) or (``study`` alone) or
+          (``community`` alone)
+        - ``page``: (``study`` + ``center``) or (``study`` alone) or
+          (``center`` alone) or (``community`` alone)
+
+        A type that is neither an organization type nor one of the
+        resource types above is left unconstrained beyond the general
+        ``label`` rule, so unknown/forward-compatible types are not
+        rejected solely for their parent fields.
+
+        Raises:
+            ValueError: If the present parent fields do not match a
+                combination permitted for the resource type. The message
+                names the offending type.
+        """
+        present = (
+            self.study is not None,
+            self.center is not None,
+            self.community is not None,
+        )
+
+        if self.type in _ORGANIZATION_TYPES:
+            if any(present):
+                raise ValueError(
+                    f"parent fields (study, center, community) are not "
+                    f"permitted for the organization resource type "
+                    f"{self.type!r}"
+                )
+            return self
+
+        allowed_combinations = {
+            # (study_present, center_present, community_present)
+            "data_pipeline": {
+                (True, True, False),  # study + center
+                (True, False, False),  # study alone
+            },
+            "dashboard": {
+                (True, True, False),  # study + center
+                (True, False, False),  # study alone
+                (False, False, True),  # community alone
+            },
+            "page": {
+                (True, True, False),  # study + center
+                (True, False, False),  # study alone
+                (False, True, False),  # center alone
+                (False, False, True),  # community alone
+            },
+        }
+
+        combinations = allowed_combinations.get(self.type)
+        if combinations is not None and present not in combinations:
+            raise ValueError(
+                f"invalid parent field combination for the {self.type!r} "
+                f"resource type (study={self.study!r}, center="
+                f"{self.center!r}, community={self.community!r})"
+            )
+
+        return self
+
+    def request_dump(self) -> dict[str, Any]:
+        """Serialize this resource for a request body.
+
+        Uses API aliases, omits unset optional fields, and always
+        excludes the server-owned ``flat_id`` handle so it never appears
+        in a request payload.
+        """
+        return self.model_dump(by_alias=True, exclude_none=True, exclude={"flat_id"})
+
+
+# The write-request models above reference ``ResourceObject`` as a forward
+# reference (it is defined here, after them). Resolve those references now
+# that ``ResourceObject`` exists in the module namespace.
+GrantRequest.model_rebuild()
+RevokeRequest.model_rebuild()
+BatchOperationModel.model_rebuild()
 
 
 # --- Response Models ---
 
 
 class GrantResult(BaseModel):
-    """Response model for a successful grant operation."""
+    """Response model for a successful grant operation.
 
-    model_config = ConfigDict(populate_by_name=True)
+    Identity is read solely from the structured ``resource`` field. The
+    legacy top-level ``type``/``resourceId`` identity fields are
+    removed; ``extra="ignore"`` silently drops them if present on an
+    incoming response so parsing cannot fall back to them. A
+    ``resource`` of ``None`` means no Structured Identity was returned
+    (no partial reconstruction). The ``flat_id`` on ``resource`` is
+    opaque and echoed byte-for-byte as a GET ``{resourceId}`` path
+    segment.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     user_id: str = Field(alias="userId")
     relation: str
-    type: str
-    resource_id: str = Field(alias="resourceId")
     resource: ResourceObject | None = None
 
 
 class RevokeResult(BaseModel):
-    """Response model for a successful revoke operation."""
+    """Response model for a successful revoke operation.
 
-    model_config = ConfigDict(populate_by_name=True)
+    Identity is read solely from the structured ``resource`` field. The
+    legacy top-level ``type``/``resourceId`` identity fields are
+    removed; ``extra="ignore"`` silently drops them if present on an
+    incoming response so parsing cannot fall back to them. A
+    ``resource`` of ``None`` means no Structured Identity was returned
+    (no partial reconstruction). The ``flat_id`` on ``resource`` is
+    opaque and echoed byte-for-byte as a GET ``{resourceId}`` path
+    segment.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     user_id: str = Field(alias="userId")
     relation: str
-    type: str
-    resource_id: str = Field(alias="resourceId")
     resource: ResourceObject | None = None
 
 
@@ -217,11 +336,17 @@ class PermissionEntry(BaseModel):
     Note: The access and inherited_from fields are no longer returned by
     the bulk permissions endpoint (ADR-015). Use the effective-permissions
     endpoint for per-entry classification when needed.
+
+    Identity is read solely from the structured ``resource`` field. The
+    legacy top-level ``resourceId`` identity field is removed;
+    ``extra="ignore"`` silently drops it if present on an incoming
+    response so parsing cannot fall back to it. A ``resource`` of ``None``
+    means no Structured Identity was returned (catalog gap): the entry has
+    no identity and is not reconstructed from a flat id.
     """
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    resource_id: str = Field(alias="resourceId")
     relation: str
     access: Literal["direct", "inherited", "both"] | None = None
     inherited_from: InheritanceSource | None = Field(
@@ -238,15 +363,20 @@ class UserPermissions(BaseModel):
     user_id: str = Field(alias="userId")
     permissions: dict[str, list[PermissionEntry]]
 
-    def to_grants(self, factory: "Callable[[str, str, str, str], Any]") -> set:
+    def to_grants(self, factory: 'Callable[[str, "ResourceObject", str], Any]') -> set:
         """Convert permissions to a set of grant objects via a factory.
 
         Iterates over all permission entries and calls the factory for
-        each, passing (user_id, resource_type, resource_id, relation).
+        each, passing (user_id, resource, relation) where ``resource`` is
+        the entry's structured :class:`ResourceObject`.
+
+        Entries whose ``resource`` is ``None`` have no structured identity
+        (a catalog gap): they are skipped with a warning and contribute no
+        grant, so the conversion still completes successfully.
 
         Args:
             factory: Callable that creates a hashable grant object from
-                the four identifying fields.
+                the user id, the structured resource, and the relation.
 
         Returns:
             Set of grant objects produced by the factory.
@@ -254,14 +384,14 @@ class UserPermissions(BaseModel):
         grants: set = set()
         for resource_type, entries in self.permissions.items():
             for entry in entries:
-                grants.add(
-                    factory(
-                        self.user_id,
+                if entry.resource is None:
+                    log.warning(
+                        "Permissions entry for type %s has no resource; "
+                        "skipping (catalog gap)",
                         resource_type,
-                        entry.resource_id,
-                        entry.relation,
                     )
-                )
+                    continue
+                grants.add(factory(self.user_id, entry.resource, entry.relation))
         return grants
 
 
@@ -276,12 +406,19 @@ class ParentRelationship(BaseModel):
 
 
 class ResourceParents(BaseModel):
-    """Response model for a resource's parent relationships."""
+    """Response model for a resource's parent relationships.
 
-    model_config = ConfigDict(populate_by_name=True)
+    Identity is read solely from the structured ``resource`` field. The
+    legacy top-level ``type``/``resourceId`` identity fields are
+    removed; ``extra="ignore"`` silently drops them if present on an
+    incoming response so parsing cannot fall back to them. A
+    ``resource`` of ``None`` means no Structured Identity was returned
+    (no partial reconstruction). The ``parents`` relationship data is
+    retained.
+    """
 
-    type: str
-    resource_id: str = Field(alias="resourceId")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
     parents: list[ParentRelationship]
     resource: ResourceObject | None = None
 
@@ -377,19 +514,30 @@ class BatchOperation(BaseModel):
     action: Literal["grant", "revoke"]
     user_id: str
     resource_type: str
-    resource_id: str
+    resource_label: str
     relation: str
+    center: str | None = None
+    study: str | None = None
+    community: str | None = None
 
 
 # --- Resource Listing Models ---
 
 
 class ResourceListItem(BaseModel):
-    """A single resource in a list resources response."""
+    """A single resource in a list resources response.
 
-    model_config = ConfigDict(populate_by_name=True)
+    Identity is read solely from the structured ``resource`` field. The
+    legacy top-level ``resourceId`` identity field is removed;
+    ``extra="ignore"`` silently drops it if present on an incoming
+    response so parsing cannot fall back to it. A ``resource`` of
+    ``None`` means no Structured Identity was returned (no partial
+    reconstruction). The ``structural_relation``/``display_name`` list-
+    display fields are retained.
+    """
 
-    resource_id: str = Field(alias="resourceId")
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
     structural_relation: str | None = Field(default=None, alias="structuralRelation")
     display_name: str | None = Field(default=None, alias="displayName")
     resource: ResourceObject | None = None
@@ -431,14 +579,32 @@ class UpdateResourceResponse(BaseModel):
 
 
 class PermissionCheckRequest(BaseModel):
-    """Request model for checking a specific permission."""
+    """Request model for checking a specific permission.
+
+    Mirrors :class:`GrantRequest`: identity is a structured
+    :class:`ResourceObject`, and the request body is built by
+    :meth:`request_body`.
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
     user_id: str = Field(alias="userId")
     relation: str
-    type: str
-    resource_id: str = Field(alias="resourceId")
+    resource: "ResourceObject"
+
+    def request_body(self) -> bytes:
+        """Serialize this request to a JSON-encoded body.
+
+        Emits ``userId``, ``relation``, and a structured ``resource`` (via
+        :meth:`ResourceObject.request_dump`, which excludes ``flat_id``).
+        No top-level ``type``/``resourceId`` is emitted.
+        """
+        payload = {
+            "userId": self.user_id,
+            "relation": self.relation,
+            "resource": self.resource.request_dump(),
+        }
+        return json.dumps(payload).encode()
 
 
 class PermissionCheckResponse(BaseModel):
