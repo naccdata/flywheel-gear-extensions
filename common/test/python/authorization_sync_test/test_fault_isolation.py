@@ -5,7 +5,7 @@ Feature: authorization-user-sync, Property 8: Fault isolation with event reporti
 
 from dataclasses import dataclass, field
 
-from authorization.exceptions import AuthorizationClientError
+from authorization.exceptions import AuthorizationClientError, ServiceUnavailableError
 from authorization.models import (
     AuthorizationModelMetadata,
     BatchError,
@@ -15,7 +15,11 @@ from authorization.models import (
     UserProfile,
     UserProfileRequest,
 )
-from authorization_sync.sync_service import AuthorizationSyncService
+from authorization_sync.sync_service import (
+    _SYNC_RESOURCE_TYPES,
+    AuthorizationSyncService,
+)
+from authorization_sync.translator import ACTIVITY_RELATION_MAP
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from users.authorizations import Authorizations
@@ -284,3 +288,175 @@ class TestFaultIsolationWithEventReporting:
             assert event.event_type == EventType.ERROR.value
             assert event.category == EventCategory.AUTHORIZATION_SYNC.value
             assert event.user_context.registry_id == registry_id
+
+
+class TestPerTypeQuerying:
+    """One permissions request per resource type, each with a type filter.
+
+    The permissions endpoint requires a ``type`` query parameter per
+    request (ADR-015), and the sync must issue exactly one request per
+    synced resource type. Because the diff keys on the Structured Identity
+    Tuple returned in each response, the request-side contract that feeds
+    that diff — one call per type, each carrying its type — is what these
+    tests hold constant.
+
+    Validates: Requirements 8.5, 8.6
+    """
+
+    @given(
+        registry_id=registry_ids_st,
+        authorizations=authorizations_st(),
+        center_group_id=st.one_of(st.none(), center_group_ids_st),
+    )
+    @settings(max_examples=50, deadline=None)
+    def test_one_permissions_request_per_resource_type(
+        self,
+        registry_id: str,
+        authorizations: Authorizations,
+        center_group_id: str | None,
+    ) -> None:
+        """sync_user issues exactly one permissions request per synced type.
+
+        The set of types queried is exactly ``_SYNC_RESOURCE_TYPES`` and
+        each is queried once, regardless of how many authorizations are
+        translated into the desired set.
+
+        Validates: Requirement 8.5
+        """
+        client = MockAuthorizationClient()
+        service = AuthorizationSyncService(
+            client=client, collector=UserEventCollector()
+        )
+
+        service.sync_user(
+            registry_id=registry_id,
+            authorizations=authorizations,
+            center_group_id=center_group_id,
+        )
+
+        queried_types = [
+            call["type_filter"] for call in client.get_user_permissions_calls
+        ]
+        # Exactly one request per resource type (no type queried twice, none
+        # skipped) — and the queried set is exactly the synced set.
+        assert sorted(queried_types) == sorted(_SYNC_RESOURCE_TYPES)
+        assert len(queried_types) == len(_SYNC_RESOURCE_TYPES)
+
+    @given(
+        registry_id=registry_ids_st,
+        authorizations=authorizations_st(),
+        center_group_id=st.one_of(st.none(), center_group_ids_st),
+    )
+    @settings(max_examples=50, deadline=None)
+    def test_every_permissions_request_carries_a_type_filter(
+        self,
+        registry_id: str,
+        authorizations: Authorizations,
+        center_group_id: str | None,
+    ) -> None:
+        """Every permissions request includes a non-empty ``type`` filter.
+
+        A request without a resource type is never issued (Req 8.6); every
+        request the sync makes carries its resource type.
+
+        Validates: Requirements 8.5, 8.6
+        """
+        client = MockAuthorizationClient()
+        service = AuthorizationSyncService(
+            client=client, collector=UserEventCollector()
+        )
+
+        service.sync_user(
+            registry_id=registry_id,
+            authorizations=authorizations,
+            center_group_id=center_group_id,
+        )
+
+        assert client.get_user_permissions_calls  # at least one request made
+        for call in client.get_user_permissions_calls:
+            assert call["type_filter"]  # non-empty type identifier
+            assert call["type_filter"] in _SYNC_RESOURCE_TYPES
+            assert call["user_id"] == registry_id
+
+
+class TestPreservedBehaviorHeldConstant:
+    """Constants and 503 handling unchanged by the structured migration.
+
+    Validates: Requirements 9.1, 9.2, 9.3
+    """
+
+    def test_sync_resource_types_derived_from_activity_relation_map(self) -> None:
+        """``_SYNC_RESOURCE_TYPES`` is exactly the types in the relation map.
+
+        The set of synced resource types is derived from
+        ``ACTIVITY_RELATION_MAP`` values, with none added or removed by the
+        migration.
+
+        Validates: Requirement 9.1
+        """
+        expected = {
+            resource_type
+            for pairs in ACTIVITY_RELATION_MAP.values()
+            for resource_type, _ in pairs
+        }
+        assert frozenset(expected) == _SYNC_RESOURCE_TYPES
+
+    def test_activity_relation_map_association_is_constant(self) -> None:
+        """``ACTIVITY_RELATION_MAP`` keys, values, and associations are held.
+
+        Pins the exact key set, value set, and each key-to-value
+        association so the migration cannot silently change what is synced.
+
+        Validates: Requirement 9.2
+        """
+        expected: dict[tuple[str, str], list[tuple[str, str]]] = {
+            ("submit-audit", "datatype"): [
+                ("data_pipeline", "submitter"),
+                ("data_pipeline", "viewer"),
+            ],
+            ("view", "datatype"): [("data_pipeline", "viewer")],
+            ("view", "dashboard"): [("dashboard", "viewer")],
+            ("view", "page"): [("page", "viewer")],
+        }
+        # Key set unchanged.
+        assert set(ACTIVITY_RELATION_MAP.keys()) == set(expected.keys())
+        # Each key-to-value association unchanged (order included).
+        for key, pairs in expected.items():
+            assert ACTIVITY_RELATION_MAP[key] == pairs
+
+    @given(
+        registry_id=registry_ids_st,
+        authorizations=authorizations_st(),
+        center_group_id=st.one_of(st.none(), center_group_ids_st),
+    )
+    @settings(max_examples=50, deadline=None)
+    def test_service_unavailable_after_retries_is_caught_not_propagated(
+        self,
+        registry_id: str,
+        authorizations: Authorizations,
+        center_group_id: str | None,
+    ) -> None:
+        """A 503 that survives client retries is reported, not raised.
+
+        The retry-on-503 behavior lives in the client; when it is exhausted
+        the client surfaces ``ServiceUnavailableError``. The sync must catch
+        it and report via the event collector without propagating, leaving
+        that retry behavior unchanged.
+
+        Validates: Requirement 9.3
+        """
+        error = ServiceUnavailableError("Service unavailable after retries")
+        client = MockAuthorizationClient(error_to_raise=error)
+        collector = UserEventCollector()
+        service = AuthorizationSyncService(client=client, collector=collector)
+
+        # Must not raise even though the client exhausts its 503 retries.
+        service.sync_user(
+            registry_id=registry_id,
+            authorizations=authorizations,
+            center_group_id=center_group_id,
+        )
+
+        errors = collector.get_errors()
+        assert len(errors) >= 1
+        assert errors[0].user_context.registry_id == registry_id

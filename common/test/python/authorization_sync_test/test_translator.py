@@ -1,12 +1,17 @@
-"""Property tests for the Activity-to-relation mapping correctness.
+"""Tests for the translator's structured DesiredGrant production.
 
-**Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 10.1, 10.3**
+**Validates: Requirements 3.2, 3.3, 3.4, 3.6, 3.7**
 
-Tests that the translate function correctly maps activities to relations
-using the ACTIVITY_RELATION_MAP constant.
+Tests that the translate function maps activities to relations using the
+ACTIVITY_RELATION_MAP constant and produces DesiredGrant objects carrying
+the Structured Identity (resource type, resource label, and parent fields)
+rather than a flat resource id. Also tests the prefix->kind mapping table
+and unknown-prefix rejection in build_label_for_resource_prefix.
 """
 
+import pytest
 from authorization_sync.models import DesiredGrant
+from authorization_sync.resource_ids import build_label_for_resource_prefix
 from authorization_sync.translator import ACTIVITY_RELATION_MAP, translate
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -16,7 +21,6 @@ from users.authorizations import (
     DashboardResource,
     DatatypeResource,
     PageResource,
-    Resource,
     StudyAuthorizations,
 )
 
@@ -30,39 +34,33 @@ from .conftest import (
     valid_datatypes_st,
 )
 
+# Maps a resource prefix to the label kind produced for it (Req 3.6).
+PREFIX_TO_KIND = {
+    "datatype": "ingest",
+    "dashboard": "dashboard",
+    "page": "page",
+}
 
-def _expected_resource_id(resource: Resource, study_id: str | None) -> str:
-    """Build the expected resource_id for test assertions.
 
-    Mirrors the _build_resource_id logic in the translator:
-    - datatype → "ingest-{name}"
-    - dashboard → "dashboard-{name}"
-    - page → "page-{name}"
-    Then appends "-{study_id}" if study_id is provided.
+def _expected_label(prefix: str, name: str) -> str:
+    """Build the expected structured resource label for assertions.
+
+    Uses the prefix->kind mapping (Req 3.6). Unlike the removed flat-id
+    helper, this produces only the structured label: no study suffix and
+    no center prefix. Parents are carried as separate DesiredGrant
+    fields.
     """
-    prefix = resource.prefix()
-    name = resource.name
-    if prefix == "datatype":
-        label = f"ingest-{name}"
-    elif prefix == "dashboard":
-        label = f"dashboard-{name}"
-    elif prefix == "page":
-        label = f"page-{name}"
-    else:
-        label = name
-
-    if study_id:
-        label = f"{label}-{study_id}"
-    return label
+    return f"{PREFIX_TO_KIND[prefix]}-{name}"
 
 
 class TestActivityToRelationMappingCorrectness:
-    """Property 1: Activity-to-relation mapping correctness.
+    """The translator produces DesiredGrants with structured identity.
 
     For any Activity consisting of an action and a Resource, the
     translator SHALL produce exactly the set of (resource_type,
     relation) pairs defined in the ACTIVITY_RELATION_MAP for that
-    (action, resource_prefix) combination.
+    (action, resource_prefix) combination, each carrying the structured
+    resource label and applicable parent fields.
     """
 
     @given(
@@ -77,26 +75,30 @@ class TestActivityToRelationMappingCorrectness:
     ) -> None:
         """Any mapped activity produces grants matching ACTIVITY_RELATION_MAP.
 
-        **Validates: Requirements 1.1**
+        With a bare Authorizations (no study), the grants carry the
+        structured label with no study/center/community parents.
+
+        **Validates: Requirements 3.3, 3.4**
         """
         auth = Authorizations()
         auth.activities.add(resource=activity.resource, activity=activity)
 
         grants = translate(registry_id=registry_id, authorizations=auth)
 
-        # Look up expected mapping
         mapping_key = (activity.action, activity.resource.prefix())
         expected_pairs = ACTIVITY_RELATION_MAP[mapping_key]
 
-        # Resource ID uses the new format (no study_id when using bare Authorizations)
-        resource_id = _expected_resource_id(activity.resource, study_id=None)
+        label = _expected_label(activity.resource.prefix(), activity.resource.name)
 
         expected_grants = {
             DesiredGrant(
                 user_id=registry_id,
                 resource_type=resource_type,
-                resource_id=resource_id,
                 relation=relation,
+                resource_label=label,
+                center=None,
+                study=None,
+                community=None,
             )
             for resource_type, relation in expected_pairs
         }
@@ -117,7 +119,10 @@ class TestActivityToRelationMappingCorrectness:
     ) -> None:
         """submit-audit on DatatypeResource produces both submitter AND viewer.
 
-        **Validates: Requirements 1.2, 10.1, 10.3**
+        Both grants carry the same structured label and the study parent
+        from the StudyAuthorizations.
+
+        **Validates: Requirements 3.3, 3.4**
         """
         resource = DatatypeResource(datatype=datatype)
         auth = StudyAuthorizations(study_id=study_id)
@@ -125,19 +130,25 @@ class TestActivityToRelationMappingCorrectness:
 
         grants = translate(registry_id=registry_id, authorizations=auth)
 
-        resource_id = f"ingest-{datatype}-{study_id}"
+        label = f"ingest-{datatype}"
 
         submitter_grant = DesiredGrant(
             user_id=registry_id,
             resource_type="data_pipeline",
-            resource_id=resource_id,
             relation="submitter",
+            resource_label=label,
+            center=None,
+            study=study_id,
+            community=None,
         )
         viewer_grant = DesiredGrant(
             user_id=registry_id,
             resource_type="data_pipeline",
-            resource_id=resource_id,
             relation="viewer",
+            resource_label=label,
+            center=None,
+            study=study_id,
+            community=None,
         )
 
         assert submitter_grant in grants
@@ -158,7 +169,7 @@ class TestActivityToRelationMappingCorrectness:
     ) -> None:
         """view on DatatypeResource produces viewer on data_pipeline.
 
-        **Validates: Requirements 1.3**
+        **Validates: Requirements 3.3, 3.4**
         """
         resource = DatatypeResource(datatype=datatype)
         auth = StudyAuthorizations(study_id=study_id)
@@ -170,8 +181,11 @@ class TestActivityToRelationMappingCorrectness:
             DesiredGrant(
                 user_id=registry_id,
                 resource_type="data_pipeline",
-                resource_id=f"ingest-{datatype}-{study_id}",
                 relation="viewer",
+                resource_label=f"ingest-{datatype}",
+                center=None,
+                study=study_id,
+                community=None,
             )
         }
 
@@ -191,7 +205,7 @@ class TestActivityToRelationMappingCorrectness:
     ) -> None:
         """view on DashboardResource produces viewer on dashboard.
 
-        **Validates: Requirements 1.4**
+        **Validates: Requirements 3.3, 3.4**
         """
         resource = DashboardResource(dashboard=name)
         auth = StudyAuthorizations(study_id=study_id)
@@ -203,8 +217,11 @@ class TestActivityToRelationMappingCorrectness:
             DesiredGrant(
                 user_id=registry_id,
                 resource_type="dashboard",
-                resource_id=f"dashboard-{name}-{study_id}",
                 relation="viewer",
+                resource_label=f"dashboard-{name}",
+                center=None,
+                study=study_id,
+                community=None,
             )
         }
 
@@ -224,7 +241,7 @@ class TestActivityToRelationMappingCorrectness:
     ) -> None:
         """view on PageResource produces viewer on page.
 
-        **Validates: Requirements 1.5**
+        **Validates: Requirements 3.3, 3.4**
         """
         resource = PageResource(page=name)
         auth = StudyAuthorizations(study_id=study_id)
@@ -236,8 +253,11 @@ class TestActivityToRelationMappingCorrectness:
             DesiredGrant(
                 user_id=registry_id,
                 resource_type="page",
-                resource_id=f"page-{name}-{study_id}",
                 relation="viewer",
+                resource_label=f"page-{name}",
+                center=None,
+                study=study_id,
+                community=None,
             )
         }
 
@@ -255,7 +275,7 @@ class TestActivityToRelationMappingCorrectness:
     ) -> None:
         """view on any resource produces viewer grants.
 
-        **Validates: Requirements 1.7**
+        **Validates: Requirements 3.3**
         """
         # Filter to only view activities
         view_activities = [a for a in activities if a.action == "view"]
@@ -273,11 +293,13 @@ class TestActivityToRelationMappingCorrectness:
             assert grant.relation == "viewer"
 
 
-class TestCenterScopedResourceIds:
-    """Tests for center-scoped resource ID format.
+class TestStructuredParentFields:
+    """The translator carries parent fields as separate structured fields.
 
-    Verifies that the translator produces resource IDs with the center
-    prefix using underscore separator per ADR-016.
+    Instead of composing a flat resource id with a center prefix and
+    study suffix, each DesiredGrant carries center/study/community as
+    distinct fields. Inapplicable parents are left None (Req 3.4), and
+    identity() exposes the Structured Identity Tuple.
     """
 
     @given(
@@ -287,16 +309,19 @@ class TestCenterScopedResourceIds:
         center_group_id=center_group_ids_st,
     )
     @settings(max_examples=100, deadline=None)
-    def test_center_scoped_datatype_uses_underscore_separator(
+    def test_center_scoped_datatype_sets_center_and_study_parents(
         self,
         datatype: str,
         registry_id: str,
         study_id: str,
         center_group_id: str,
     ) -> None:
-        """Center-scoped data_pipeline resource_id uses underscore separator.
+        """Center-scoped data_pipeline grant carries center + study parents.
 
-        Format: {center}_{ingest}-{datatype}-{study_id}
+        The label has no study suffix and no center prefix; those are
+        carried as structured fields instead.
+
+        **Validates: Requirements 3.3, 3.4**
         """
         resource = DatatypeResource(datatype=datatype)
         auth = StudyAuthorizations(study_id=study_id)
@@ -308,9 +333,21 @@ class TestCenterScopedResourceIds:
             center_group_id=center_group_id,
         )
 
-        expected_resource_id = f"{center_group_id}_ingest-{datatype}-{study_id}"
+        assert grants
         for grant in grants:
-            assert grant.resource_id == expected_resource_id
+            assert grant.resource_type == "data_pipeline"
+            assert grant.resource_label == f"ingest-{datatype}"
+            assert grant.center == center_group_id
+            assert grant.study == study_id
+            assert grant.community is None
+            assert grant.identity() == (
+                "data_pipeline",
+                grant.relation,
+                f"ingest-{datatype}",
+                center_group_id,
+                study_id,
+                None,
+            )
 
     @given(
         name=dashboard_names_st,
@@ -319,16 +356,16 @@ class TestCenterScopedResourceIds:
         center_group_id=center_group_ids_st,
     )
     @settings(max_examples=100, deadline=None)
-    def test_center_scoped_dashboard_uses_underscore_separator(
+    def test_center_scoped_dashboard_sets_center_and_study_parents(
         self,
         name: str,
         registry_id: str,
         study_id: str,
         center_group_id: str,
     ) -> None:
-        """Center-scoped dashboard resource_id uses underscore separator.
+        """Center-scoped dashboard grant carries center + study parents.
 
-        Format: {center}_dashboard-{name}-{study_id}
+        **Validates: Requirements 3.3, 3.4**
         """
         resource = DashboardResource(dashboard=name)
         auth = StudyAuthorizations(study_id=study_id)
@@ -340,10 +377,21 @@ class TestCenterScopedResourceIds:
             center_group_id=center_group_id,
         )
 
-        expected_resource_id = f"{center_group_id}_dashboard-{name}-{study_id}"
         assert len(grants) == 1
         grant = next(iter(grants))
-        assert grant.resource_id == expected_resource_id
+        assert grant.resource_type == "dashboard"
+        assert grant.resource_label == f"dashboard-{name}"
+        assert grant.center == center_group_id
+        assert grant.study == study_id
+        assert grant.community is None
+        assert grant.identity() == (
+            "dashboard",
+            "viewer",
+            f"dashboard-{name}",
+            center_group_id,
+            study_id,
+            None,
+        )
 
     @given(
         name=page_names_st,
@@ -352,16 +400,16 @@ class TestCenterScopedResourceIds:
         center_group_id=center_group_ids_st,
     )
     @settings(max_examples=100, deadline=None)
-    def test_center_scoped_page_uses_underscore_separator(
+    def test_center_scoped_page_sets_center_and_study_parents(
         self,
         name: str,
         registry_id: str,
         study_id: str,
         center_group_id: str,
     ) -> None:
-        """Center-scoped page resource_id uses underscore separator.
+        """Center-scoped page grant carries center + study parents.
 
-        Format: {center}_page-{name}-{study_id}
+        **Validates: Requirements 3.3, 3.4**
         """
         resource = PageResource(page=name)
         auth = StudyAuthorizations(study_id=study_id)
@@ -373,7 +421,147 @@ class TestCenterScopedResourceIds:
             center_group_id=center_group_id,
         )
 
-        expected_resource_id = f"{center_group_id}_page-{name}-{study_id}"
         assert len(grants) == 1
         grant = next(iter(grants))
-        assert grant.resource_id == expected_resource_id
+        assert grant.resource_type == "page"
+        assert grant.resource_label == f"page-{name}"
+        assert grant.center == center_group_id
+        assert grant.study == study_id
+        assert grant.community is None
+        assert grant.identity() == (
+            "page",
+            "viewer",
+            f"page-{name}",
+            center_group_id,
+            study_id,
+            None,
+        )
+
+    @given(
+        datatype=valid_datatypes_st,
+        registry_id=registry_ids_st,
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_general_scope_leaves_center_and_study_unset(
+        self,
+        datatype: str,
+        registry_id: str,
+    ) -> None:
+        """General-scope grants leave inapplicable parent fields unset.
+
+        A bare Authorizations has no study, and no center is passed, so
+        center/study/community are all None rather than placeholders.
+
+        **Validates: Requirements 3.4**
+        """
+        resource = DatatypeResource(datatype=datatype)
+        auth = Authorizations()
+        auth.activities.add(
+            resource=resource,
+            activity=Activity(resource=resource, action="view"),
+        )
+
+        grants = translate(registry_id=registry_id, authorizations=auth)
+
+        assert grants
+        for grant in grants:
+            assert grant.center is None
+            assert grant.study is None
+            assert grant.community is None
+
+
+class TestResourcePrefixLabelMapping:
+    """build_label_for_resource_prefix maps prefixes to label kinds.
+
+    Covers the prefix->kind mapping table (Req 3.6) and rejection of
+    unsupported prefixes (Req 3.7).
+    """
+
+    @pytest.mark.parametrize(
+        ("prefix", "kind"),
+        [
+            ("datatype", "ingest"),
+            ("dashboard", "dashboard"),
+            ("page", "page"),
+        ],
+    )
+    def test_prefix_maps_to_expected_kind(self, prefix: str, kind: str) -> None:
+        """Each supported prefix produces a "{kind}-{name}" label.
+
+        **Validates: Requirements 3.6**
+        """
+        assert build_label_for_resource_prefix(prefix, "example") == f"{kind}-example"
+
+    @given(name=st.text(min_size=1, max_size=30))
+    @settings(max_examples=50, deadline=None)
+    def test_name_with_hyphens_is_preserved(self, name: str) -> None:
+        """The name portion is appended verbatim after the kind.
+
+        **Validates: Requirements 3.6**
+        """
+        assert build_label_for_resource_prefix("datatype", name) == f"ingest-{name}"
+
+    @pytest.mark.parametrize(
+        "unsupported_prefix",
+        ["", "unknown", "organization", "study", "center", "ingest", "form"],
+    )
+    def test_unknown_prefix_is_rejected(self, unsupported_prefix: str) -> None:
+        """An unsupported prefix raises ValueError without emitting a label.
+
+        **Validates: Requirements 3.7**
+        """
+        with pytest.raises(ValueError):
+            build_label_for_resource_prefix(unsupported_prefix, "example")
+
+
+class TestDesiredGrantConstructionRejection:
+    """DesiredGrant rejects construction missing structured identity.
+
+    A DesiredGrant requires both a resource type and a resource label; a
+    missing (empty) value for either is rejected rather than producing a
+    partial grant (Req 3.2).
+    """
+
+    @given(
+        registry_id=registry_ids_st,
+        relation=st.sampled_from(["viewer", "submitter"]),
+    )
+    @settings(max_examples=25, deadline=None)
+    def test_missing_resource_label_is_rejected(
+        self,
+        registry_id: str,
+        relation: str,
+    ) -> None:
+        """Constructing a grant without a resource label raises ValueError.
+
+        **Validates: Requirements 3.2**
+        """
+        with pytest.raises(ValueError):
+            DesiredGrant(
+                user_id=registry_id,
+                resource_type="data_pipeline",
+                relation=relation,
+                resource_label="",
+            )
+
+    @given(
+        registry_id=registry_ids_st,
+        relation=st.sampled_from(["viewer", "submitter"]),
+    )
+    @settings(max_examples=25, deadline=None)
+    def test_missing_resource_type_is_rejected(
+        self,
+        registry_id: str,
+        relation: str,
+    ) -> None:
+        """Constructing a grant without a resource type raises ValueError.
+
+        **Validates: Requirements 3.2**
+        """
+        with pytest.raises(ValueError):
+            DesiredGrant(
+                user_id=registry_id,
+                resource_type="",
+                relation=relation,
+                resource_label="ingest-form",
+            )

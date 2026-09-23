@@ -1,4 +1,4 @@
-"""Regression tests for cross-study grant revocation in the sync service.
+"""Sync-service diff tests keyed on the Structured Identity Tuple.
 
 A center user holds authorizations for several studies that all belong to
 the same center group. The Authorization API's permissions endpoint returns
@@ -9,9 +9,16 @@ as "not desired" and revokes them, so only the last study's grants survive.
 These tests drive the sync service against a stateful in-memory client that
 persists grants across batch calls (like the real API) so that any cross-study
 revocation shows up as revoke operations.
+
+The regression tests below exercise concrete scenarios; the property tests at
+the end verify the universal correctness properties (design Properties 2, 3, 5,
+6) that the structured-identity diff must satisfy. All matching is keyed on the
+Structured Identity Tuple ``(resource_type, relation, resource_label, center,
+study, community)`` — the server-owned ``flat_id`` is never part of the key.
 """
 
 from dataclasses import dataclass, field
+from unittest.mock import patch
 
 from authorization.models import (
     BatchOperation,
@@ -20,7 +27,13 @@ from authorization.models import (
     ResourceObject,
     UserPermissions,
 )
-from authorization_sync.sync_service import AuthorizationSyncService
+from authorization_sync.models import DesiredGrant
+from authorization_sync.sync_service import (
+    AuthorizationSyncService,
+    _grants_in_scope,
+)
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from users.authorizations import (
     Activities,
     Activity,
@@ -31,33 +44,18 @@ from users.authorizations import (
 )
 from users.event_models import UserEventCollector
 
+from .conftest import (
+    api_relations_st,
+    community_ids_st,
+    desired_grants_st,
+    flat_ids_st,
+    permission_entries_st,
+    registry_ids_st,
+)
 
-def _resource_object(
-    resource_type: str,
-    resource_id: str,
-    community: str | None = None,
-) -> ResourceObject:
-    """Build the structured resource the real API returns for a grant.
-
-    The API enriches each permission entry with the resource's parents
-    from the catalog. This models the center parent the way ADR-016
-    resource ids encode it: center-scoped ids are ``{center}_{label}``
-    (center names never contain underscores), and general (non-center)
-    ids have no such prefix. Study is left unset — a center sync owns
-    every study under the center, so the scope filter keys on center,
-    not study. A ``community`` parent is set only when explicitly
-    requested, modeling a community-scoped resource the center sync must
-    not revoke.
-    """
-    center: str | None = None
-    if "_" in resource_id:
-        center = resource_id.split("_", 1)[0]
-    return ResourceObject(
-        type=resource_type,
-        id=resource_id,
-        center=center,
-        community=community,
-    )
+# The structured identity of a stored grant, plus the user it belongs to:
+# (user_id, resource_type, resource_label, relation, center, study, community).
+GrantKey = tuple[str, str, str, str, str | None, str | None, str | None]
 
 
 @dataclass
@@ -65,23 +63,40 @@ class StatefulAuthorizationClient:
     """In-memory client that persists grants across batch calls.
 
     Models the real API closely enough to expose cross-study revocation:
-    ``get_user_permissions`` returns every grant the user currently
-    holds of the requested type, regardless of which study it belongs
-    to. Each entry is enriched with a structured ``resource`` carrying
-    the grant's center parent, as the real API does, so the sync's scope
-    filter can distinguish center scopes from the general scope.
+    ``get_user_permissions`` returns every grant the user currently holds
+    of the requested type, regardless of which study it belongs to. Each
+    entry is enriched with a structured ``resource`` carrying the grant's
+    label and parent fields, as the real API does, so the sync's diff and
+    scope filter operate on the Structured Identity Tuple.
+
+    Grants are keyed on the structured identity; the server-owned
+    ``flat_id`` is assigned independently and never affects matching.
     """
 
-    # (user_id, resource_type, resource_id, relation)
-    grants: set[tuple[str, str, str, str]] = field(default_factory=set)
+    grants: set[GrantKey] = field(default_factory=set)
     batch_calls: list[list[BatchOperation]] = field(default_factory=list)
-    # resource ids for which the API returns no structured scope (catalog
+    # Structured keys for which the API returns no structured scope (catalog
     # gap): entries for these are returned with resource=None.
-    scopeless_resource_ids: set[str] = field(default_factory=set)
-    # resource id -> community parent: entries for these are returned with
-    # a community-scoped resource, which a center/general sync must not
-    # revoke.
-    community_resource_ids: dict[str, str] = field(default_factory=dict)
+    scopeless_keys: set[GrantKey] = field(default_factory=set)
+    # Structured key -> flat_id handle the API reports for that grant. When a
+    # key is absent, the entry's resource carries flat_id=None.
+    flat_ids: dict[GrantKey, str] = field(default_factory=dict)
+
+    def _entry_for(self, key: GrantKey) -> PermissionEntry:
+        (_uid, rtype, label, relation, center, study, community) = key
+        if key in self.scopeless_keys:
+            return PermissionEntry(resource=None, relation=relation)
+        return PermissionEntry(
+            resource=ResourceObject(
+                type=rtype,
+                label=label,
+                flat_id=self.flat_ids.get(key),
+                center=center,
+                study=study,
+                community=community,
+            ),
+            relation=relation,
+        )
 
     def get_user_permissions(
         self,
@@ -90,21 +105,9 @@ class StatefulAuthorizationClient:
         relation_filter: str | None = None,
     ) -> UserPermissions:
         entries: list[PermissionEntry] = [
-            PermissionEntry(
-                resource_id=resource_id,
-                relation=relation,
-                resource=(
-                    None
-                    if resource_id in self.scopeless_resource_ids
-                    else _resource_object(
-                        rtype,
-                        resource_id,
-                        community=self.community_resource_ids.get(resource_id),
-                    )
-                ),
-            )
-            for (uid, rtype, resource_id, relation) in self.grants
-            if uid == user_id and rtype == type_filter
+            self._entry_for(key)
+            for key in self.grants
+            if key[0] == user_id and key[1] == type_filter
         ]
         permissions = {type_filter: entries} if entries else {}
         return UserPermissions(user_id=user_id, permissions=permissions)
@@ -112,7 +115,15 @@ class StatefulAuthorizationClient:
     def batch(self, operations: list[BatchOperation]) -> BatchResult:
         self.batch_calls.append(operations)
         for op in operations:
-            key = (op.user_id, op.resource_type, op.resource_id, op.relation)
+            key: GrantKey = (
+                op.user_id,
+                op.resource_type,
+                op.resource_label,
+                op.relation,
+                op.center,
+                op.study,
+                op.community,
+            )
             if op.action == "grant":
                 self.grants.add(key)
             else:
@@ -133,6 +144,20 @@ def _study_auth(study_id: str, datatype: str) -> StudyAuthorizations:
     return StudyAuthorizations(study_id=study_id, activities=activities)
 
 
+def _grant_key(
+    resource_type: str,
+    resource_label: str,
+    relation: str,
+    *,
+    center: str | None = None,
+    study: str | None = None,
+    community: str | None = None,
+    user_id: str = "user@institution.edu",
+) -> GrantKey:
+    """Build a stored-grant key with explicit structured identity."""
+    return (user_id, resource_type, resource_label, relation, center, study, community)
+
+
 def _revoke_ops(client: StatefulAuthorizationClient) -> list[BatchOperation]:
     return [
         op
@@ -140,6 +165,19 @@ def _revoke_ops(client: StatefulAuthorizationClient) -> list[BatchOperation]:
         for op in operations
         if op.action == "revoke"
     ]
+
+
+def _grant_ops(client: StatefulAuthorizationClient) -> list[BatchOperation]:
+    return [
+        op
+        for operations in client.batch_calls
+        for op in operations
+        if op.action == "grant"
+    ]
+
+
+def _labels(client: StatefulAuthorizationClient) -> set[str]:
+    return {label for (_, _, label, _, _, _, _) in client.grants}
 
 
 class TestMultiStudySyncNoRevocation:
@@ -170,11 +208,11 @@ class TestMultiStudySyncNoRevocation:
         # No grant should be revoked: both studies are desired.
         assert _revoke_ops(client) == []
 
-        # Both studies' grants end up present in the API. Resource IDs embed
-        # the study id as a suffix (e.g. "washington_ingest-form-study-1").
-        resource_ids = {resource_id for (_, _, resource_id, _) in client.grants}
-        assert any(rid.endswith("-study-1") for rid in resource_ids)
-        assert any(rid.endswith("-study-2") for rid in resource_ids)
+        # Both studies' grants end up present in the API, distinguished by
+        # their study parent (not by a flat resource id).
+        studies = {study for (_, _, _, _, _, study, _) in client.grants}
+        assert "study-1" in studies
+        assert "study-2" in studies
 
     def test_grants_persist_for_all_studies_after_sync(self) -> None:
         """After syncing, every study's grant survives in the API state.
@@ -200,10 +238,8 @@ class TestMultiStudySyncNoRevocation:
             center_group_id="washington",
         )
 
-        resource_ids = {resource_id for (_, _, resource_id, _) in client.grants}
-        assert any(rid.endswith("-study-1") for rid in resource_ids)
-        assert any(rid.endswith("-study-2") for rid in resource_ids)
-        assert any(rid.endswith("-study-3") for rid in resource_ids)
+        study_parents = {study for (_, _, _, _, _, study, _) in client.grants}
+        assert {"study-1", "study-2", "study-3"} <= study_parents
 
     def test_stale_grant_is_revoked_when_no_longer_desired(self) -> None:
         """A grant present in the API but absent from the desired set is
@@ -214,14 +250,14 @@ class TestMultiStudySyncNoRevocation:
         """
         client = StatefulAuthorizationClient()
         # Pre-seed a grant for a study the user no longer has.
-        client.grants.add(
-            (
-                "user@institution.edu",
-                "data_pipeline",
-                "washington_ingest-form-old-study",
-                "submitter",
-            )
+        stale = _grant_key(
+            "data_pipeline",
+            "ingest-form",
+            "submitter",
+            center="washington",
+            study="old-study",
         )
+        client.grants.add(stale)
         service = AuthorizationSyncService(
             client=client,  # type: ignore[arg-type]
             collector=UserEventCollector(),
@@ -233,8 +269,11 @@ class TestMultiStudySyncNoRevocation:
             center_group_id="washington",
         )
 
-        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
-        assert "washington_ingest-form-old-study" in revoked_ids
+        revoked = {
+            (op.resource_type, op.resource_label, op.center, op.study)
+            for op in _revoke_ops(client)
+        }
+        assert ("data_pipeline", "ingest-form", "washington", "old-study") in revoked
 
     def test_sync_user_delegates_to_single_study_diff(self) -> None:
         """sync_user (single authorization) still works via the shared path.
@@ -285,15 +324,14 @@ class TestCrossScopeSyncNoRevocation:
         those center grants revoked by the general sync.
         """
         client = StatefulAuthorizationClient()
-        # Pre-seed a center grant the general sync must not touch.
-        client.grants.add(
-            (
-                "user@institution.edu",
-                "data_pipeline",
-                "washington_ingest-form-study-1",
-                "submitter",
-            )
+        center_grant = _grant_key(
+            "data_pipeline",
+            "ingest-form",
+            "submitter",
+            center="washington",
+            study="study-1",
         )
+        client.grants.add(center_grant)
         service = AuthorizationSyncService(
             client=client,  # type: ignore[arg-type]
             collector=UserEventCollector(),
@@ -305,11 +343,9 @@ class TestCrossScopeSyncNoRevocation:
             authorizations=_general_page_auth("community-resources"),
         )
 
-        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
-        assert "washington_ingest-form-study-1" not in revoked_ids
+        assert center_grant not in {_key_from_op(op) for op in _revoke_ops(client)}
         # The center grant survives in API state.
-        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
-        assert "washington_ingest-form-study-1" in surviving
+        assert center_grant in client.grants
 
     def test_general_sync_with_empty_desired_revokes_nothing_out_of_scope(
         self,
@@ -324,11 +360,12 @@ class TestCrossScopeSyncNoRevocation:
         client = StatefulAuthorizationClient()
         for datatype in ("form", "enrollment", "dicom"):
             client.grants.add(
-                (
-                    "user@institution.edu",
+                _grant_key(
                     "data_pipeline",
-                    f"washington_ingest-{datatype}-study-1",
+                    f"ingest-{datatype}",
                     "submitter",
+                    center="washington",
+                    study="study-1",
                 )
             )
         service = AuthorizationSyncService(
@@ -348,15 +385,16 @@ class TestCrossScopeSyncNoRevocation:
     def test_center_sync_does_not_revoke_general_grants(self) -> None:
         """A center sync leaves the user's general grants untouched."""
         client = StatefulAuthorizationClient()
-        # Pre-seed a general (non-center) page grant.
-        client.grants.add(
-            (
-                "user@institution.edu",
-                "page",
-                "page-community-resources",
-                "viewer",
-            )
+        # Pre-seed a general (non-center) page grant. A page scoped to a study
+        # but no center is the non-center scope: its center is None, so a
+        # center sync (center="washington") must not revoke it.
+        general_grant = _grant_key(
+            "page",
+            "page-community-resources",
+            "viewer",
+            study="study-1",
         )
+        client.grants.add(general_grant)
         service = AuthorizationSyncService(
             client=client,  # type: ignore[arg-type]
             collector=UserEventCollector(),
@@ -368,23 +406,21 @@ class TestCrossScopeSyncNoRevocation:
             center_group_id="washington",
         )
 
-        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
-        assert "page-community-resources" not in revoked_ids
-        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
-        assert "page-community-resources" in surviving
+        assert general_grant not in {_key_from_op(op) for op in _revoke_ops(client)}
+        assert general_grant in client.grants
 
     def test_center_sync_does_not_revoke_other_center_grants(self) -> None:
         """A sync for center A leaves center B's grants untouched."""
         client = StatefulAuthorizationClient()
         # Pre-seed a grant belonging to a different center.
-        client.grants.add(
-            (
-                "user@institution.edu",
-                "data_pipeline",
-                "columbia_ingest-form-study-1",
-                "submitter",
-            )
+        other_center_grant = _grant_key(
+            "data_pipeline",
+            "ingest-form",
+            "submitter",
+            center="columbia",
+            study="study-1",
         )
+        client.grants.add(other_center_grant)
         service = AuthorizationSyncService(
             client=client,  # type: ignore[arg-type]
             collector=UserEventCollector(),
@@ -396,10 +432,10 @@ class TestCrossScopeSyncNoRevocation:
             center_group_id="washington",
         )
 
-        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
-        assert "columbia_ingest-form-study-1" not in revoked_ids
-        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
-        assert "columbia_ingest-form-study-1" in surviving
+        assert other_center_grant not in {
+            _key_from_op(op) for op in _revoke_ops(client)
+        }
+        assert other_center_grant in client.grants
 
     def test_grant_with_unknown_scope_is_never_revoked(self) -> None:
         """A current grant with no API-reported scope is never revoked.
@@ -410,16 +446,16 @@ class TestCrossScopeSyncNoRevocation:
         would otherwise look in-scope.
         """
         client = StatefulAuthorizationClient()
-        client.grants.add(
-            (
-                "user@institution.edu",
-                "data_pipeline",
-                "washington_ingest-form-orphan",
-                "submitter",
-            )
+        orphan = _grant_key(
+            "data_pipeline",
+            "ingest-form",
+            "submitter",
+            center="washington",
+            study="orphan",
         )
+        client.grants.add(orphan)
         # The API cannot report scope for this resource.
-        client.scopeless_resource_ids.add("washington_ingest-form-orphan")
+        client.scopeless_keys.add(orphan)
         service = AuthorizationSyncService(
             client=client,  # type: ignore[arg-type]
             collector=UserEventCollector(),
@@ -431,31 +467,25 @@ class TestCrossScopeSyncNoRevocation:
             center_group_id="washington",
         )
 
-        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
-        assert "washington_ingest-form-orphan" not in revoked_ids
-        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
-        assert "washington_ingest-form-orphan" in surviving
+        assert orphan not in {_key_from_op(op) for op in _revoke_ops(client)}
+        assert orphan in client.grants
 
     def test_center_sync_does_not_revoke_community_scoped_grant(self) -> None:
         """A community-scoped grant is never revoked by a center sync.
 
-        The API can return a resource that carries both a center and a
-        community parent. Such a resource belongs to the community
-        scope, which this gear does not reconcile, so a center sync must
-        leave it alone even though its center matches the call's center
-        and it is absent from the desired set.
+        The API can return a resource that carries a community parent.
+        Such a resource belongs to the community scope, which this gear
+        does not reconcile, so a center sync must leave it alone even
+        though it is absent from the desired set.
         """
         client = StatefulAuthorizationClient()
-        client.grants.add(
-            (
-                "user@institution.edu",
-                "page",
-                "washington_page-shared-community",
-                "viewer",
-            )
+        community_grant = _grant_key(
+            "page",
+            "page-shared",
+            "viewer",
+            community="nacc",
         )
-        # The API reports this resource under a community parent.
-        client.community_resource_ids["washington_page-shared-community"] = "nacc"
+        client.grants.add(community_grant)
         service = AuthorizationSyncService(
             client=client,  # type: ignore[arg-type]
             collector=UserEventCollector(),
@@ -467,7 +497,267 @@ class TestCrossScopeSyncNoRevocation:
             center_group_id="washington",
         )
 
-        revoked_ids = {op.resource_id for op in _revoke_ops(client)}
-        assert "washington_page-shared-community" not in revoked_ids
-        surviving = {resource_id for (_, _, resource_id, _) in client.grants}
-        assert "washington_page-shared-community" in surviving
+        assert community_grant not in {_key_from_op(op) for op in _revoke_ops(client)}
+        assert community_grant in client.grants
+
+
+def _key_from_op(op: BatchOperation) -> GrantKey:
+    """Recover the structured grant key from a batch operation."""
+    return (
+        op.user_id,
+        op.resource_type,
+        op.resource_label,
+        op.relation,
+        op.center,
+        op.study,
+        op.community,
+    )
+
+
+# --- Property tests (design Properties 2, 3, 5, 6) ---
+
+
+@st.composite
+def _desired_sets_st(draw: st.DrawFn) -> tuple[str, str | None, set[DesiredGrant]]:
+    """Generate a user id, a center scope, and a desired grant set for it.
+
+    Every grant in the set shares the drawn ``user_id`` (as
+    ``translate`` produces for a single user). The grants otherwise vary
+    in type, relation, label, and parent fields; each carries a parent-
+    field combination valid for its type (guaranteed by
+    ``desired_grants_st``), so the current-side ``ResourceObject`` built
+    from it is always constructible. The ``center_group_id`` reconciled
+    by the call is chosen independently — the round-trip must hold for
+    any scope, since the current set is built from the same structured
+    identities as the desired set.
+    """
+    user_id = draw(registry_ids_st)
+    center_group_id = draw(st.one_of(st.none(), st.just("washington"), st.just("nyc")))
+    base = draw(st.lists(desired_grants_st(), min_size=0, max_size=8))
+    grants = {
+        DesiredGrant(
+            user_id=user_id,
+            resource_type=g.resource_type,
+            relation=g.relation,
+            resource_label=g.resource_label,
+            center=g.center,
+            study=g.study,
+            community=g.community,
+        )
+        for g in base
+    }
+    return user_id, center_group_id, grants
+
+
+class TestDiffProperties:
+    """Universal correctness properties for the structured-identity diff."""
+
+    @settings(max_examples=100)
+    @given(data=_desired_sets_st(), flats=st.lists(flat_ids_st, min_size=1, max_size=8))
+    def test_diff_round_trips_independent_of_flat_id(
+        self,
+        data: tuple[str, str | None, set[DesiredGrant]],
+        flats: list[str],
+    ) -> None:
+        """Property 2: the diff round-trips on structured identity.
+
+        Build the current set from the desired set but assign arbitrary,
+        differing ``flat_id`` handles to the current-side resources, then drive
+        the real ``sync_users`` diff with a desired set equal (by structured
+        identity) to the current set. Matching is by the Structured Identity
+        Tuple, so nothing is added and nothing is revoked regardless of
+        flat_id.
+
+        # Feature: authorization-api-structured-resource-migration, Property 2:
+        # The diff round-trips on structured identity, independent of flat_id.
+
+        Validates: Requirements 4.1, 4.2, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 9.6
+        """
+        user_id, center_group_id, desired = data
+
+        # Seed the client's current state from the desired grants, assigning
+        # server-owned flat_ids that the client could never reproduce.
+        client = StatefulAuthorizationClient()
+        for index, grant in enumerate(desired):
+            key = (
+                grant.user_id,
+                grant.resource_type,
+                grant.resource_label,
+                grant.relation,
+                grant.center,
+                grant.study,
+                grant.community,
+            )
+            client.grants.add(key)
+            client.flat_ids[key] = f"{flats[index % len(flats)]}-server-{index}"
+
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        # Drive the real diff through sync_users. The desired set is injected
+        # via translate so it is identical (by structured identity) to the
+        # current set; the current set differs only in its server-owned
+        # flat_ids.
+        with patch(
+            "authorization_sync.sync_service.translate",
+            return_value=set(desired),
+        ):
+            # One authorization set so the (stubbed) translate is invoked once
+            # and returns the full desired set; its contents are ignored.
+            service.sync_users(
+                registry_id=user_id,
+                authorizations=[Authorizations()],
+                center_group_id=center_group_id,
+            )
+
+        # grants_to_add and grants_to_revoke were both empty: no batch call was
+        # issued (the service returns early when there are no changes), and the
+        # persisted grant set is unchanged.
+        assert _grant_ops(client) == []
+        assert _revoke_ops(client) == []
+
+    @settings(max_examples=100)
+    @given(
+        user_id=registry_ids_st,
+        center_group_id=st.one_of(st.none(), st.just("washington")),
+        relations=st.lists(api_relations_st, min_size=1, max_size=4),
+    )
+    def test_none_resource_entry_never_revoked(
+        self,
+        user_id: str,
+        center_group_id: str | None,
+        relations: list[str],
+    ) -> None:
+        """Property 3: a None-resource entry is never revoked.
+
+        Entries whose ``resource`` is None (catalog gap) participate in
+        neither add nor revoke, and ``_grants_in_scope`` completes without
+        raising.
+
+        # Feature: authorization-api-structured-resource-migration, Property 3:
+        # An entry with no structured resource is never revoked.
+
+        Validates: Requirements 4.3, 6.1, 6.2, 6.3, 6.4, 7.5
+        """
+        entries = [
+            PermissionEntry(resource=None, relation=relation) for relation in relations
+        ]
+        permissions = UserPermissions(
+            user_id=user_id, permissions={"data_pipeline": entries}
+        )
+
+        # The catalog-gap path must not raise and yields no in-scope grants.
+        in_scope = _grants_in_scope(permissions, center_group_id)
+        assert in_scope == set()
+
+        # Full diff via sync_users: with an empty desired set, a revoke would
+        # appear if any None-resource entry were treated as in scope.
+        client = StatefulAuthorizationClient()
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+        client.get_user_permissions = lambda **_: permissions  # type: ignore[method-assign]
+        service.sync_users(
+            registry_id=user_id,
+            authorizations=[],
+            center_group_id=center_group_id,
+        )
+        assert _revoke_ops(client) == []
+        assert _grant_ops(client) == []
+
+    @settings(max_examples=100)
+    @given(
+        user_id=registry_ids_st,
+        center_group_id=st.one_of(st.none(), st.just("washington")),
+        community=community_ids_st,
+        entries=st.lists(
+            permission_entries_st(resource_type="page"), min_size=1, max_size=5
+        ),
+    )
+    def test_community_scoped_entries_never_revoked(
+        self,
+        user_id: str,
+        center_group_id: str | None,
+        community: str,
+        entries: list[PermissionEntry],
+    ) -> None:
+        """Property 5: community-scoped entries are never revoked.
+
+        Any entry whose structured resource carries a non-null ``community``
+        is out of scope for a center/general sync, so it never appears among
+        the in-scope (revoke-candidate) grants.
+
+        # Feature: authorization-api-structured-resource-migration, Property 5:
+        # Community-scoped entries are never revoked.
+
+        Validates: Requirements 7.3
+        """
+        # Force a community parent on every entry's resource (page permits
+        # community-alone), overriding whatever the strategy generated.
+        community_entries = [
+            PermissionEntry(
+                resource=ResourceObject(
+                    type="page",
+                    label=entry.resource.label if entry.resource else "page-x",
+                    community=community,
+                ),
+                relation=entry.relation,
+            )
+            for entry in entries
+        ]
+        permissions = UserPermissions(
+            user_id=user_id, permissions={"page": community_entries}
+        )
+
+        # No community-scoped grant is a revoke candidate (empty desired set is
+        # the worst case: every in-scope grant would otherwise be revoked).
+        in_scope = _grants_in_scope(permissions, center_group_id)
+        assert all(g.community is None for g in in_scope)
+        assert in_scope == set()
+
+    @settings(max_examples=100)
+    @given(
+        user_id=registry_ids_st,
+        reconciled_center=st.one_of(st.none(), st.just("washington"), st.just("nyc")),
+        entries=st.lists(
+            permission_entries_st(resource_type="page"), min_size=1, max_size=6
+        ),
+    )
+    def test_revoke_candidacy_is_center_keyed(
+        self,
+        user_id: str,
+        reconciled_center: str | None,
+        entries: list[PermissionEntry],
+    ) -> None:
+        """Property 6: revoke candidacy is center-keyed.
+
+        For entries with a non-null resource and no community parent, an entry
+        is a revoke candidate (i.e. in scope) iff its ``resource.center``
+        equals — exactly, case-sensitively — the reconciled center group id.
+
+        # Feature: authorization-api-structured-resource-migration, Property 6:
+        # Revoke candidacy is center-keyed.
+
+        Validates: Requirements 7.1, 7.2, 7.4
+        """
+        # Restrict to entries with a resource and no community parent.
+        candidate_entries = [
+            entry
+            for entry in entries
+            if entry.resource is not None and entry.resource.community is None
+        ]
+        permissions = UserPermissions(
+            user_id=user_id, permissions={"page": candidate_entries}
+        )
+
+        in_scope = _grants_in_scope(permissions, reconciled_center)
+        in_scope_labels = {(g.resource_label, g.relation, g.center) for g in in_scope}
+
+        for entry in candidate_entries:
+            assert entry.resource is not None
+            key = (entry.resource.label, entry.relation, entry.resource.center)
+            expected_in_scope = entry.resource.center == reconciled_center
+            assert (key in in_scope_labels) == expected_in_scope
