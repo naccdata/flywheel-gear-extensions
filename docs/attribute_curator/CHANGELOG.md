@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.4.2
+## 1.4.3
 
 * Updates `nacc-attribute-deriver` to `2.5.0` - adds `NACCNIHR` and `NACCEDULVL` as quasi-cross-sectional, fixes `NACCLANGX` never resolving for V1-3, stops V4 packets overwriting known cross-sectional values with unknowns, fills NP gate sub-values when the gate is 0, and a round of falsy-zero and UDSv4 diagnosis bugfixes
 * Applies the V1-3 values for quasi-cross-sectional variables during back-propagation - files whose own `FORMVER` is below 4 take the value from `subject.info.derived.cross-sectional-v1v3`, while V4 files keep the subject-level value
@@ -10,8 +10,11 @@ All notable changes to this gear are documented in this file.
     * Files with no readable `FORMVER`, and every variable that is not quasi-cross-sectional, are unaffected
 * Fixes previous-record state bleeding from one subject into the next - the curator instance is reused for every subject in a worker process, so the previous record and scope are now cleared at the start of `pre_curate`
     * Affected the first file of a subject when it shared a scope with the last curated file of the preceding subject, which could feed the wrong record to missingness and derived work
-* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
 * Derived values change for the variables listed above, so curation needs to be re-run over already-curated files to pick them up
+
+## 1.4.2
+
+* Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
 
 ## 1.4.1
 
