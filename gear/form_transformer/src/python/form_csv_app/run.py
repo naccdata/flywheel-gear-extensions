@@ -92,7 +92,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
         config_input: InputFileWrapper,
         transform_input: Optional[InputFileWrapper],
     ) -> None:
-        self.__client = client
+        super().__init__(client=client)
         self.__file_input = file_input
         self.__config_input = config_input
         self.__transform_input = transform_input
@@ -169,7 +169,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 f"Unsupported module {module} : {self.__file_input.filename}"
             )
 
-        proxy = self.__client.get_proxy()
+        proxy = self.proxy
         file_id = self.__file_input.file_id
         try:
             file = proxy.get_file(file_id)
