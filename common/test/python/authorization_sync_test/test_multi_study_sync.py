@@ -17,9 +17,11 @@ Structured Identity Tuple ``(resource_type, relation, resource_label, center,
 study, community)`` — the server-owned ``flat_id`` is never part of the key.
 """
 
+import json
 from dataclasses import dataclass, field
 from unittest.mock import patch
 
+from authorization.client import AuthorizationClient
 from authorization.models import (
     BatchOperation,
     BatchResult,
@@ -499,6 +501,227 @@ class TestCrossScopeSyncNoRevocation:
 
         assert community_grant not in {_key_from_op(op) for op in _revoke_ops(client)}
         assert community_grant in client.grants
+
+
+@dataclass
+class _MockResponse:
+    """Minimal HTTP response for driving the real AuthorizationClient."""
+
+    status_code: int
+    body: bytes
+
+
+@dataclass
+class _RecordingTransport:
+    """Transport that returns empty permissions and records batch bodies.
+
+    GET /permissions returns an empty permission set (a fresh user), so
+    the sync's desired grants become adds. POST /grants/batch records
+    the request body and reports every operation as succeeded, as the
+    real API would for a valid request.
+    """
+
+    batch_bodies: list[bytes] = field(default_factory=list)
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        body: bytes | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> _MockResponse:
+        if path == "/grants/batch":
+            assert body is not None
+            self.batch_bodies.append(body)
+            payload = json.loads(body)
+            count = len(payload["operations"])
+            return _MockResponse(
+                status_code=200,
+                body=json.dumps(
+                    {"total": count, "succeeded": count, "failed": 0, "errors": []}
+                ).encode(),
+            )
+        # GET permissions: empty set for a fresh user.
+        return _MockResponse(
+            status_code=200,
+            body=json.dumps(
+                {"userId": "user@institution.edu", "permissions": {}}
+            ).encode(),
+        )
+
+
+class TestGeneralPageGrantEndToEnd:
+    """A general page grant syncs through the real client without rejection.
+
+    Exercises the actual ``AuthorizationClient`` (whose
+    ``_build_resource`` validates the structured identity before any
+    HTTP call), not the in-memory stateful stub, so a parentless page
+    grant — which the API requires a parent for — would surface as a
+    swallowed client-side ``ValidationError`` and no batch body. The fix
+    scopes a general page grant to the NACC community so the request is
+    built and sent.
+    """
+
+    def test_general_page_grant_is_built_and_sent_community_scoped(self) -> None:
+        """sync_user emits a community-scoped page grant, not a swallowed
+        error.
+
+        Regression guard: before the fix, ``translate`` produced a
+        parentless ``page`` grant, ``_build_resource`` raised
+        ``ValidationError`` while assembling the batch, ``sync_users``
+        swallowed it, and no batch request was ever sent. The collector
+        would hold an error and ``batch_bodies`` would be empty.
+        """
+        transport = _RecordingTransport()
+        client = AuthorizationClient(transport=transport)  # type: ignore[arg-type]
+        collector = UserEventCollector()
+        service = AuthorizationSyncService(client=client, collector=collector)
+
+        service.sync_user(
+            registry_id="user@institution.edu",
+            authorizations=_general_page_auth("community-resources"),
+        )
+
+        # A batch request was actually built and sent (not swallowed).
+        assert transport.batch_bodies, "no batch request was sent"
+
+        # The single operation is a community-scoped page grant.
+        operations = json.loads(transport.batch_bodies[0])["operations"]
+        assert len(operations) == 1
+        operation = operations[0]
+        assert operation["action"] == "grant"
+        resource = operation["resource"]
+        assert resource["type"] == "page"
+        assert resource["label"] == "page-community-resources"
+        assert resource["community"] == "nacc"
+        # A parentless page (the old bug) would carry no scoping parent.
+        assert "center" not in resource
+        assert "study" not in resource
+        # No client-side identity-build error was reported.
+        assert collector.error_count() == 0
+
+
+class TestDiffParityBetweenTranslatorAndApi:
+    """The diff reconciles a real desired grant against the API's echo.
+
+    ``sync_users`` diffs the desired grants ``translate`` produces
+    against the current grants the API reports. The two are matched on
+    the Structured Identity Tuple (type, relation, label, center, study,
+    community), never on a replayed value. These tests build the
+    current-side resource independently of the desired side — through
+    the stateful client's own ``ResourceObject`` construction — so they
+    prove the parity the migration relies on rather than assuming it:
+
+    - When the API echoes the same structured identity the translator
+      generates, the grant is recognized as already held: no add, no
+      revoke.
+    - When the API echoes a *different* ``study`` or ``label`` for what
+      is logically the same grant, the mismatch is visible in the diff
+      (the desired grant is added and the divergently-keyed current
+      grant is revoked) rather than silently reconciled. This is the
+      contract that would flag a real translator/API drift instead of
+      hiding it.
+    """
+
+    def test_matching_api_echo_produces_no_change(self) -> None:
+        """A current grant matching the translator's identity is left alone.
+
+        The desired set comes from the real ``translate`` (not a stub).
+        The current grant is seeded independently with the same
+        structured identity the translator produces, so the diff must
+        recognize it as already held and issue neither a grant nor a
+        revoke.
+        """
+        client = StatefulAuthorizationClient()
+        # Seed the current side independently, matching what translate()
+        # produces for _study_auth("study-1", "form") under center
+        # "washington": data_pipeline submitter + viewer, label
+        # "ingest-form", study "study-1".
+        for relation in ("submitter", "viewer"):
+            client.grants.add(
+                _grant_key(
+                    "data_pipeline",
+                    "ingest-form",
+                    relation,
+                    center="washington",
+                    study="study-1",
+                )
+            )
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        service.sync_users(
+            registry_id="user@institution.edu",
+            authorizations=[_study_auth("study-1", "form")],
+            center_group_id="washington",
+        )
+
+        assert _grant_ops(client) == []
+        assert _revoke_ops(client) == []
+
+    def test_divergent_api_study_surfaces_in_diff(self) -> None:
+        """A study mismatch is not silently reconciled.
+
+        The API echoes the same logical grant but under a different
+        ``study`` than the translator generates. Because the diff keys
+        on the full structured identity, the two are distinct: the
+        desired grant (study "study-1") is added and the divergently-
+        keyed current grant (study "study-1-legacy") is revoked. This
+        makes a real translator/API drift observable rather than hidden.
+        """
+        client = StatefulAuthorizationClient()
+        # The API reports the grant under a study the translator never
+        # produces for this authorization.
+        for relation in ("submitter", "viewer"):
+            client.grants.add(
+                _grant_key(
+                    "data_pipeline",
+                    "ingest-form",
+                    relation,
+                    center="washington",
+                    study="study-1-legacy",
+                )
+            )
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        service.sync_users(
+            registry_id="user@institution.edu",
+            authorizations=[_study_auth("study-1", "form")],
+            center_group_id="washington",
+        )
+
+        added = {_key_from_op(op) for op in _grant_ops(client)}
+        revoked = {_key_from_op(op) for op in _revoke_ops(client)}
+
+        # The desired grants (study-1) are added.
+        assert added == {
+            _grant_key(
+                "data_pipeline",
+                "ingest-form",
+                relation,
+                center="washington",
+                study="study-1",
+            )
+            for relation in ("submitter", "viewer")
+        }
+        # The divergently-keyed current grants (study-1-legacy) are revoked,
+        # because they are in scope (same center, no community) but absent
+        # from the desired set.
+        assert revoked == {
+            _grant_key(
+                "data_pipeline",
+                "ingest-form",
+                relation,
+                center="washington",
+                study="study-1-legacy",
+            )
+            for relation in ("submitter", "viewer")
+        }
 
 
 def _key_from_op(op: BatchOperation) -> GrantKey:
