@@ -46,7 +46,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
         normalize_dates: Set[str],
         destination_project: str,
     ) -> None:
-        self.__client = client
+        super().__init__(client=client)
         self.__device_key = device_key
         self.__file_input = file_input
         self.__hierarchy_labels = hierarchy_labels
@@ -120,7 +120,7 @@ class CsvToJsonVisitor(GearExecutionEnvironment):
           context: the gear execution context
         """
 
-        proxy = self.__client.get_proxy()
+        proxy = self.proxy
         file_id = self.__file_input.file_id
         hierarchy_client = HierarchyCreationClient(self.__device_key)
         try:
