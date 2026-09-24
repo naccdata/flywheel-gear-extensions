@@ -39,24 +39,6 @@ class DesiredGrant:
         if not self.resource_type or not self.resource_label:
             raise ValueError("DesiredGrant requires resource_type and resource_label")
 
-    def identity(
-        self,
-    ) -> tuple[str, str, str, str | None, str | None, str | None]:
-        """Return the Structured Identity Tuple used as the diff key.
-
-        Returns:
-            The tuple ``(resource_type, relation, resource_label, center,
-            study, community)``.
-        """
-        return (
-            self.resource_type,
-            self.relation,
-            self.resource_label,
-            self.center,
-            self.study,
-            self.community,
-        )
-
     def to_resource(self) -> ResourceObject:
         """Build a structured :class:`ResourceObject` for this grant.
 

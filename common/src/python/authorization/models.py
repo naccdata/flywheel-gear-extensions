@@ -8,6 +8,31 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 log = logging.getLogger(__name__)
 
+
+def _grant_request_payload(
+    user_id: str,
+    relation: str,
+    resource: "ResourceObject",
+) -> dict[str, Any]:
+    """Build the JSON-serializable body of a single grant/revoke request.
+
+    Emits ``userId``, ``relation``, and a structured ``resource`` via
+    :meth:`ResourceObject.request_dump` (which uses API aliases, omits
+    unset optionals, and excludes the server-owned ``flat_id``). No
+    top-level ``type``/``resourceId`` is emitted. This is the single
+    source of the single-operation request shape shared by
+    :class:`GrantRequest`, :class:`RevokeRequest`, and
+    :class:`PermissionCheckRequest`, and by each operation in a batch
+    (see :meth:`BatchOperationModel.request_dump`), so the write paths
+    cannot drift apart.
+    """
+    return {
+        "userId": user_id,
+        "relation": relation,
+        "resource": resource.request_dump(),
+    }
+
+
 # Organization types carry no parent fields of their own. They are the
 # structural containers in the Authorization API hierarchy (see the
 # ``parent_type`` values used by the seed path in
@@ -47,11 +72,7 @@ class GrantRequest(BaseModel):
         :meth:`ResourceObject.request_dump`, which excludes ``flat_id``).
         No top-level ``type``/``resourceId`` is emitted.
         """
-        payload = {
-            "userId": self.user_id,
-            "relation": self.relation,
-            "resource": self.resource.request_dump(),
-        }
+        payload = _grant_request_payload(self.user_id, self.relation, self.resource)
         return json.dumps(payload).encode()
 
 
@@ -76,11 +97,7 @@ class RevokeRequest(BaseModel):
         :meth:`ResourceObject.request_dump`, which excludes ``flat_id``).
         No top-level ``type``/``resourceId`` is emitted.
         """
-        payload = {
-            "userId": self.user_id,
-            "relation": self.relation,
-            "resource": self.resource.request_dump(),
-        }
+        payload = _grant_request_payload(self.user_id, self.relation, self.resource)
         return json.dumps(payload).encode()
 
 
@@ -99,6 +116,20 @@ class BatchOperationModel(BaseModel):
     relation: str
     resource: "ResourceObject"
 
+    def request_dump(self) -> dict[str, Any]:
+        """Serialize this operation for a batch request body.
+
+        Emits ``action`` plus the same
+        ``userId``/``relation``/structured ``resource`` shape as a
+        single grant/revoke request (via the shared
+        :func:`_grant_request_payload`), so a batched operation and a
+        standalone operation serialize identically and cannot drift.
+        """
+        return {
+            "action": self.action,
+            **_grant_request_payload(self.user_id, self.relation, self.resource),
+        }
+
 
 class BatchRequestModel(BaseModel):
     """Request model for a batch of grant/revoke operations."""
@@ -106,6 +137,20 @@ class BatchRequestModel(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     operations: list[BatchOperationModel]
+
+    def request_body(self) -> bytes:
+        """Serialize the batch to a JSON-encoded body.
+
+        Emits ``{"operations": [...]}`` where each operation is
+        serialized via :meth:`BatchOperationModel.request_dump`, so
+        every operation carries a structured ``resource`` (no
+        ``flat_id``, no top-level ``type``/``resourceId``) identical to
+        the single-request path.
+        """
+        payload = {
+            "operations": [operation.request_dump() for operation in self.operations]
+        }
+        return json.dumps(payload).encode()
 
 
 class ParentRelationshipModel(BaseModel):
@@ -230,6 +275,16 @@ class ResourceObject(BaseModel):
         Uses API aliases, omits unset optional fields, and always
         excludes the server-owned ``flat_id`` handle so it never appears
         in a request payload.
+
+        Note:
+            ``exclude_none=True`` means a field set explicitly to ``None``
+            and a field left unset serialize identically — both are
+            omitted. For identity fields (``name`` and the parent fields
+            ``study``/``center``/``community``) this is intended: absence
+            and an explicit ``None`` carry the same "this parent does not
+            apply" meaning, and the API treats a missing parent field the
+            same as a null one. Do not rely on emitting an explicit
+            ``null`` for any field through this method.
         """
         return self.model_dump(by_alias=True, exclude_none=True, exclude={"flat_id"})
 
@@ -599,11 +654,7 @@ class PermissionCheckRequest(BaseModel):
         :meth:`ResourceObject.request_dump`, which excludes ``flat_id``).
         No top-level ``type``/``resourceId`` is emitted.
         """
-        payload = {
-            "userId": self.user_id,
-            "relation": self.relation,
-            "resource": self.resource.request_dump(),
-        }
+        payload = _grant_request_payload(self.user_id, self.relation, self.resource)
         return json.dumps(payload).encode()
 
 

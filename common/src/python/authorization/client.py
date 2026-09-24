@@ -20,6 +20,7 @@ from authorization.models import (
     BatchError,
     BatchOperation,
     BatchOperationModel,
+    BatchRequestModel,
     BatchResult,
     ErrorResponse,
     GrantRequest,
@@ -469,38 +470,30 @@ class AuthorizationClient:
         Returns:
             BatchResult for this chunk with classified outcomes.
         """
-        operations = [
-            BatchOperationModel(
-                action=op.action,
-                user_id=op.user_id,
-                relation=op.relation,
-                resource=self._build_resource(
-                    resource_type=op.resource_type,
-                    resource_label=op.resource_label,
-                    center=op.center,
-                    study=op.study,
-                    community=op.community,
-                ),
-            )
-            for op in chunk
-        ]
-
-        # Serialize each operation's resource the same way as grant/revoke
-        # (via ResourceObject.request_dump), excluding flat_id and null
-        # fields, and never emitting a top-level type/resourceId. Order is
-        # preserved from the chunk (Requirement 1.3, 9.4).
-        payload = {
-            "operations": [
-                {
-                    "action": operation.action,
-                    "userId": operation.user_id,
-                    "relation": operation.relation,
-                    "resource": operation.resource.request_dump(),
-                }
-                for operation in operations
+        request = BatchRequestModel(
+            operations=[
+                BatchOperationModel(
+                    action=op.action,
+                    user_id=op.user_id,
+                    relation=op.relation,
+                    resource=self._build_resource(
+                        resource_type=op.resource_type,
+                        resource_label=op.resource_label,
+                        center=op.center,
+                        study=op.study,
+                        community=op.community,
+                    ),
+                )
+                for op in chunk
             ]
-        }
-        body = json.dumps(payload).encode()
+        )
+
+        # Serialize via BatchRequestModel.request_body, which routes each
+        # operation through the same shared payload builder as grant/revoke
+        # (structured resource via request_dump: no flat_id, no null fields,
+        # no top-level type/resourceId). Order is preserved from the chunk
+        # (Requirement 1.3, 9.4).
+        body = request.request_body()
 
         def do_request() -> HttpResponse:
             return self._transport.request(
