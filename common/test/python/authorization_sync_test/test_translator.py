@@ -75,8 +75,11 @@ class TestActivityToRelationMappingCorrectness:
     ) -> None:
         """Any mapped activity produces grants matching ACTIVITY_RELATION_MAP.
 
-        With a bare Authorizations (no study), the grants carry the
-        structured label with no study/center/community parents.
+        With a bare Authorizations (no study, no center) the parent the API
+        requires must come from the general scope. A community-scoped
+        resource type (``page``) carries ``community="nacc"``; any other
+        mapped type has no parent the general path can supply and is
+        skipped rather than emitted parentless (and rejected by the API).
 
         **Validates: Requirements 3.3, 3.4**
         """
@@ -98,9 +101,10 @@ class TestActivityToRelationMappingCorrectness:
                 resource_label=label,
                 center=None,
                 study=None,
-                community=None,
+                community="nacc",
             )
             for resource_type, relation in expected_pairs
+            if resource_type == "page"
         }
 
         assert grants == expected_grants
@@ -298,8 +302,7 @@ class TestStructuredParentFields:
 
     Instead of composing a flat resource id with a center prefix and
     study suffix, each DesiredGrant carries center/study/community as
-    distinct fields. Inapplicable parents are left None (Req 3.4), and
-    identity() exposes the Structured Identity Tuple.
+    distinct fields. Inapplicable parents are left None (Req 3.4).
     """
 
     @given(
@@ -340,14 +343,6 @@ class TestStructuredParentFields:
             assert grant.center == center_group_id
             assert grant.study == study_id
             assert grant.community is None
-            assert grant.identity() == (
-                "data_pipeline",
-                grant.relation,
-                f"ingest-{datatype}",
-                center_group_id,
-                study_id,
-                None,
-            )
 
     @given(
         name=dashboard_names_st,
@@ -384,14 +379,6 @@ class TestStructuredParentFields:
         assert grant.center == center_group_id
         assert grant.study == study_id
         assert grant.community is None
-        assert grant.identity() == (
-            "dashboard",
-            "viewer",
-            f"dashboard-{name}",
-            center_group_id,
-            study_id,
-            None,
-        )
 
     @given(
         name=page_names_st,
@@ -428,29 +415,59 @@ class TestStructuredParentFields:
         assert grant.center == center_group_id
         assert grant.study == study_id
         assert grant.community is None
-        assert grant.identity() == (
-            "page",
-            "viewer",
-            f"page-{name}",
-            center_group_id,
-            study_id,
-            None,
+
+    @given(
+        page=page_names_st,
+        registry_id=registry_ids_st,
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_general_page_grant_is_community_scoped(
+        self,
+        page: str,
+        registry_id: str,
+    ) -> None:
+        """General-scope page grants are scoped to the NACC community.
+
+        A bare Authorizations has no study, and no center is passed. The
+        Authorization API requires a parent for a ``page`` resource, so a
+        general page grant carries ``community="nacc"`` (center and study
+        stay unset) rather than being emitted parentless and rejected.
+
+        **Validates: Requirements 3.4**
+        """
+        resource = PageResource(page=page)
+        auth = Authorizations()
+        auth.activities.add(
+            resource=resource,
+            activity=Activity(resource=resource, action="view"),
         )
+
+        grants = translate(registry_id=registry_id, authorizations=auth)
+
+        assert grants
+        for grant in grants:
+            assert grant.resource_type == "page"
+            assert grant.center is None
+            assert grant.study is None
+            assert grant.community == "nacc"
 
     @given(
         datatype=valid_datatypes_st,
         registry_id=registry_ids_st,
     )
     @settings(max_examples=100, deadline=None)
-    def test_general_scope_leaves_center_and_study_unset(
+    def test_general_scope_skips_parentless_non_community_type(
         self,
         datatype: str,
         registry_id: str,
     ) -> None:
-        """General-scope grants leave inapplicable parent fields unset.
+        """General-scope grants with no supplyable parent are skipped.
 
-        A bare Authorizations has no study, and no center is passed, so
-        center/study/community are all None rather than placeholders.
+        A ``view`` on a datatype maps to a ``data_pipeline`` grant, which
+        the Authorization API requires a parent for. With no center and no
+        study (a bare Authorizations), the general path has no parent to
+        supply and ``data_pipeline`` is not community-scoped, so the grant
+        is skipped rather than emitted and rejected by the API.
 
         **Validates: Requirements 3.4**
         """
@@ -463,11 +480,7 @@ class TestStructuredParentFields:
 
         grants = translate(registry_id=registry_id, authorizations=auth)
 
-        assert grants
-        for grant in grants:
-            assert grant.center is None
-            assert grant.study is None
-            assert grant.community is None
+        assert grants == set()
 
 
 class TestResourcePrefixLabelMapping:

@@ -5,7 +5,7 @@ import logging
 from collections.abc import Iterable
 from typing import Protocol
 
-from authorization.exceptions import AuthorizationClientError
+from authorization.exceptions import AuthorizationClientError, ValidationError
 from authorization.models import (
     AuthorizationModelMetadata,
     BatchOperation,
@@ -384,6 +384,23 @@ class AuthorizationSyncService:
                 len(grants_to_revoke),
                 result.failed,
             )
+
+        except ValidationError as error:
+            # A ValidationError raised while building the batch (before any
+            # HTTP call) means a desired grant could not be turned into a
+            # valid structured resource — e.g. a resource type the API
+            # requires a parent for that reached this point without one.
+            # This is a translator/config defect, not a transient API
+            # failure, so report it distinctly rather than letting it look
+            # like a generic sync failure.
+            log.error(
+                "Authorization sync could not build a valid request for "
+                "user %s (likely an invalid resource identity from "
+                "translation): %s",
+                registry_id,
+                error,
+            )
+            self._report_failure(registry_id, "sync_build", error)
 
         except AuthorizationClientError as error:
             log.error(

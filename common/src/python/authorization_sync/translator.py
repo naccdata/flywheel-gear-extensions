@@ -16,6 +16,23 @@ from authorization_sync.resource_ids import build_label_for_resource_prefix
 
 log = logging.getLogger(__name__)
 
+# The well-known community organization id under which general (non-center)
+# resources are scoped. General page grants (e.g. the "community-resources"
+# portal page) carry this as their ``community`` parent. The value must match
+# the community id the hierarchy seeder attaches page parents to
+# (``projects/hierarchy_seeder.py``: ``_community_scoped_parents``,
+# ``parent_id="nacc"``); a grant pointing at a different id would reference a
+# non-existent parent.
+NACC_COMMUNITY_ID = "nacc"
+
+# Resource types that require a parent per the Authorization API's per-type
+# combination table. A grant of one of these types with no study/center/
+# community parent is rejected by the API. General-scope grants of these types
+# are scoped to the NACC community (the only parentless-looking scope the
+# general path supports); any other resource type reaching the general path
+# without a parent is unmapped and skipped rather than sent and rejected.
+_COMMUNITY_SCOPED_GENERAL_TYPES: frozenset[str] = frozenset({"page"})
+
 # Maps (action, resource_prefix) to list of (api_resource_type, relation) pairs.
 # Only combinations listed here are valid; all others are unmapped and skipped.
 ACTIVITY_RELATION_MAP: dict[
@@ -46,10 +63,19 @@ def translate(
     resource label from build_label_for_resource_prefix (e.g.,
     "ingest-form" for a data_pipeline resource) plus the applicable
     parent fields. The center parent is the center group id (None for
-    general scope), the study parent comes from StudyAuthorizations
-    (else None), and community is always None on the grant path. No flat
-    resource id is built here; the client assembles identity from these
-    structured fields.
+    general scope) and the study parent comes from StudyAuthorizations
+    (else None). No flat resource id is built here; the client assembles
+    identity from these structured fields.
+
+    General (non-center) scope: the Authorization API requires a parent
+    for resource types such as ``page``, so a parentless general grant
+    would be rejected. General grants of a community-scoped resource type
+    (:data:`_COMMUNITY_SCOPED_GENERAL_TYPES`) are therefore scoped to the
+    NACC community (``community=NACC_COMMUNITY_ID``). A general grant of
+    any other resource type has no parent the general path can supply; it
+    is skipped with a warning rather than emitted and rejected by the API.
+    Center-scoped grants (``center_group_id`` set) are unaffected and
+    carry no community.
 
     Works with both Authorizations (general) and StudyAuthorizations
     (center-scoped) since StudyAuthorizations extends Authorizations.
@@ -91,7 +117,33 @@ def translate(
 
         label = build_label_for_resource_prefix(resource_prefix, resource_name)
 
+        # A grant needs a parent only when neither a center nor a study is
+        # available; with a center or study present, the (center)/(study)
+        # combinations already satisfy the API's per-type requirement.
+        needs_general_parent = center_group_id is None and study_id is None
+
         for api_resource_type, relation in mapped_pairs:
+            community: str | None = None
+            if needs_general_parent:
+                if api_resource_type in _COMMUNITY_SCOPED_GENERAL_TYPES:
+                    # No center and no study: the API requires a parent for
+                    # this resource type, so scope it to the NACC community.
+                    community = NACC_COMMUNITY_ID
+                else:
+                    # No center, no study, and not a community-scoped type:
+                    # there is no parent the general path can supply, and the
+                    # API rejects a parentless grant of this type. Skip it
+                    # rather than emit an unbuildable grant.
+                    log.warning(
+                        "Skipping general-scope grant with no parent: "
+                        "resource_type=%s, relation=%s, label=%s — the "
+                        "Authorization API requires a parent for this type",
+                        api_resource_type,
+                        relation,
+                        label,
+                    )
+                    continue
+
             grants.add(
                 DesiredGrant(
                     user_id=registry_id,
@@ -100,7 +152,7 @@ def translate(
                     resource_label=label,
                     center=center_group_id,
                     study=study_id,
-                    community=None,
+                    community=community,
                 )
             )
 

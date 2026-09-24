@@ -235,7 +235,7 @@ class TestFaultIsolationWithEventReporting:
     @given(
         registry_id=registry_ids_st,
         authorizations=non_empty_authorizations_st(),
-        center_group_id=st.one_of(st.none(), center_group_ids_st),
+        center_group_id=center_group_ids_st,
         num_errors=st.integers(min_value=1, max_value=5),
     )
     @settings(max_examples=100, deadline=None)
@@ -243,11 +243,19 @@ class TestFaultIsolationWithEventReporting:
         self,
         registry_id: str,
         authorizations: Authorizations,
-        center_group_id: str | None,
+        center_group_id: str,
         num_errors: int,
     ) -> None:
         """Partial failures (BatchResult.failed > 0) are reported as individual
-        error events."""
+        error events.
+
+        Uses a center scope (``center_group_id`` always set) so every
+        mapped activity yields a buildable grant and the batch call
+        always fires. In the general scope a parentless resource-type
+        grant is skipped by the translator, so a non-empty authorization
+        would not guarantee a batch call; that path is covered
+        separately in the translator tests.
+        """
         # Create batch errors for the partial failure
         batch_errors = [
             BatchError(

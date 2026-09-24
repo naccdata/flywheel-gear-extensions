@@ -74,7 +74,14 @@ def build_label_for_resource_prefix(
 
     Raises:
         ValueError: If resource_prefix is not one of "datatype",
-            "dashboard", or "page".
+            "dashboard", or "page". Callers MUST pre-filter to supported
+            prefixes rather than rely on a fallback: the only caller,
+            ``translator.translate``, reaches this function only after a
+            successful ``ACTIVITY_RELATION_MAP`` lookup, whose keys cover
+            exactly these prefixes, so an unsupported prefix is already
+            skipped upstream and never arrives here. There is
+            deliberately no lenient ``other -> "{name}"`` fallback; a new
+            caller that does not pre-filter must add its own guard.
     """
     prefix_label = _PREFIX_LABELS.get(resource_prefix)
     if prefix_label is None:
