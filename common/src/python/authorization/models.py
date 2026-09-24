@@ -34,17 +34,28 @@ def _grant_request_payload(
 
 
 # Organization types carry no parent fields of their own. They are the
-# structural containers in the Authorization API hierarchy (see the
-# ``parent_type`` values used by the seed path in
-# ``projects/hierarchy_seeder.py``: ``study``, ``research_center``,
-# ``community``). ``ResourceObject`` uses this set to distinguish an
-# organization type (which must carry none of ``study``/``center``/
-# ``community``) from a resource type (which follows the per-type
-# parent-field combination table). A type that is neither in this set nor
-# in the per-type table is treated as a forward-compatible resource type
-# and carries no parent-field combination constraint.
+# structural containers in the Authorization API hierarchy: every type the
+# authorization model marks ``category: organization`` (equivalently, with
+# no ``validParentCombinations``). ``ResourceObject`` uses this set to
+# distinguish an organization type (which must carry none of ``study``/
+# ``center``/``community``) from a resource type (which follows the
+# per-type parent-field combination table). A type that is neither in this
+# set nor in the per-type table is treated as a forward-compatible resource
+# type and carries no parent-field combination constraint.
+#
+# This set mirrors the organization types in the authorization model
+# metadata (``GET /model``): ``study``, ``research_center``,
+# ``funding_agency``, ``associated_organization``, and ``community``. The
+# contract-conformance tests pin it against a captured model response so it
+# cannot silently drift from the API.
 _ORGANIZATION_TYPES: frozenset[str] = frozenset(
-    {"study", "research_center", "community"}
+    {
+        "study",
+        "research_center",
+        "funding_agency",
+        "associated_organization",
+        "community",
+    }
 )
 
 # --- Request Models ---

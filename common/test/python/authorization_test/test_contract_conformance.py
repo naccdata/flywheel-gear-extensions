@@ -27,7 +27,7 @@ import itertools
 import pytest
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ValidationError
-from authorization.models import ResourceObject
+from authorization.models import _ORGANIZATION_TYPES, ResourceObject
 from authorization_sync.sync_service import AuthorizationSyncService
 from authorization_sync.translator import NACC_COMMUNITY_ID
 from pydantic import ValidationError as PydanticValidationError
@@ -51,6 +51,21 @@ from .contract import (
 
 # Field-name sets used to enumerate parent combinations.
 _PARENT_FIELDS = ("study", "center", "community")
+
+
+def model_types_by_category() -> dict[str, str]:
+    """Map each type name in the model to its category (from the fixture)."""
+    model = load_contract_model()
+    return {name: meta.category for name, meta in model.types.items()}
+
+
+# Organization type names declared by the model, used to parametrize the
+# organization-type conformance test so all five are covered.
+_MODEL_ORGANIZATION_TYPES = sorted(
+    name
+    for name, category in model_types_by_category().items()
+    if category == "organization"
+)
 
 
 def _make_client() -> tuple[AuthorizationClient, ContractEnforcingTransport]:
@@ -366,13 +381,16 @@ class TestClientValidatorMatchesContract:
                 f"contract_permits={contract_permits}"
             )
 
-    @pytest.mark.parametrize("org_type", ["study", "research_center", "community"])
+    @pytest.mark.parametrize("org_type", _MODEL_ORGANIZATION_TYPES)
     def test_organization_types_reject_all_parents(self, org_type: str) -> None:
-        """Organization types the client knows about carry no parents.
+        """Every organization type in the model carries no parents.
 
         The model marks these ``category: organization`` with no
         ``validParentCombinations``; the client's validator must reject
-        any parent on them.
+        any parent on them. Parametrized from the model so all five
+        organization types are covered (including ``funding_agency`` and
+        ``associated_organization``), not just the three the seed path
+        happens to use.
         """
         model = load_contract_model()
         assert model.types[org_type].valid_parent_combinations is None
@@ -383,3 +401,20 @@ class TestClientValidatorMatchesContract:
         # Any parent: rejected by the client.
         with pytest.raises(PydanticValidationError):
             ResourceObject(type=org_type, label=f"{org_type}-x", study="study-1")
+
+    def test_client_organization_type_set_matches_model(self) -> None:
+        """The client's organization-type set equals the model's exactly.
+
+        ``ResourceObject`` treats a type not in ``_ORGANIZATION_TYPES``
+        and not in the per-type combination table as a forward-
+        compatible resource type (unconstrained parents). If the model
+        declares an organization type the client omits, the client would
+        wrongly accept parents on it. Pin the set against the model so
+        the two cannot drift.
+        """
+        model_org_types = {
+            name
+            for name, meta in model_types_by_category().items()
+            if meta == "organization"
+        }
+        assert model_org_types == _ORGANIZATION_TYPES
