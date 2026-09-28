@@ -1,0 +1,397 @@
+{
+  "version": "1.0.0",
+  "types": {
+    "study": {
+      "name": "study",
+      "category": "organization",
+      "description": "Represents a funded research activity (e.g., NACC Clinical Core, NACC Imaging, CLARiTI).",
+      "catalogable": true,
+      "relations": {
+        "member": {
+          "name": "member",
+          "description": "A participant in the study. Can view study resources and access program-scoped dashboards.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "admin": {
+          "name": "admin",
+          "description": "A study administrator. Can manage study resources, access all-sites-scoped dashboards, and inherits viewer access to child resources via hierarchical permissions.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": null,
+      "computedRelations": null,
+      "validParentCombinations": null
+    },
+    "research_center": {
+      "name": "research_center",
+      "category": "organization",
+      "description": "Represents an organization that collects data for studies (e.g., UW, Mayo Clinic, UCSF).",
+      "catalogable": true,
+      "relations": {
+        "member": {
+          "name": "member",
+          "description": "A member of the research center. Can view center resources and access site-scoped dashboards linked to this center.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "admin": {
+          "name": "admin",
+          "description": "A center administrator. Can manage center resources.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": null,
+      "computedRelations": null,
+      "validParentCombinations": null
+    },
+    "funding_agency": {
+      "name": "funding_agency",
+      "category": "organization",
+      "description": "Represents an organization that funds studies (e.g., NIA).",
+      "catalogable": true,
+      "relations": {
+        "member": {
+          "name": "member",
+          "description": "A member of the funding agency. Can view funded study resources.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "admin": {
+          "name": "admin",
+          "description": "A funding agency administrator. Can manage funding relationships.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": null,
+      "computedRelations": null,
+      "validParentCombinations": null
+    },
+    "associated_organization": {
+      "name": "associated_organization",
+      "category": "organization",
+      "description": "A flexible organization type for entities with relationships to NACC. Extensible for future authorization requirements.",
+      "catalogable": false,
+      "relations": {
+        "member": {
+          "name": "member",
+          "description": "A member of the associated organization.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "admin": {
+          "name": "admin",
+          "description": "An administrator of the associated organization.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": null,
+      "computedRelations": null,
+      "validParentCombinations": null
+    },
+    "community": {
+      "name": "community",
+      "category": "organization",
+      "description": "Represents individual registrants who are not affiliated with a specific research center or study.",
+      "catalogable": true,
+      "relations": {
+        "member": {
+          "name": "member",
+          "description": "A community member. Can access general NACC resources.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": null,
+      "computedRelations": null,
+      "validParentCombinations": null
+    },
+    "data_pipeline": {
+      "name": "data_pipeline",
+      "category": "resource",
+      "description": "Datatype-specific data collections for ingest or distribution.",
+      "catalogable": true,
+      "relations": {
+        "viewer": {
+          "name": "viewer",
+          "description": "Can view pipeline data. Also granted via study_admin_access (hierarchical permission).",
+          "assignable": true,
+          "conditionName": null
+        },
+        "submitter": {
+          "name": "submitter",
+          "description": "Can submit data to the pipeline.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "auditor": {
+          "name": "auditor",
+          "description": "Can audit pipeline activities.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": {
+        "parent_study": {
+          "name": "parent_study",
+          "parentType": "study",
+          "description": "Links this pipeline to its parent study. Required for all pipelines. Enables hierarchical permissions."
+        },
+        "parent_center": {
+          "name": "parent_center",
+          "parentType": "research_center",
+          "description": "Links this pipeline to its parent research center. Required for center ingest pipelines; absent for study distribution pipelines."
+        }
+      },
+      "computedRelations": {
+        "study_admin_access": {
+          "name": "study_admin_access",
+          "description": "Resolves to admins of the parent_study. Not directly assignable.",
+          "sourceRelation": "admin",
+          "parentRelation": "parent_study",
+          "grantsRelation": "viewer"
+        }
+      },
+      "validParentCombinations": [
+        {
+          "parents": ["parent_study", "parent_center"],
+          "description": "Center ingest pipeline — ingests data from a specific center for a study.",
+          "condition": "pipeline_type is center-ingest"
+        },
+        {
+          "parents": ["parent_study"],
+          "description": "Study distribution pipeline — ingests data from a study for distribution to centers.",
+          "condition": "pipeline_type is study-distribution"
+        }
+      ]
+    },
+    "dashboard": {
+      "name": "dashboard",
+      "category": "resource",
+      "description": "Visualization interfaces with scope-based access control.",
+      "catalogable": true,
+      "relations": {
+        "viewer": {
+          "name": "viewer",
+          "description": "Can view the dashboard. Also granted via computed relations (study_admin_access, site_viewer, all_sites_viewer, program_viewer).",
+          "assignable": true,
+          "conditionName": null
+        },
+        "editor": {
+          "name": "editor",
+          "description": "Can modify dashboard configuration.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": {
+        "parent_community": {
+          "name": "parent_community",
+          "parentType": "community",
+          "description": "Links this dashboard to its parent community."
+        },
+        "parent_study": {
+          "name": "parent_study",
+          "parentType": "study",
+          "description": "Links this dashboard to its parent study."
+        },
+        "parent_center": {
+          "name": "parent_center",
+          "parentType": "research_center",
+          "description": "Links this dashboard to its parent research center."
+        }
+      },
+      "computedRelations": {
+        "study_admin_access": {
+          "name": "study_admin_access",
+          "description": "Resolves to admins of the parent_study.",
+          "sourceRelation": "admin",
+          "parentRelation": "parent_study",
+          "grantsRelation": "viewer"
+        },
+        "site_viewer": {
+          "name": "site_viewer",
+          "description": "Resolves to members of the parent_center.",
+          "sourceRelation": "member",
+          "parentRelation": "parent_center",
+          "grantsRelation": "viewer"
+        },
+        "all_sites_viewer": {
+          "name": "all_sites_viewer",
+          "description": "Resolves to admins of the parent_study.",
+          "sourceRelation": "admin",
+          "parentRelation": "parent_study",
+          "grantsRelation": "viewer"
+        },
+        "program_viewer": {
+          "name": "program_viewer",
+          "description": "Resolves to members of the parent_study.",
+          "sourceRelation": "member",
+          "parentRelation": "parent_study",
+          "grantsRelation": "viewer"
+        }
+      },
+      "validParentCombinations": [
+        {
+          "parents": ["parent_community"],
+          "description": "Community-scoped dashboard.",
+          "condition": null
+        },
+        {
+          "parents": ["parent_study"],
+          "description": "Study-scoped dashboard (e.g., all-sites, program).",
+          "condition": null
+        },
+        {
+          "parents": ["parent_study", "parent_center"],
+          "description": "Site-scoped dashboard.",
+          "condition": null
+        }
+      ]
+    },
+    "page": {
+      "name": "page",
+      "category": "resource",
+      "description": "Displayable portal endpoints such as webinar archives, training materials, and protocol documentation.",
+      "catalogable": true,
+      "relations": {
+        "viewer": {
+          "name": "viewer",
+          "description": "Can access the page. Also granted via community_viewer, study_admin_access, and center_viewer (hierarchical permissions).",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": {
+        "parent_community": {
+          "name": "parent_community",
+          "parentType": "community",
+          "description": "Links this page to its parent community."
+        },
+        "parent_study": {
+          "name": "parent_study",
+          "parentType": "study",
+          "description": "Links this page to its parent study."
+        },
+        "parent_center": {
+          "name": "parent_center",
+          "parentType": "research_center",
+          "description": "Links this page to its parent research center."
+        }
+      },
+      "computedRelations": {
+        "community_viewer": {
+          "name": "community_viewer",
+          "description": "Resolves to members of the parent_community. Not directly assignable.",
+          "sourceRelation": "member",
+          "parentRelation": "parent_community",
+          "grantsRelation": "viewer"
+        },
+        "study_admin_access": {
+          "name": "study_admin_access",
+          "description": "Resolves to admins of the parent_study. Not directly assignable.",
+          "sourceRelation": "admin",
+          "parentRelation": "parent_study",
+          "grantsRelation": "viewer"
+        },
+        "center_viewer": {
+          "name": "center_viewer",
+          "description": "Resolves to members of the parent_center. Not directly assignable.",
+          "sourceRelation": "member",
+          "parentRelation": "parent_center",
+          "grantsRelation": "viewer"
+        }
+      },
+      "validParentCombinations": [
+        {
+          "parents": ["parent_community"],
+          "description": "Community-scoped page (e.g., webinar archives).",
+          "condition": null
+        },
+        {
+          "parents": ["parent_study"],
+          "description": "Study-scoped page (e.g., protocol docs).",
+          "condition": null
+        },
+        {
+          "parents": ["parent_study", "parent_center"],
+          "description": "Center+study-scoped page (e.g., site handbooks).",
+          "condition": null
+        },
+        {
+          "parents": ["parent_center"],
+          "description": "Center-scoped page (e.g., local resources).",
+          "condition": null
+        }
+      ]
+    },
+    "generic_resource": {
+      "name": "generic_resource",
+      "category": "resource",
+      "description": "An extensible resource type for future needs. Supports basic viewer/editor/admin access control.",
+      "catalogable": false,
+      "relations": {
+        "viewer": {
+          "name": "viewer",
+          "description": "Can view the resource.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "editor": {
+          "name": "editor",
+          "description": "Can edit the resource.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "admin": {
+          "name": "admin",
+          "description": "Can administer the resource.",
+          "assignable": true,
+          "conditionName": null
+        }
+      },
+      "structuralRelations": null,
+      "computedRelations": null,
+      "validParentCombinations": null
+    },
+    "authorization_interface": {
+      "name": "authorization_interface",
+      "category": "resource",
+      "description": "Singleton resource representing the Authorization Interface itself. Role assignments on this resource control who can use the interface and what operations they can perform within it.",
+      "catalogable": false,
+      "relations": {
+        "viewer": {
+          "name": "viewer",
+          "description": "Global viewer — can perform read-only permission lookups for any resource in the interface.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "admin": {
+          "name": "admin",
+          "description": "Global admin — can grant and revoke authorizations for any resource in the interface. Implies viewer.",
+          "assignable": true,
+          "conditionName": null
+        },
+        "scoped_viewer": {
+          "name": "scoped_viewer",
+          "description": "Organization-scoped viewer — can perform read-only permission lookups within a specific organizational boundary. Requires org_scope condition context.",
+          "assignable": true,
+          "conditionName": "org_scope"
+        },
+        "scoped_admin": {
+          "name": "scoped_admin",
+          "description": "Organization-scoped admin — can grant and revoke authorizations within a specific organizational boundary. Implies scoped_viewer. Requires org_scope condition context.",
+          "assignable": true,
+          "conditionName": "org_scope"
+        }
+      },
+      "structuralRelations": null,
+      "computedRelations": null,
+      "validParentCombinations": null
+    }
+  }
+}

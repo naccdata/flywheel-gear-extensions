@@ -94,20 +94,27 @@ class TestGetUserPermissions:
         assert query_params == {"type": "study", "relation": "admin"}
 
     def test_returns_user_permissions_on_200(self) -> None:
-        """Verify 200 response is parsed into UserPermissions model."""
+        """Verify 200 response is parsed into UserPermissions model.
+
+        Identity is read from the structured ``resource`` object, not a
+        flat top-level ``resourceId``.
+        """
         response_body = json.dumps(
             {
                 "userId": "user@example.com",
                 "permissions": {
                     "study": [
                         {
-                            "resourceId": "study-1",
+                            "resource": {"type": "study", "label": "study-1"},
                             "relation": "member",
                         }
                     ],
                     "research_center": [
                         {
-                            "resourceId": "center-1",
+                            "resource": {
+                                "type": "research_center",
+                                "label": "center-1",
+                            },
                             "relation": "admin",
                         }
                     ],
@@ -125,10 +132,118 @@ class TestGetUserPermissions:
         assert result.user_id == "user@example.com"
         assert len(result.permissions) == 2
         assert len(result.permissions["study"]) == 1
-        assert result.permissions["study"][0].resource_id == "study-1"
-        assert result.permissions["study"][0].relation == "member"
-        assert result.permissions["study"][0].access is None
-        assert result.permissions["research_center"][0].relation == "admin"
+        study_entry = result.permissions["study"][0]
+        assert study_entry.resource is not None
+        assert study_entry.resource.type == "study"
+        assert study_entry.resource.label == "study-1"
+        assert study_entry.relation == "member"
+        assert study_entry.access is None
+        center_entry = result.permissions["research_center"][0]
+        assert center_entry.resource is not None
+        assert center_entry.resource.type == "research_center"
+        assert center_entry.resource.label == "center-1"
+        assert center_entry.relation == "admin"
+
+    def test_parses_resource_with_parent_fields(self) -> None:
+        """Verify a structured resource carrying parent fields parses.
+
+        A ``data_pipeline`` resource carries ``study`` + ``center``
+        parents, read directly from the structured ``resource`` object.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "user@example.com",
+                "permissions": {
+                    "data_pipeline": [
+                        {
+                            "resource": {
+                                "type": "data_pipeline",
+                                "label": "ingest-form",
+                                "study": "study-1",
+                                "center": "center-1",
+                            },
+                            "relation": "submitter",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="user@example.com", type_filter="data_pipeline"
+        )
+
+        entry = result.permissions["data_pipeline"][0]
+        assert entry.resource is not None
+        assert entry.resource.type == "data_pipeline"
+        assert entry.resource.label == "ingest-form"
+        assert entry.resource.study == "study-1"
+        assert entry.resource.center == "center-1"
+        assert entry.relation == "submitter"
+
+    def test_absent_resource_yields_no_identity(self) -> None:
+        """Verify an entry without a ``resource`` parses with no identity.
+
+        A catalog-gap entry has no ``resource`` field. It must parse
+        with ``resource is None`` rather than failing.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "user@example.com",
+                "permissions": {
+                    "study": [
+                        {
+                            "relation": "member",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="user@example.com", type_filter="study"
+        )
+
+        entry = result.permissions["study"][0]
+        assert entry.resource is None
+        assert entry.relation == "member"
+
+    def test_top_level_resource_id_is_ignored_no_fallback(self) -> None:
+        """Verify a top-level ``resourceId`` is dropped, never used.
+
+        Under the structured contract, identity comes solely from
+        ``resource``. A stray top-level ``resourceId`` in the body must
+        not become the entry's identity: ``extra="ignore"`` drops it and
+        the entry has ``resource is None``.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "user@example.com",
+                "permissions": {
+                    "study": [
+                        {
+                            "resourceId": "study-legacy",
+                            "relation": "member",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="user@example.com", type_filter="study"
+        )
+
+        entry = result.permissions["study"][0]
+        assert entry.resource is None
+        assert not hasattr(entry, "resource_id")
+        assert entry.relation == "member"
 
     def test_retries_on_503(self) -> None:
         """Verify 503 triggers retry and succeeds on subsequent 200."""

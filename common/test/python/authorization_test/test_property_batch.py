@@ -33,20 +33,61 @@ _USER_IDS = st.text(
     max_size=30,
 )
 
-_RESOURCE_IDS = st.text(
+_RESOURCE_LABELS = st.text(
     alphabet=st.characters(whitelist_categories=("L", "N"), whitelist_characters="-_"),
     min_size=1,
     max_size=30,
 )
 
-_BATCH_OPERATIONS = st.builds(
-    BatchOperation,
-    action=st.sampled_from(["grant", "revoke"]),
-    user_id=_USER_IDS,
-    resource_type=_RESOURCE_TYPES,
-    resource_id=_RESOURCE_IDS,
-    relation=_RELATIONS,
+_PARENT_VALUES = st.text(
+    alphabet=st.characters(whitelist_categories=("L", "N"), whitelist_characters="-_"),
+    min_size=1,
+    max_size=30,
 )
+
+# Parent-field combinations permitted per resource type (design per-type
+# table). Building a BatchOperation with a permitted combination ensures the
+# ResourceObject the client constructs from it passes validation.
+_PERMITTED_PARENTS: dict[str, list[tuple[bool, bool, bool]]] = {
+    "study": [(False, False, False)],
+    "research_center": [(False, False, False)],
+    "community": [(False, False, False)],
+    "data_pipeline": [(True, True, False), (True, False, False)],
+    "dashboard": [(True, True, False), (True, False, False), (False, False, True)],
+    "page": [
+        (True, True, False),
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
+    ],
+}
+
+
+@st.composite
+def _batch_operations(draw: st.DrawFn) -> BatchOperation:
+    """Generate a ``BatchOperation`` carrying a valid Structured Identity.
+
+    Chooses a resource type and a parent-field combination permitted for
+    that type, so the ``ResourceObject`` the client builds from the
+    operation always validates.
+    """
+    resource_type = draw(st.sampled_from(sorted(_PERMITTED_PARENTS)))
+    study_present, center_present, community_present = draw(
+        st.sampled_from(_PERMITTED_PARENTS[resource_type])
+    )
+    return BatchOperation(
+        action=draw(st.sampled_from(["grant", "revoke"])),
+        user_id=draw(_USER_IDS),
+        resource_type=resource_type,
+        resource_label=draw(_RESOURCE_LABELS),
+        relation=draw(_RELATIONS),
+        study=draw(_PARENT_VALUES) if study_present else None,
+        center=draw(_PARENT_VALUES) if center_present else None,
+        community=draw(_PARENT_VALUES) if community_present else None,
+    )
+
+
+_BATCH_OPERATIONS = _batch_operations()
 
 # Lists of 1-500 operations as specified in the design
 _OPERATION_LISTS = st.lists(_BATCH_OPERATIONS, min_size=1, max_size=500)
@@ -241,20 +282,44 @@ def test_batch_chunking_preserves_order(
         f"Reconstructed {len(reconstructed)} operations, expected {len(operations)}"
     )
 
-    # Verify each operation matches in order
+    # Verify each operation matches in order. Identity is carried on the
+    # structured ``resource`` object (type + label + parents); no top-level
+    # ``type``/``resourceId`` and no ``flat_id`` are emitted.
     for i, (original, sent) in enumerate(zip(operations, reconstructed, strict=False)):
         assert sent["userId"] == original.user_id, (
             f"Operation {i}: userId mismatch. "
             f"Expected '{original.user_id}', got '{sent['userId']}'"
         )
-        assert sent["resourceId"] == original.resource_id, (
-            f"Operation {i}: resourceId mismatch. "
-            f"Expected '{original.resource_id}', got '{sent['resourceId']}'"
+        assert "type" not in sent, (
+            f"Operation {i}: top-level `type` must not be emitted"
         )
-        assert sent["type"] == original.resource_type, (
-            f"Operation {i}: type mismatch. "
-            f"Expected '{original.resource_type}', got '{sent['type']}'"
+        assert "resourceId" not in sent, (
+            f"Operation {i}: top-level `resourceId` must not be emitted"
         )
+
+        resource = sent["resource"]
+        assert resource["type"] == original.resource_type, (
+            f"Operation {i}: resource.type mismatch. "
+            f"Expected '{original.resource_type}', got '{resource['type']}'"
+        )
+        assert resource["label"] == original.resource_label, (
+            f"Operation {i}: resource.label mismatch. "
+            f"Expected '{original.resource_label}', got '{resource['label']}'"
+        )
+        assert "flat_id" not in resource
+        assert "flatId" not in resource
+        for parent in ("study", "center", "community"):
+            expected = getattr(original, parent)
+            if expected is None:
+                assert parent not in resource, (
+                    f"Operation {i}: resource.{parent} should be absent"
+                )
+            else:
+                assert resource[parent] == expected, (
+                    f"Operation {i}: resource.{parent} mismatch. "
+                    f"Expected '{expected}', got '{resource[parent]}'"
+                )
+
         assert sent["relation"] == original.relation, (
             f"Operation {i}: relation mismatch. "
             f"Expected '{original.relation}', got '{sent['relation']}'"

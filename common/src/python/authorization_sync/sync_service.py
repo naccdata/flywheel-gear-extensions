@@ -5,12 +5,13 @@ import logging
 from collections.abc import Iterable
 from typing import Protocol
 
-from authorization.exceptions import AuthorizationClientError
+from authorization.exceptions import AuthorizationClientError, ValidationError
 from authorization.models import (
     AuthorizationModelMetadata,
     BatchOperation,
     BatchResult,
     PermissionEntry,
+    ResourceObject,
     UserPermissions,
     UserProfile,
     UserProfileRequest,
@@ -53,15 +54,23 @@ def _entry_in_scope(
 
     A sync call reconciles exactly one scope: a specific center (when
     ``center_group_id`` is set) or the general, non-center scope (when it
-    is None). The entry's scope is read from the structured ``resource``
-    the API returns (``resource.center``), not by parsing the resource
-    id.
+    is None). A center sync owns every study under that center — the
+    caller aggregates all of the user's studies for the center into one
+    call — so scope is keyed on the center, not the study. This is what
+    lets a dropped study's grants be revoked while the studies the user
+    still holds are preserved.
 
-    Grants are only revoked within the scope being reconciled, so an
-    entry is in scope when its center matches the call's center. When the
-    API does not return structured scope for the entry (``resource`` is
-    None, e.g. a catalog gap), the scope cannot be confirmed and the
-    entry is treated as out of scope so it is never revoked.
+    The entry's scope is read from the structured ``resource`` the API
+    returns, never parsed out of the flat resource id (per the
+    Authorization API contract). An entry is in scope when its center
+    matches the call's center **and** it carries no community parent —
+    a community-scoped resource is a different scope even if it also
+    names a center, and this gear never reconciles community grants.
+
+    When the API does not return structured scope for the entry
+    (``resource`` is None, e.g. a catalog gap), the scope cannot be
+    confirmed and the entry is treated as out of scope so it is never
+    revoked.
 
     Args:
         entry: The permission entry from the API.
@@ -75,7 +84,43 @@ def _entry_in_scope(
         # Scope cannot be confirmed; never eligible for revocation.
         return False
 
+    # A community-scoped resource is out of scope for center/general sync,
+    # even when it also carries a center parent.
+    if entry.resource.community is not None:
+        return False
+
     return entry.resource.center == center_group_id
+
+
+def _grant_from_resource(
+    user_id: str,
+    resource: ResourceObject,
+    relation: str,
+) -> DesiredGrant:
+    """Build a DesiredGrant from a structured resource for ``to_grants``.
+
+    Adapts the ``(user_id, resource, relation)`` factory contract of
+    :meth:`UserPermissions.to_grants` to the keyword fields of
+    :class:`DesiredGrant`. The identity — type, label, and parent fields —
+    is read from the structured ``resource``, never from a flat id.
+
+    Args:
+        user_id: The user the grant belongs to.
+        resource: The structured resource returned by the API.
+        relation: The relation of the grant.
+
+    Returns:
+        A DesiredGrant built from the structured resource fields.
+    """
+    return DesiredGrant(
+        user_id=user_id,
+        resource_type=resource.type,
+        relation=relation,
+        resource_label=resource.label,
+        center=resource.center,
+        study=resource.study,
+        community=resource.community,
+    )
 
 
 def _grants_in_scope(
@@ -102,12 +147,22 @@ def _grants_in_scope(
         for entry in entries:
             if not _entry_in_scope(entry, center_group_id):
                 continue
+            # _entry_in_scope returns False when resource is None, so the
+            # resource here is guaranteed non-None; the explicit guard also
+            # narrows the type for the checker. Read the identity from its
+            # structured fields, never a flat id.
+            r = entry.resource
+            if r is None:
+                continue
             grants.add(
                 DesiredGrant(
                     user_id=permissions.user_id,
                     resource_type=resource_type,
-                    resource_id=entry.resource_id,
                     relation=entry.relation,
+                    resource_label=r.label,
+                    center=r.center,
+                    study=r.study,
+                    community=r.community,
                 )
             )
     return grants
@@ -252,12 +307,16 @@ class AuthorizationSyncService:
         Revocation is scoped to the center being reconciled (or the
         general, non-center scope when ``center_group_id`` is None). The
         current grant set returned by the API spans every scope the user
-        holds, so revoke candidates are first restricted to grants whose
-        center matches this call's ``center_group_id``. This prevents a
-        call for one scope from revoking another scope's grants — for
-        example, the general sync no longer revokes a user's center grants,
-        and a center sync no longer revokes the user's general grants.
-        Grants whose scope the API does not report are never revoked.
+        holds, so revoke candidates are restricted to grants whose center
+        matches this call's ``center_group_id`` and that carry no community
+        parent. A center sync owns every study under that center — the
+        studies are aggregated into one call — so a dropped study's grant
+        is still revoked while the studies the user still holds are kept.
+        This prevents a call for one scope from revoking another scope's
+        grants: the general sync no longer revokes a user's center grants,
+        and a center sync no longer revokes the user's general or
+        other-center grants. Grants whose scope the API does not report are
+        never revoked.
 
         Catches all AuthorizationClientError exceptions and reports via
         the event collector without raising.
@@ -286,7 +345,7 @@ class AuthorizationSyncService:
                     user_id=registry_id,
                     type_filter=resource_type,
                 )
-                current |= permissions.to_grants(DesiredGrant)
+                current |= permissions.to_grants(_grant_from_resource)
                 in_scope_current |= _grants_in_scope(permissions, center_group_id)
 
             # Adds may target any scope this call knows about; a grant already
@@ -295,9 +354,11 @@ class AuthorizationSyncService:
 
             # Revokes are restricted to grants that belong to the scope being
             # reconciled by this call (the center, or general when
-            # center_group_id is None). A grant is revoked only when its own
-            # scope no longer desires it, so grants in other scopes — and
-            # grants whose scope cannot be determined — are never revoked here.
+            # center_group_id is None). A center sync owns every study under
+            # that center, so a stale study's grant is still revoked, but
+            # grants in other scopes — a different center, the general scope,
+            # a community resource — and grants whose scope cannot be
+            # determined are never revoked here.
             grants_to_revoke = in_scope_current - desired
 
             if not grants_to_add and not grants_to_revoke:
@@ -323,6 +384,23 @@ class AuthorizationSyncService:
                 len(grants_to_revoke),
                 result.failed,
             )
+
+        except ValidationError as error:
+            # A ValidationError raised while building the batch (before any
+            # HTTP call) means a desired grant could not be turned into a
+            # valid structured resource — e.g. a resource type the API
+            # requires a parent for that reached this point without one.
+            # This is a translator/config defect, not a transient API
+            # failure, so report it distinctly rather than letting it look
+            # like a generic sync failure.
+            log.error(
+                "Authorization sync could not build a valid request for "
+                "user %s (likely an invalid resource identity from "
+                "translation): %s",
+                registry_id,
+                error,
+            )
+            self._report_failure(registry_id, "sync_build", error)
 
         except AuthorizationClientError as error:
             log.error(

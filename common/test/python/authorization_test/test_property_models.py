@@ -5,7 +5,6 @@ Properties tested: 2, 10
 """
 
 import json
-from typing import ClassVar
 
 import pytest
 from authorization.client import AuthorizationClient
@@ -13,16 +12,14 @@ from authorization.exceptions import ParseError
 from authorization.models import (
     BatchError,
     BatchOperation,
-    BatchOperationModel,
     BatchResult,
-    GrantRequest,
     GrantResult,
     HealthResult,
     InheritanceSource,
     ParentRelationship,
     PermissionEntry,
+    ResourceObject,
     ResourceParents,
-    RevokeRequest,
     RevokeResult,
     UserPermissions,
 )
@@ -81,13 +78,56 @@ error_messages = st.text(
 
 
 @st.composite
+def resource_objects(draw: st.DrawFn) -> ResourceObject:
+    """Generate arbitrary valid ``ResourceObject`` instances.
+
+    Picks a resource type and a parent-field combination that is
+    permitted for that type, so construction always passes the per-type
+    parent-field validator. Organization types carry no parents;
+    resource types carry a combination drawn from the per-type table. An
+    optional ``flat_id`` (the server-owned read-only handle) is included
+    so round-trip coverage exercises it.
+    """
+    # (study_present, center_present, community_present) combinations
+    # permitted per type, mirroring the production per-type table.
+    allowed: dict[str, list[tuple[bool, bool, bool]]] = {
+        "study": [(False, False, False)],
+        "research_center": [(False, False, False)],
+        "community": [(False, False, False)],
+        "data_pipeline": [(True, True, False), (True, False, False)],
+        "dashboard": [
+            (True, True, False),
+            (True, False, False),
+            (False, False, True),
+        ],
+        "page": [
+            (True, True, False),
+            (True, False, False),
+            (False, True, False),
+            (False, False, True),
+        ],
+    }
+    resource_type = draw(resource_types)
+    study_present, center_present, community_present = draw(
+        st.sampled_from(allowed[resource_type])
+    )
+    return ResourceObject(
+        type=resource_type,
+        label=draw(simple_ids),
+        flat_id=draw(st.one_of(st.none(), simple_ids)),
+        study=draw(simple_ids) if study_present else None,
+        center=draw(simple_ids) if center_present else None,
+        community=draw(simple_ids) if community_present else None,
+    )
+
+
+@st.composite
 def grant_results(draw: st.DrawFn) -> GrantResult:
     """Generate arbitrary GrantResult instances."""
     return GrantResult(
         user_id=draw(simple_ids),
         relation=draw(relations),
-        type=draw(resource_types),
-        resource_id=draw(simple_ids),
+        resource=draw(resource_objects()),
     )
 
 
@@ -97,8 +137,7 @@ def revoke_results(draw: st.DrawFn) -> RevokeResult:
     return RevokeResult(
         user_id=draw(simple_ids),
         relation=draw(relations),
-        type=draw(resource_types),
-        resource_id=draw(simple_ids),
+        resource=draw(resource_objects()),
     )
 
 
@@ -145,7 +184,7 @@ def permission_entries(draw: st.DrawFn) -> PermissionEntry:
     if access in ("inherited", "both"):
         inherited_from = draw(inheritance_sources())
     return PermissionEntry(
-        resource_id=draw(simple_ids),
+        resource=draw(resource_objects()),
         relation=draw(relations),
         access=access,
         inherited_from=inherited_from,
@@ -181,10 +220,14 @@ def parent_relationships(draw: st.DrawFn) -> ParentRelationship:
 
 @st.composite
 def resource_parents(draw: st.DrawFn) -> ResourceParents:
-    """Generate arbitrary ResourceParents instances."""
+    """Generate arbitrary ResourceParents instances.
+
+    Identity is a structured ``resource``; the legacy top-level
+    ``type``/``resource_id`` fields no longer exist. The ``parents``
+    relationship list is retained.
+    """
     return ResourceParents(
-        type=draw(resource_types),
-        resource_id=draw(simple_ids),
+        resource=draw(resource_objects()),
         parents=draw(st.lists(parent_relationships(), min_size=0, max_size=4)),
     )
 
@@ -343,7 +386,7 @@ class TestProperty10MalformedResponseParseError:
             client.grant(
                 user_id="user1",
                 resource_type="study",
-                resource_id="res1",
+                resource_label="res1",
                 relation="member",
             )
 
@@ -363,7 +406,7 @@ class TestProperty10MalformedResponseParseError:
             client.revoke(
                 user_id="user1",
                 resource_type="study",
-                resource_id="res1",
+                resource_label="res1",
                 relation="member",
             )
 
@@ -429,7 +472,7 @@ class TestProperty10MalformedResponseParseError:
                         action="grant",
                         user_id="user1",
                         resource_type="study",
-                        resource_id="res1",
+                        resource_label="res1",
                         relation="member",
                     )
                 ]
@@ -438,77 +481,133 @@ class TestProperty10MalformedResponseParseError:
         assert exc_info.value.raw_content == bad_body
 
 
-class TestResourceObjectValidation:
-    """Validation of type / resource_id on grant, revoke, and batch models.
+# NOTE: The former ``TestResourceObjectValidation`` class validated the
+# legacy combined ``f"{type}:{resourceId}"`` length/whitespace rule enforced
+# by ``_ResourceObjectValidatorMixin``. Under the structured-``resource``
+# contract that mixin no longer governs write requests (identity is a
+# structured ``ResourceObject`` with discrete fields, not a concatenated
+# ``type:resourceId``), so the combined-length rule no longer applies. The
+# per-type parent-field validation that replaces it is covered below by
+# ``TestProperty7ParentFieldCombinations`` (Requirements 2.5-2.9), and the
+# non-empty ``label`` rule by the structured-identity request property in
+# ``test_property_grant_revoke.py``.
 
-    The Authorization API validates the combined resource object
-    ``f"{type}:{resourceId}"`` for length and non-whitespace content.
-    The request models strip leading/trailing whitespace and enforce the
-    combined length is between 3 and 255 characters.
+
+# --- Property 7: Parent-field combinations are valid per resource type ---
+#
+# Feature: authorization-api-structured-resource-migration
+# Property 7 (design.md "Correctness Properties")
+
+# Resource types that participate in the per-type parent-field table.
+organization_types = st.sampled_from(["study", "research_center", "community"])
+constrained_resource_types = st.sampled_from(["data_pipeline", "dashboard", "page"])
+# A forward-compatible type absent from the per-type table and not an
+# organization type: unconstrained beyond the label rule.
+unconstrained_types = st.sampled_from(["gizmo", "widget", "sensor"])
+
+# The three parent fields, each either present (a non-empty value) or absent.
+parent_presence = st.tuples(
+    st.booleans(),  # study present
+    st.booleans(),  # center present
+    st.booleans(),  # community present
+)
+
+# The permitted (study, center, community) presence combinations per type,
+# mirroring the design's per-type table. Kept independent of the production
+# lookup so the test pins the intended semantics rather than the code.
+_ALLOWED_COMBINATIONS: dict[str, set[tuple[bool, bool, bool]]] = {
+    "study": {(False, False, False)},
+    "research_center": {(False, False, False)},
+    "community": {(False, False, False)},
+    "data_pipeline": {
+        (True, True, False),
+        (True, False, False),
+    },
+    "dashboard": {
+        (True, True, False),
+        (True, False, False),
+        (False, False, True),
+    },
+    "page": {
+        (True, True, False),
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
+    },
+}
+
+
+def _build_resource(
+    resource_type: str, presence: tuple[bool, bool, bool]
+) -> "ResourceObject":
+    """Construct a ResourceObject with the given parent-field presence.
+
+    Each present parent field is populated with a distinct non-empty
+    value; each absent field is left as ``None``.
+    """
+    study_present, center_present, community_present = presence
+    return ResourceObject(
+        type=resource_type,
+        label="ingest-example",
+        study="study-1" if study_present else None,
+        center="center-1" if center_present else None,
+        community="community-1" if community_present else None,
+    )
+
+
+class TestProperty7ParentFieldCombinations:
+    """Property 7: Parent-field combinations are valid per resource type.
+
+    For any resource type and any combination of the parent fields
+    (``study``, ``center``, ``community``) present or absent,
+    constructing a ``ResourceObject`` succeeds if and only if the
+    combination is permitted for that type. When it is not permitted the
+    validator raises an error whose message names the offending type.
+    Types outside the per-type table (and not organization types) are
+    unconstrained beyond the label rule.
+
+    **Validates: Requirements 2.5, 2.6, 2.7, 2.8, 2.9**
     """
 
-    REQUEST_MODELS: ClassVar[list[type]] = [
-        GrantRequest,
-        RevokeRequest,
-        BatchOperationModel,
-    ]
+    @settings(max_examples=200)
+    @given(
+        resource_type=st.one_of(organization_types, constrained_resource_types),
+        presence=parent_presence,
+    )
+    def test_construction_succeeds_iff_combination_permitted(
+        self,
+        resource_type: str,
+        presence: tuple[bool, bool, bool],
+    ) -> None:
+        """Construction succeeds exactly when the combination is allowed."""
+        permitted = presence in _ALLOWED_COMBINATIONS[resource_type]
 
-    @staticmethod
-    def _build(model_cls, **overrides):
-        """Build a request model with sensible defaults for shared fields."""
-        kwargs = {
-            "user_id": "Registry100000@naccdata.org",
-            "relation": "viewer",
-            "type": "dashboard",
-            "resource_id": "south-texas_dashboard-reports-adrc",
-        }
-        if model_cls is BatchOperationModel:
-            kwargs["action"] = "grant"
-        kwargs.update(overrides)
-        return model_cls(**kwargs)
+        if permitted:
+            resource = _build_resource(resource_type, presence)
+            # The stored parent fields reflect exactly the requested
+            # presence pattern.
+            assert (resource.study is not None) == presence[0]
+            assert (resource.center is not None) == presence[1]
+            assert (resource.community is not None) == presence[2]
+        else:
+            with pytest.raises(ValidationError) as exc_info:
+                _build_resource(resource_type, presence)
+            # The rejection message names the offending resource type.
+            assert resource_type in str(exc_info.value)
 
-    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
-    def test_leading_trailing_whitespace_stripped(self, model_cls) -> None:
-        """Leading and trailing whitespace is stripped from both fields."""
-        model = self._build(
-            model_cls,
-            type="  dashboard  ",
-            resource_id="  south-texas_dashboard-reports-adrc \n",
-        )
-        assert model.type == "dashboard"
-        assert model.resource_id == "south-texas_dashboard-reports-adrc"
-
-    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
-    def test_interior_whitespace_preserved(self, model_cls) -> None:
-        """Interior whitespace is not altered (only ends are stripped)."""
-        model = self._build(
-            model_cls,
-            resource_id="South Texas ADRC_dashboard-reports-adrc",
-        )
-        assert model.resource_id == "South Texas ADRC_dashboard-reports-adrc"
-
-    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
-    def test_empty_after_strip_rejected(self, model_cls) -> None:
-        """Whitespace-only fields collapse to empty and are rejected."""
-        with pytest.raises(ValidationError):
-            self._build(model_cls, type="   ", resource_id="   ")
-
-    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
-    def test_minimum_combined_length_accepted(self, model_cls) -> None:
-        """A combined length of exactly 3 (``a:b``) is accepted."""
-        model = self._build(model_cls, type="a", resource_id="b")
-        assert model.type == "a"
-        assert model.resource_id == "b"
-
-    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
-    def test_maximum_combined_length_accepted(self, model_cls) -> None:
-        """A combined length of exactly 255 is accepted."""
-        # 3 + 1 (":") + 251 == 255
-        model = self._build(model_cls, type="abc", resource_id="x" * 251)
-        assert len(model.type) + 1 + len(model.resource_id) == 255
-
-    @pytest.mark.parametrize("model_cls", REQUEST_MODELS)
-    def test_over_maximum_combined_length_rejected(self, model_cls) -> None:
-        """A combined length of 256 is rejected."""
-        with pytest.raises(ValidationError):
-            self._build(model_cls, type="abc", resource_id="x" * 252)
+    @settings(max_examples=100)
+    @given(
+        resource_type=unconstrained_types,
+        presence=parent_presence,
+    )
+    def test_unknown_types_are_unconstrained(
+        self,
+        resource_type: str,
+        presence: tuple[bool, bool, bool],
+    ) -> None:
+        """A type outside the table accepts any parent-field combination."""
+        resource = _build_resource(resource_type, presence)
+        assert resource.type == resource_type
+        assert (resource.study is not None) == presence[0]
+        assert (resource.center is not None) == presence[1]
+        assert (resource.community is not None) == presence[2]

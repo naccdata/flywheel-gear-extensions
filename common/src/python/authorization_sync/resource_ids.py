@@ -63,7 +63,6 @@ def build_label_for_resource_prefix(
     - "datatype" -> "ingest-{name}"
     - "dashboard" -> "dashboard-{name}"
     - "page" -> "page-{name}"
-    - other -> "{name}"
 
     Args:
         resource_prefix: The resource type prefix from the gear
@@ -72,8 +71,19 @@ def build_label_for_resource_prefix(
 
     Returns:
         The label for the resource.
+
+    Raises:
+        ValueError: If resource_prefix is not one of "datatype",
+            "dashboard", or "page". Callers MUST pre-filter to supported
+            prefixes rather than rely on a fallback: the only caller,
+            ``translator.translate``, reaches this function only after a
+            successful ``ACTIVITY_RELATION_MAP`` lookup, whose keys cover
+            exactly these prefixes, so an unsupported prefix is already
+            skipped upstream and never arrives here. There is
+            deliberately no lenient ``other -> "{name}"`` fallback; a new
+            caller that does not pre-filter must add its own guard.
     """
     prefix_label = _PREFIX_LABELS.get(resource_prefix)
-    if prefix_label:
-        return f"{prefix_label}-{resource_name}"
-    return resource_name
+    if prefix_label is None:
+        raise ValueError(f"Unsupported resource prefix: {resource_prefix!r}")
+    return f"{prefix_label}-{resource_name}"
