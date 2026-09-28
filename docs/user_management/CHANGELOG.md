@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.5.0
+
+* Migrates the authorization client and authorization sync to a structured resource contract
+  * Grants and revokes now use a server-owned structured `ResourceObject` (flat resource ID plus label) instead of ad hoc `type:resource_id` strings, and sync is keyed on a structured identity
+  * Recognizes all model organization types in `ResourceObject`
+* Fixes general-scope page grants to be community-scoped so they are no longer over-revoked during center/general sync reconciliation
+* Dedupes grant request serialization and removes dead code so single-item and batch paths serialize grants identically
+
 ## 4.4.7
 
 * Fixes authorization sync revoking grants that belong to a scope other than the one being reconciled
