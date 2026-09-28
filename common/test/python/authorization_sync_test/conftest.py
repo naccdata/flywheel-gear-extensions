@@ -17,6 +17,7 @@ from authorization.models import (
     BatchResult,
     PermissionEntry,
     RelationMetadata,
+    ResourceObject,
     TypeMetadata,
     UserPermissions,
     UserProfile,
@@ -105,6 +106,28 @@ page_names_st = st.text(
     max_size=30,
 ).filter(lambda s: not s.startswith("-") and not s.endswith("-"))
 
+# Community IDs: non-empty alphanumeric strings with hyphens
+community_ids_st = st.text(
+    alphabet=st.characters(
+        whitelist_categories=("Ll", "Nd"),
+        whitelist_characters="-",
+    ),
+    min_size=1,
+    max_size=20,
+).filter(lambda s: not s.startswith("-") and not s.endswith("-"))
+
+# Server-owned opaque flat handles. These deliberately do NOT follow any
+# format the client could reproduce: they are arbitrary strings that must
+# never participate in identity matching (Structured Identity Tuple only).
+flat_ids_st = st.text(
+    alphabet=st.characters(
+        whitelist_categories=("L", "N"),
+        whitelist_characters="-_:/.",
+    ),
+    min_size=1,
+    max_size=60,
+)
+
 # --- Resource Strategies ---
 
 datatype_resources_st = valid_datatypes_st.map(lambda dt: DatatypeResource(datatype=dt))
@@ -174,40 +197,138 @@ api_resource_types_st = st.sampled_from(API_RESOURCE_TYPES)
 API_RELATIONS = ["submitter", "viewer", "editor"]
 api_relations_st = st.sampled_from(API_RELATIONS)
 
-# Resource IDs (can be center-scoped or general)
-resource_ids_st = st.one_of(
-    # Center-scoped: {center_group_id}_{label}-{study_id}
-    st.tuples(center_group_ids_st, project_labels_st, study_ids_st).map(
-        lambda t: f"{t[0]}_{t[1]}-{t[2]}"
-    ),
-    # General: {label}-{study_id}
-    st.tuples(project_labels_st, study_ids_st).map(lambda t: f"{t[0]}-{t[1]}"),
+# Resource labels: form {kind}-{name}, produced by the label producers on the
+# grant path (e.g. "ingest-form", "dashboard-reports", "page-enrollment").
+resource_labels_st = st.one_of(
+    project_labels_st.map(lambda name: f"ingest-{name}"),
+    dashboard_names_st.map(lambda name: f"dashboard-{name}"),
+    page_names_st.map(lambda name: f"page-{name}"),
 )
 
-# DesiredGrant instances
-desired_grants_st = st.builds(
-    DesiredGrant,
-    user_id=registry_ids_st,
-    resource_type=api_resource_types_st,
-    resource_id=resource_ids_st,
-    relation=api_relations_st,
-)
+
+def _parent_fields_for_type(
+    resource_type: str,
+) -> st.SearchStrategy[dict[str, str | None]]:
+    """Build a strategy of ``{study, center, community}`` parent-field dicts
+    valid for the given resource type.
+
+    Mirrors the per-type parent-field combination table enforced by
+    :class:`ResourceObject.check_parent_fields`, so every combination this
+    generates is accepted when fed into a ``ResourceObject`` (and therefore
+    into ``PermissionEntry.resource`` or ``DesiredGrant.to_resource``). The
+    ``API_RESOURCE_TYPES`` used here are ``data_pipeline``/``dashboard``/
+    ``page``.
+    """
+    study_center = st.tuples(study_ids_st, center_group_ids_st).map(
+        lambda t: {"study": t[0], "center": t[1], "community": None}
+    )
+    study_only = study_ids_st.map(
+        lambda s: {"study": s, "center": None, "community": None}
+    )
+    center_only = center_group_ids_st.map(
+        lambda c: {"study": None, "center": c, "community": None}
+    )
+    community_only = community_ids_st.map(
+        lambda c: {"study": None, "center": None, "community": c}
+    )
+
+    if resource_type == "data_pipeline":
+        return st.one_of(study_center, study_only)
+    if resource_type == "dashboard":
+        return st.one_of(study_center, study_only, community_only)
+    # page
+    return st.one_of(study_center, study_only, center_only, community_only)
+
+
+@st.composite
+def desired_grants_st(draw: st.DrawFn) -> DesiredGrant:
+    """Generate a valid structured DesiredGrant.
+
+    Chooses a resource type, a label, and a parent-field combination
+    valid for that type (so ``to_resource``/``to_batch_op`` produce a
+    ``ResourceObject`` that passes per-type validation).
+    """
+    resource_type = draw(api_resource_types_st)
+    parents = draw(_parent_fields_for_type(resource_type))
+    return DesiredGrant(
+        user_id=draw(registry_ids_st),
+        resource_type=resource_type,
+        relation=draw(api_relations_st),
+        resource_label=draw(resource_labels_st),
+        center=parents["center"],
+        study=parents["study"],
+        community=parents["community"],
+    )
+
 
 # Sets of DesiredGrant instances (for diff testing)
-desired_grant_sets_st = st.frozensets(desired_grants_st, min_size=0, max_size=20)
+desired_grant_sets_st = st.frozensets(desired_grants_st(), min_size=0, max_size=20)
 
 
 # --- UserPermissions Response Strategies ---
 
 
 @st.composite
-def permission_entries_st(draw: st.DrawFn) -> PermissionEntry:
-    """Generate a valid PermissionEntry."""
-    resource_id = draw(resource_ids_st)
+def resource_objects_st(
+    draw: st.DrawFn,
+    resource_type: str | None = None,
+    with_flat_id: bool = False,
+) -> ResourceObject:
+    """Generate a structured ResourceObject valid for its resource type.
+
+    Args:
+        draw: Hypothesis draw function.
+        resource_type: The resource type to use; drawn from
+            ``API_RESOURCE_TYPES`` when None.
+        with_flat_id: When True, populate an arbitrary server-owned
+            ``flat_id`` handle (never a client-derivable string). The
+            ``flat_id`` never participates in identity matching.
+    """
+    rtype = resource_type if resource_type is not None else draw(api_resource_types_st)
+    parents = draw(_parent_fields_for_type(rtype))
+    flat_id = draw(flat_ids_st) if with_flat_id else None
+    return ResourceObject(
+        type=rtype,
+        label=draw(resource_labels_st),
+        flat_id=flat_id,
+        study=parents["study"],
+        center=parents["center"],
+        community=parents["community"],
+    )
+
+
+@st.composite
+def permission_entries_st(
+    draw: st.DrawFn,
+    resource_type: str | None = None,
+    allow_none_resource: bool = False,
+    with_flat_id: bool = False,
+) -> PermissionEntry:
+    """Generate a valid PermissionEntry with a structured resource.
+
+    Args:
+        draw: Hypothesis draw function.
+        resource_type: The resource type of the entry's resource; drawn
+            when None.
+        allow_none_resource: When True, the entry may be generated with
+            ``resource=None`` (a catalog gap).
+        with_flat_id: When True, the resource carries an arbitrary
+            server-owned ``flat_id`` handle.
+    """
     relation = draw(api_relations_st)
     access = draw(st.sampled_from(["direct", "inherited", "both"]))
+    resource: ResourceObject | None
+    if allow_none_resource and draw(st.booleans()):
+        resource = None
+    else:
+        resource = draw(
+            resource_objects_st(
+                resource_type=resource_type,
+                with_flat_id=with_flat_id,
+            )
+        )
     return PermissionEntry(
-        resource_id=resource_id,
+        resource=resource,
         relation=relation,
         access=access,
         inherited_from=None,
@@ -218,13 +339,20 @@ def permission_entries_st(draw: st.DrawFn) -> PermissionEntry:
 def user_permissions_st(draw: st.DrawFn) -> UserPermissions:
     """Generate a valid UserPermissions response."""
     user_id = draw(registry_ids_st)
-    # Generate permissions grouped by resource type
+    # Generate permissions grouped by resource type. Each entry's resource
+    # carries the same type as its group key, matching the real API.
     permissions: dict[str, list[PermissionEntry]] = {}
     resource_types = draw(
         st.lists(api_resource_types_st, min_size=0, max_size=3, unique=True)
     )
     for resource_type in resource_types:
-        entries = draw(st.lists(permission_entries_st(), min_size=1, max_size=5))
+        entries = draw(
+            st.lists(
+                permission_entries_st(resource_type=resource_type),
+                min_size=1,
+                max_size=5,
+            )
+        )
         permissions[resource_type] = entries
     return UserPermissions(user_id=user_id, permissions=permissions)
 

@@ -19,6 +19,7 @@ Home for documentation of Flywheel extensions for the National Alzheimer's Coord
   - Project/Study management
   - Pipeline Management
   - [User Management](./processes/user_management.md)
+  - [Authorization Resource IDs and Labels](./processes/authorization-resource-ids.md)
   - [Data Aggregation and Curation](./processes/curation.md)
   - Data Pipelines
     - Batch scheduling

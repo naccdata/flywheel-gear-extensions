@@ -226,7 +226,14 @@ class TestListResources:
             body=json.dumps(
                 {
                     "resources": [
-                        {"resourceId": "pipe-1", "structuralRelation": "parent_study"}
+                        {
+                            "resource": {
+                                "type": "data_pipeline",
+                                "label": "pipe-1",
+                                "study": "study-1",
+                            },
+                            "structuralRelation": "parent_study",
+                        }
                     ],
                     "nextToken": "abc",
                     "limit": 50,
@@ -240,7 +247,8 @@ class TestListResources:
 
         assert isinstance(result, ResourceListResponse)
         assert len(result.resources) == 1
-        assert result.resources[0].resource_id == "pipe-1"
+        assert result.resources[0].resource is not None
+        assert result.resources[0].resource.label == "pipe-1"
         assert result.next_token == "abc"
 
     def test_raises_validation_error_on_400(self) -> None:
@@ -365,7 +373,9 @@ class TestCheckPermission:
         transport = MockTransport(response)
         client = AuthorizationClient(transport=transport, sleep=no_sleep)
 
-        client.check_permission("alice", "data_pipeline", "pipe-1", "viewer")
+        client.check_permission(
+            "alice", "data_pipeline", "pipe-1", "viewer", study="study-1"
+        )
 
         method, path, body, _ = transport.requests[0]
         assert method == "POST"
@@ -373,9 +383,17 @@ class TestCheckPermission:
         assert body is not None
         parsed = json.loads(body)
         assert parsed["userId"] == "alice"
-        assert parsed["type"] == "data_pipeline"
-        assert parsed["resourceId"] == "pipe-1"
         assert parsed["relation"] == "viewer"
+        # Identity is carried on the structured resource; no top-level
+        # type/resourceId and no flat_id.
+        assert "type" not in parsed
+        assert "resourceId" not in parsed
+        resource = parsed["resource"]
+        assert resource["type"] == "data_pipeline"
+        assert resource["label"] == "pipe-1"
+        assert resource["study"] == "study-1"
+        assert "flat_id" not in resource
+        assert "flatId" not in resource
 
     def test_returns_true_when_allowed(self) -> None:
         """Returns True when API responds with allowed=true."""
@@ -383,7 +401,9 @@ class TestCheckPermission:
         transport = MockTransport(response)
         client = AuthorizationClient(transport=transport, sleep=no_sleep)
 
-        result = client.check_permission("alice", "data_pipeline", "pipe-1", "viewer")
+        result = client.check_permission(
+            "alice", "data_pipeline", "pipe-1", "viewer", study="study-1"
+        )
 
         assert result is True
 
@@ -393,7 +413,9 @@ class TestCheckPermission:
         transport = MockTransport(response)
         client = AuthorizationClient(transport=transport, sleep=no_sleep)
 
-        result = client.check_permission("alice", "data_pipeline", "pipe-1", "viewer")
+        result = client.check_permission(
+            "alice", "data_pipeline", "pipe-1", "viewer", study="study-1"
+        )
 
         assert result is False
 
@@ -407,7 +429,9 @@ class TestCheckPermission:
         client = AuthorizationClient(transport=transport, sleep=no_sleep)
 
         with pytest.raises(ValidationError):
-            client.check_permission("alice", "data_pipeline", "pipe-1", "bad_relation")
+            client.check_permission(
+                "alice", "data_pipeline", "pipe-1", "bad_relation", study="study-1"
+            )
 
     def test_raises_unexpected_error_on_500(self) -> None:
         """Raises UnexpectedError on 500."""
@@ -416,7 +440,9 @@ class TestCheckPermission:
         client = AuthorizationClient(transport=transport, sleep=no_sleep)
 
         with pytest.raises(UnexpectedError):
-            client.check_permission("alice", "data_pipeline", "pipe-1", "viewer")
+            client.check_permission(
+                "alice", "data_pipeline", "pipe-1", "viewer", study="study-1"
+            )
 
 
 # --- search_user_profiles ---
