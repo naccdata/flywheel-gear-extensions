@@ -275,13 +275,16 @@ class TestGetUserPermissions:
         assert entry.resource is None
         assert entry.relation == "member"
 
-    def test_top_level_resource_id_is_ignored_no_fallback(self) -> None:
-        """Verify a top-level ``resourceId`` is dropped, never used.
+    def test_top_level_resource_id_is_retained_as_handle_not_identity(self) -> None:
+        """Verify a top-level ``resourceId`` is kept as the opaque handle.
 
-        Under the structured contract, identity comes solely from
-        ``resource``. A stray top-level ``resourceId`` in the body must
-        not become the entry's identity: ``extra="ignore"`` drops it and
-        the entry has ``resource is None``.
+        The top-level ``resourceId`` is retained on the entry as the
+        opaque revoke handle (``resource_id``), but it must **not**
+        reconstruct structured identity: with no ``resource`` in the
+        body, ``resource`` stays ``None`` (scope is never inferred from
+        the flat id). The handle is available so the grant can be
+        revoked by round-trip even though its structured scope did not
+        resolve.
         """
         response_body = json.dumps(
             {
@@ -304,8 +307,10 @@ class TestGetUserPermissions:
         )
 
         entry = result.permissions["study"][0]
+        # No structured identity is reconstructed from the flat id.
         assert entry.resource is None
-        assert not hasattr(entry, "resource_id")
+        # But the opaque handle is retained for revocation.
+        assert entry.resource_id == "study-legacy"
         assert entry.relation == "member"
 
     def test_retries_on_503(self) -> None:

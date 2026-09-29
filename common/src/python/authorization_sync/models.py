@@ -1,6 +1,6 @@
 """Data models for the authorization sync module."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from authorization.models import BatchOperation, ResourceObject
@@ -28,6 +28,13 @@ class DesiredGrant:
     center: str | None = None
     study: str | None = None
     community: str | None = None
+    # Opaque flat handle (the API's ``resourceId``) for a grant read back
+    # from the API. Retained only so a stale grant can be revoked by
+    # round-tripping the handle — see ``to_batch_op``. Excluded from
+    # equality/hashing: the diff keys on structured identity alone, so a
+    # current grant and a desired grant match iff their structured fields
+    # match, regardless of whether a handle is present.
+    flat_id: str | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         """Reject construction without a resource type or label.
@@ -55,15 +62,31 @@ class DesiredGrant:
         )
 
     def to_batch_op(self, action: Literal["grant", "revoke"]) -> BatchOperation:
-        """Convert this grant to a structured BatchOperation.
+        """Convert this grant to a BatchOperation.
+
+        A ``revoke`` of a grant that was read back from the API with an
+        opaque ``flat_id`` handle is addressed by that handle (the flat
+        ``type`` + ``resourceId`` form), so a grant whose structured scope
+        did not resolve can still be revoked. Every other operation —
+        every grant, and any revoke of a grant with no handle — carries
+        the structured identity (type, label, parent fields).
 
         Args:
             action: The batch action, either "grant" or "revoke".
 
         Returns:
-            A BatchOperation carrying this grant's structured identity and
-            the specified action.
+            A BatchOperation in the flat-handle form when revoking a
+            handle-bearing grant, otherwise the structured form.
         """
+        if action == "revoke" and self.flat_id is not None:
+            return BatchOperation(
+                action=action,
+                user_id=self.user_id,
+                resource_type=self.resource_type,
+                relation=self.relation,
+                resource_id=self.flat_id,
+            )
+
         return BatchOperation(
             action=action,
             user_id=self.user_id,

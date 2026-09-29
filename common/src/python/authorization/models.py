@@ -33,6 +33,32 @@ def _grant_request_payload(
     }
 
 
+def _flat_revoke_payload(
+    user_id: str,
+    relation: str,
+    resource_type: str,
+    resource_id: str,
+) -> dict[str, Any]:
+    """Build the body of a revoke addressed by opaque flat id.
+
+    Emits ``userId``, ``relation``, and the legacy ``type`` +
+    ``resourceId`` pair instead of a structured ``resource``. This is the
+    API's supported path for revoking a grant by the opaque handle it
+    returned (``resourceId``), without reconstructing a structured
+    identity. It is used only for revokes — grants always carry a
+    structured ``resource`` so the catalog is populated with parents.
+
+    ``resource_id`` is round-tripped verbatim; it is never parsed or
+    constructed on this side.
+    """
+    return {
+        "userId": user_id,
+        "relation": relation,
+        "type": resource_type,
+        "resourceId": resource_id,
+    }
+
+
 # Organization types carry no parent fields of their own. They are the
 # structural containers in the Authorization API hierarchy: every type the
 # authorization model marks ``category: organization`` (equivalently, with
@@ -90,34 +116,96 @@ class GrantRequest(BaseModel):
 class RevokeRequest(BaseModel):
     """Request model for revoking a user's relation on a resource.
 
-    Mirrors :class:`GrantRequest`: identity is a structured
-    :class:`ResourceObject`, and the request body is built by
-    :meth:`request_body`.
+    A revoke may address the resource in one of two ways, exactly one of
+    which must be supplied:
+
+    - **structured** — a :class:`ScopedResourceObject` in ``resource``,
+      mirroring :class:`GrantRequest`. Used when the caller holds the
+      resource's structured identity.
+    - **flat handle** — ``resource_type`` + ``resource_id`` (the opaque
+      ``resourceId`` the API returned for the grant). Used to revoke a
+      grant whose structured scope did not resolve (a catalog-gap
+      fallback), where no valid :class:`ScopedResourceObject` can be
+      built. The handle is round-tripped verbatim, never parsed.
+
+    :meth:`request_body` emits whichever form was supplied.
     """
 
     model_config = ConfigDict(populate_by_name=True)
 
     user_id: str = Field(alias="userId")
     relation: str
-    resource: "ScopedResourceObject"
+    resource: "ScopedResourceObject | None" = None
+    resource_type: str | None = Field(default=None, alias="type")
+    resource_id: str | None = Field(default=None, alias="resourceId")
+
+    @model_validator(mode="after")
+    def check_one_identity_form(self) -> "RevokeRequest":
+        """Require exactly one identity form: structured or flat handle.
+
+        Raises:
+            ValueError: If both a structured ``resource`` and a flat
+                ``resource_type``/``resource_id`` are supplied, or if
+                neither is (a flat handle needs both parts).
+        """
+        has_structured = self.resource is not None
+        has_flat = self.resource_type is not None and self.resource_id is not None
+        partial_flat = (self.resource_type is not None) != (
+            self.resource_id is not None
+        )
+
+        if has_structured and (self.resource_type is not None or self.resource_id):
+            raise ValueError(
+                "RevokeRequest takes either a structured 'resource' or a flat "
+                "'type'+'resourceId', not both"
+            )
+        if partial_flat:
+            raise ValueError(
+                "RevokeRequest flat handle requires both 'type' and 'resourceId'"
+            )
+        if not has_structured and not has_flat:
+            raise ValueError(
+                "RevokeRequest requires either a structured 'resource' or a flat "
+                "'type'+'resourceId'"
+            )
+        return self
 
     def request_body(self) -> bytes:
         """Serialize this request to a JSON-encoded body.
 
-        Emits ``userId``, ``relation``, and a structured ``resource`` (via
-        :meth:`ResourceObject.request_dump`, which excludes ``flat_id``).
-        No top-level ``type``/``resourceId`` is emitted.
+        Emits the structured ``resource`` form (via
+        :meth:`ResourceObject.request_dump`, excluding ``flat_id``) when a
+        ``resource`` was supplied, or the flat ``type`` + ``resourceId``
+        form otherwise.
         """
-        payload = _grant_request_payload(self.user_id, self.relation, self.resource)
+        if self.resource is not None:
+            payload = _grant_request_payload(self.user_id, self.relation, self.resource)
+        else:
+            # Validated above: both parts present when resource is None.
+            assert self.resource_type is not None and self.resource_id is not None
+            payload = _flat_revoke_payload(
+                self.user_id,
+                self.relation,
+                self.resource_type,
+                self.resource_id,
+            )
         return json.dumps(payload).encode()
 
 
 class BatchOperationModel(BaseModel):
     """A single operation within a batch request payload.
 
-    Carries the resource identity as a structured
-    :class:`ResourceObject`; ``action``/``user_id``/``relation`` are
-    unchanged.
+    Like :class:`RevokeRequest`, addresses the resource in one of two
+    mutually exclusive ways:
+
+    - **structured** — a :class:`ScopedResourceObject` in ``resource``.
+      Required for ``grant`` operations (a grant populates the catalog
+      with parents) and usable for revokes with a known identity.
+    - **flat handle** — ``resource_type`` + ``resource_id``. Only valid
+      for ``revoke``: it round-trips the opaque ``resourceId`` the API
+      returned, revoking a grant whose structured scope did not resolve.
+
+    ``action``/``user_id``/``relation`` are unchanged.
     """
 
     model_config = ConfigDict(populate_by_name=True)
@@ -125,21 +213,68 @@ class BatchOperationModel(BaseModel):
     action: Literal["grant", "revoke"]
     user_id: str = Field(alias="userId")
     relation: str
-    resource: "ScopedResourceObject"
+    resource: "ScopedResourceObject | None" = None
+    resource_type: str | None = Field(default=None, alias="type")
+    resource_id: str | None = Field(default=None, alias="resourceId")
+
+    @model_validator(mode="after")
+    def check_one_identity_form(self) -> "BatchOperationModel":
+        """Require exactly one identity form, and flat only for revoke.
+
+        Raises:
+            ValueError: If both forms or neither are supplied, if a flat
+                handle is missing a part, or if a ``grant`` uses the flat
+                form (grants must carry a structured resource).
+        """
+        has_structured = self.resource is not None
+        has_flat = self.resource_type is not None and self.resource_id is not None
+        partial_flat = (self.resource_type is not None) != (
+            self.resource_id is not None
+        )
+
+        if has_structured and (self.resource_type is not None or self.resource_id):
+            raise ValueError(
+                "BatchOperationModel takes either a structured 'resource' or a "
+                "flat 'type'+'resourceId', not both"
+            )
+        if partial_flat:
+            raise ValueError(
+                "BatchOperationModel flat handle requires both 'type' and 'resourceId'"
+            )
+        if not has_structured and not has_flat:
+            raise ValueError(
+                "BatchOperationModel requires either a structured 'resource' or "
+                "a flat 'type'+'resourceId'"
+            )
+        if has_flat and self.action == "grant":
+            raise ValueError(
+                "A 'grant' operation must carry a structured 'resource', not a "
+                "flat 'type'+'resourceId'"
+            )
+        return self
 
     def request_dump(self) -> dict[str, Any]:
         """Serialize this operation for a batch request body.
 
-        Emits ``action`` plus the same
-        ``userId``/``relation``/structured ``resource`` shape as a
-        single grant/revoke request (via the shared
-        :func:`_grant_request_payload`), so a batched operation and a
-        standalone operation serialize identically and cannot drift.
+        Emits ``action`` plus the same body shape as a single request:
+        the structured ``resource`` form (via the shared
+        :func:`_grant_request_payload`) when a ``resource`` was supplied,
+        or the flat ``type`` + ``resourceId`` form (via
+        :func:`_flat_revoke_payload`) otherwise — so a batched operation
+        and a standalone operation serialize identically and cannot drift.
         """
-        return {
-            "action": self.action,
-            **_grant_request_payload(self.user_id, self.relation, self.resource),
-        }
+        if self.resource is not None:
+            body = _grant_request_payload(self.user_id, self.relation, self.resource)
+        else:
+            # Validated above: both parts present when resource is None.
+            assert self.resource_type is not None and self.resource_id is not None
+            body = _flat_revoke_payload(
+                self.user_id,
+                self.relation,
+                self.resource_type,
+                self.resource_id,
+            )
+        return {"action": self.action, **body}
 
 
 class BatchRequestModel(BaseModel):
@@ -422,17 +557,25 @@ class PermissionEntry(BaseModel):
     the bulk permissions endpoint (ADR-015). Use the effective-permissions
     endpoint for per-entry classification when needed.
 
-    Identity is read solely from the structured ``resource`` field. The
-    legacy top-level ``resourceId`` identity field is removed;
-    ``extra="ignore"`` silently drops it if present on an incoming
-    response so parsing cannot fall back to it. A ``resource`` of ``None``
-    means no Structured Identity was returned (catalog gap): the entry has
-    no identity and is not reconstructed from a flat id.
+    Scope for diffing is read from the structured ``resource`` field. A
+    ``resource`` of ``None`` means no Structured Identity was returned
+    (catalog gap): the entry has no structured identity and one is not
+    reconstructed from the flat id.
+
+    ``resource_id`` is the opaque flat handle the API returns for the
+    grant (the top-level ``resourceId``). It is **not** parsed for scope
+    and **not** used to reconstruct a structured identity — it is retained
+    solely so a stale grant can be revoked by round-tripping the exact
+    handle back to the API (``DELETE /grants`` / batch ``revoke`` accept
+    ``type`` + ``resourceId``). This is the API's intended way to revoke a
+    grant whose structured scope did not resolve. ``extra="ignore"`` still
+    drops any other unmodeled fields.
     """
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     relation: str
+    resource_id: str | None = Field(default=None, alias="resourceId")
     access: Literal["direct", "inherited", "both"] | None = None
     inherited_from: InheritanceSource | None = Field(
         default=None, alias="inheritedFrom"
@@ -448,12 +591,19 @@ class UserPermissions(BaseModel):
     user_id: str = Field(alias="userId")
     permissions: dict[str, list[PermissionEntry]]
 
-    def to_grants(self, factory: 'Callable[[str, "ResourceObject", str], Any]') -> set:
+    def to_grants(
+        self,
+        factory: 'Callable[[str, "ResourceObject", str, str | None], Any]',
+    ) -> set:
         """Convert permissions to a set of grant objects via a factory.
 
         Iterates over all permission entries and calls the factory for
-        each, passing (user_id, resource, relation) where ``resource`` is
-        the entry's structured :class:`ResourceObject`.
+        each, passing ``(user_id, resource, relation, resource_id)`` where
+        ``resource`` is the entry's structured :class:`ResourceObject` and
+        ``resource_id`` is the entry's opaque flat handle (the API's
+        top-level ``resourceId``, or ``None`` if absent). The handle lets
+        the caller revoke the grant by round-tripping it, independent of
+        whether the structured scope resolved.
 
         Entries whose ``resource`` is ``None`` have no structured identity
         (a catalog gap): they are skipped with a warning and contribute no
@@ -461,7 +611,8 @@ class UserPermissions(BaseModel):
 
         Args:
             factory: Callable that creates a hashable grant object from
-                the user id, the structured resource, and the relation.
+                the user id, the structured resource, the relation, and
+                the opaque flat handle.
 
         Returns:
             Set of grant objects produced by the factory.
@@ -476,7 +627,14 @@ class UserPermissions(BaseModel):
                         resource_type,
                     )
                     continue
-                grants.add(factory(self.user_id, entry.resource, entry.relation))
+                grants.add(
+                    factory(
+                        self.user_id,
+                        entry.resource,
+                        entry.relation,
+                        entry.resource_id,
+                    )
+                )
         return grants
 
 
@@ -594,13 +752,23 @@ class BatchOperation(BaseModel):
     This is the caller-facing type used to construct batch requests.
     Field names use Python conventions (snake_case) rather than API
     aliases.
+
+    Addresses the resource in one of two ways:
+
+    - **structured** — ``resource_label`` plus the applicable parent
+      fields (``center``/``study``/``community``). Required for grants.
+    - **flat handle** — ``resource_id`` (the opaque ``resourceId`` the API
+      returned). Only for revokes, to remove a grant whose structured
+      scope did not resolve. When ``resource_id`` is set, the label and
+      parent fields are ignored.
     """
 
     action: Literal["grant", "revoke"]
     user_id: str
     resource_type: str
-    resource_label: str
     relation: str
+    resource_label: str | None = None
+    resource_id: str | None = None
     center: str | None = None
     study: str | None = None
     community: str | None = None

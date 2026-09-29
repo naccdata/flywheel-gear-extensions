@@ -184,6 +184,58 @@ class AuthorizationClient:
                 ),
             ) from exc
 
+    def _build_batch_operation(self, op: BatchOperation) -> BatchOperationModel:
+        """Build a wire batch operation from a caller-facing one.
+
+        A ``revoke`` carrying an opaque ``resource_id`` is serialized as a
+        flat ``type`` + ``resourceId`` operation (round-tripping the
+        handle the API returned) with no structured resource built. Every
+        other operation carries a structured :class:`ScopedResourceObject`
+        built from the label and parent fields, so grants — and revokes of
+        a known structured identity — populate/validate scope as before.
+
+        Args:
+            op: The caller-facing batch operation.
+
+        Returns:
+            A wire :class:`BatchOperationModel` in the appropriate form.
+
+        Raises:
+            ValidationError: If a structured operation carries an invalid
+                resource identity (missing type/label or an invalid
+                parent-field combination).
+        """
+        if op.action == "revoke" and op.resource_id is not None:
+            return BatchOperationModel(
+                action=op.action,
+                user_id=op.user_id,
+                relation=op.relation,
+                resource_type=op.resource_type,
+                resource_id=op.resource_id,
+            )
+
+        if op.resource_label is None:
+            raise ValidationError(
+                message=(
+                    "Batch operation for type="
+                    f"{op.resource_type!r} requires either a resource_label "
+                    "(structured) or a resource_id (flat revoke)"
+                ),
+            )
+
+        return BatchOperationModel(
+            action=op.action,
+            user_id=op.user_id,
+            relation=op.relation,
+            resource=self._build_resource(
+                resource_type=op.resource_type,
+                resource_label=op.resource_label,
+                center=op.center,
+                study=op.study,
+                community=op.community,
+            ),
+        )
+
     def grant(
         self,
         user_id: str,
@@ -481,21 +533,7 @@ class AuthorizationClient:
             BatchResult for this chunk with classified outcomes.
         """
         request = BatchRequestModel(
-            operations=[
-                BatchOperationModel(
-                    action=op.action,
-                    user_id=op.user_id,
-                    relation=op.relation,
-                    resource=self._build_resource(
-                        resource_type=op.resource_type,
-                        resource_label=op.resource_label,
-                        center=op.center,
-                        study=op.study,
-                        community=op.community,
-                    ),
-                )
-                for op in chunk
-            ]
+            operations=[self._build_batch_operation(op) for op in chunk]
         )
 
         # Serialize via BatchRequestModel.request_body, which routes each

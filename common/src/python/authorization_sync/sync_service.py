@@ -96,18 +96,23 @@ def _grant_from_resource(
     user_id: str,
     resource: ResourceObject,
     relation: str,
+    resource_id: str | None,
 ) -> DesiredGrant:
     """Build a DesiredGrant from a structured resource for ``to_grants``.
 
-    Adapts the ``(user_id, resource, relation)`` factory contract of
-    :meth:`UserPermissions.to_grants` to the keyword fields of
-    :class:`DesiredGrant`. The identity — type, label, and parent fields —
-    is read from the structured ``resource``, never from a flat id.
+    Adapts the ``(user_id, resource, relation, resource_id)`` factory
+    contract of :meth:`UserPermissions.to_grants` to the keyword fields of
+    :class:`DesiredGrant`. Scope — type, label, and parent fields — is
+    read from the structured ``resource``; the opaque ``resource_id``
+    handle is retained on the grant so it can be revoked by round-trip
+    even when its structured scope did not resolve. The handle does not
+    affect grant equality (it is excluded from ``DesiredGrant`` compare).
 
     Args:
         user_id: The user the grant belongs to.
         resource: The structured resource returned by the API.
         relation: The relation of the grant.
+        resource_id: The opaque flat handle for the grant, or None.
 
     Returns:
         A DesiredGrant built from the structured resource fields.
@@ -120,6 +125,7 @@ def _grant_from_resource(
         center=resource.center,
         study=resource.study,
         community=resource.community,
+        flat_id=resource_id,
     )
 
 
@@ -163,6 +169,7 @@ def _grants_in_scope(
                     center=r.center,
                     study=r.study,
                     community=r.community,
+                    flat_id=entry.resource_id,
                 )
             )
     return grants
