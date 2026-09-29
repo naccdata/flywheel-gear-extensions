@@ -86,19 +86,30 @@ class StatefulAuthorizationClient:
 
     def _entry_for(self, key: GrantKey) -> PermissionEntry:
         (_uid, rtype, label, relation, center, study, community) = key
+        handle = self.flat_ids.get(key)
         if key in self.scopeless_keys:
-            return PermissionEntry(resource=None, relation=relation)
+            # No structured resource resolved (resource=None), but the API
+            # still returns the opaque top-level handle when it has one.
+            return PermissionEntry(resource=None, relation=relation, resource_id=handle)
         return PermissionEntry(
             resource=ResourceObject(
                 type=rtype,
                 label=label,
-                flat_id=self.flat_ids.get(key),
+                flat_id=handle,
                 center=center,
                 study=study,
                 community=community,
             ),
             relation=relation,
+            resource_id=handle,
         )
+
+    def _revoke_by_flat_id(self, resource_id: str) -> None:
+        """Discard the stored grant whose flat handle matches
+        ``resource_id``."""
+        for key, flat_id in list(self.flat_ids.items()):
+            if flat_id == resource_id:
+                self.grants.discard(key)
 
     def get_user_permissions(
         self,
@@ -117,6 +128,13 @@ class StatefulAuthorizationClient:
     def batch(self, operations: list[BatchOperation]) -> BatchResult:
         self.batch_calls.append(operations)
         for op in operations:
+            # A revoke may be addressed by the opaque flat handle (the
+            # fallback path) rather than a structured identity.
+            if op.action == "revoke" and op.resource_id is not None:
+                self._revoke_by_flat_id(op.resource_id)
+                continue
+            # A structured operation always carries a label.
+            assert op.resource_label is not None
             key: GrantKey = (
                 op.user_id,
                 op.resource_type,
@@ -724,8 +742,169 @@ class TestDiffParityBetweenTranslatorAndApi:
         }
 
 
+class TestRevokeUnscopedGrantByFlatId:
+    """A stale grant the API returns without structured scope is revoked by its
+    opaque flat handle, not by rebuilding a structured identity.
+
+    Reproduces the production failure: the permissions endpoint returns
+    a ``dashboard``/``page``/``data_pipeline`` grant in the catalog-gap
+    fallback shape — a present ``resource`` whose parent fields are all
+    null (its ``label`` is the flat id) plus the top-level
+    ``resourceId`` handle. Such a grant requires a parent per the API
+    model, so rebuilding a structured ``ScopedResourceObject`` to revoke
+    it fails. The sync must instead revoke it by round-tripping the
+    ``resourceId``.
+    """
+
+    def test_fallback_current_grant_is_revoked_by_flat_id(self) -> None:
+        """A parentless current grant is revoked via its flat handle.
+
+        The user holds a ``page`` grant the API reports with no
+        structured parents (``center``/``study``/``community`` all null)
+        and a flat handle. The user desires no page grants, so it is
+        stale. A general sync (``center_group_id=None``) sees it in
+        scope (center null matches the general scope, no community) and
+        must revoke it — using the flat handle, since no valid
+        structured identity can be built.
+        """
+        client = StatefulAuthorizationClient()
+        # A present-but-unscoped current grant (the fallback shape): the
+        # label is the flat id, all parents null. The API reports its
+        # opaque handle.
+        fallback = _grant_key(
+            "page",
+            "ohsu_page-enrollment-clariti",
+            "viewer",
+        )
+        client.grants.add(fallback)
+        client.flat_ids[fallback] = "ohsu_page-enrollment-clariti"
+        service = AuthorizationSyncService(
+            client=client,  # type: ignore[arg-type]
+            collector=UserEventCollector(),
+        )
+
+        # Desire nothing (no page authorizations), general scope.
+        service.sync_user(
+            registry_id="user@institution.edu",
+            authorizations=Authorizations(activities=Activities()),
+        )
+
+        # A revoke was issued, addressed by the flat handle (not a
+        # structured identity), and the grant was removed.
+        revokes = _revoke_ops(client)
+        assert len(revokes) == 1
+        assert revokes[0].resource_id == "ohsu_page-enrollment-clariti"
+        assert revokes[0].resource_label is None
+        assert fallback not in client.grants
+
+
+class TestRevokeUnscopedGrantEndToEnd:
+    """The flat-id revoke serializes correctly through the real client.
+
+    Drives the actual ``AuthorizationClient`` (whose ``_build_resource``
+    would reject a parentless structured revoke) to prove the fix
+    end-to-end: a stale, unscoped current grant is revoked by emitting the
+    legacy ``type`` + ``resourceId`` form, so the batch is built and sent
+    rather than failing with a swallowed ``ValidationError``.
+    """
+
+    def test_unscoped_current_grant_revoke_is_built_and_sent(self) -> None:
+        """A fallback current grant produces a flat-id revoke, not an error.
+
+        Before the fix, the revoke rebuilt a ``ScopedResourceObject``
+        for a parentless ``page``, ``_build_resource`` raised
+        ``ValidationError``, ``sync_users`` swallowed it, and no batch
+        was sent. Now the revoke carries ``type`` + ``resourceId`` and
+        the batch is sent cleanly.
+        """
+        transport = _RevokeRecordingTransport()
+        client = AuthorizationClient(transport=transport)  # type: ignore[arg-type]
+        collector = UserEventCollector()
+        service = AuthorizationSyncService(client=client, collector=collector)
+
+        # Desire nothing; the API returns one stale, unscoped page grant.
+        service.sync_user(
+            registry_id="user@institution.edu",
+            authorizations=Authorizations(activities=Activities()),
+        )
+
+        # A batch request was actually built and sent (not swallowed).
+        assert transport.batch_bodies, "no batch request was sent"
+        operations = json.loads(transport.batch_bodies[0])["operations"]
+        assert len(operations) == 1
+        operation = operations[0]
+        assert operation["action"] == "revoke"
+        # Flat-handle form: type + resourceId, no structured resource.
+        assert operation["type"] == "page"
+        assert operation["resourceId"] == "ohsu_page-enrollment-clariti"
+        assert "resource" not in operation
+        # No client-side identity-build error was reported.
+        assert collector.error_count() == 0
+
+
+@dataclass
+class _RevokeRecordingTransport:
+    """Transport returning one unscoped page grant, recording batch bodies.
+
+    GET /permissions returns a single ``page`` entry in the fallback shape
+    (present resource, null parents, ``label`` = flat id) plus the
+    top-level ``resourceId`` handle. Other types return empty. POST
+    /grants/batch records the body and reports success.
+    """
+
+    batch_bodies: list[bytes] = field(default_factory=list)
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        body: bytes | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> "_MockResponse":
+        if path == "/grants/batch":
+            assert body is not None
+            self.batch_bodies.append(body)
+            payload = json.loads(body)
+            count = len(payload["operations"])
+            return _MockResponse(
+                status_code=200,
+                body=json.dumps(
+                    {"total": count, "succeeded": count, "failed": 0, "errors": []}
+                ).encode(),
+            )
+        # GET permissions: one unscoped page grant when the page type is
+        # queried; empty for every other type.
+        flat_id = "ohsu_page-enrollment-clariti"
+        if query_params and query_params.get("type") == "page":
+            permissions = {
+                "page": [
+                    {
+                        "resourceId": flat_id,
+                        "relation": "viewer",
+                        "resource": {"type": "page", "label": flat_id},
+                    }
+                ]
+            }
+        else:
+            permissions = {}
+        return _MockResponse(
+            status_code=200,
+            body=json.dumps(
+                {"userId": "user@institution.edu", "permissions": permissions}
+            ).encode(),
+        )
+
+
 def _key_from_op(op: BatchOperation) -> GrantKey:
-    """Recover the structured grant key from a batch operation."""
+    """Recover the structured grant key from a batch operation.
+
+    Only valid for structured operations. A flat-handle revoke (which
+    carries ``resource_id`` and no ``resource_label``) has no structured
+    key; assert the label is present so a misuse fails loudly.
+    """
+    assert op.resource_label is not None, (
+        "_key_from_op requires a structured operation (resource_label set)"
+    )
     return (
         op.user_id,
         op.resource_type,
