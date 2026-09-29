@@ -643,6 +643,7 @@ class TestMigrationProperty1StructuredIdentity:
             relation=relation,
             resource=resource,
         )
+        assert operation.resource is not None
         payload = {
             "action": operation.action,
             "userId": operation.user_id,
