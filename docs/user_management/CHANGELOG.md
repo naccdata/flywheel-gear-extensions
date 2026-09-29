@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.5.1
+
+* Fixes authorization sync failing to parse the permissions response when a resource has no parent scope
+  * The permissions endpoint may return a `dashboard` or `page` resource with its parent fields (study/center/community) all unset — the documented catalog-gap fallback used when the resource catalog cannot resolve them; the shared `common/authorization` client rejected that combination, making the whole `UserPermissions` response unparseable and failing sync for affected users
+  * Splits the resource model by role: response parsing uses a permissive `ResourceObject` that accepts an unscoped resource, while write requests use a `ScopedResourceObject` that still validates the parent-field combination locally before a request is sent
+
 ## 4.5.0
 
 * Migrates the authorization client and authorization sync to a structured resource contract
