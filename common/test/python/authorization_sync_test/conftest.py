@@ -213,9 +213,10 @@ def _parent_fields_for_type(
     valid for the given resource type.
 
     Mirrors the per-type parent-field combination table enforced by
-    :class:`ResourceObject.check_parent_fields`, so every combination this
-    generates is accepted when fed into a ``ResourceObject`` (and therefore
-    into ``PermissionEntry.resource`` or ``DesiredGrant.to_resource``). The
+    :class:`ScopedResourceObject.check_parent_fields`, so every combination
+    this generates is a valid request-side combination and is also accepted
+    when fed into a lenient response ``ResourceObject`` (and therefore into
+    ``PermissionEntry.resource`` or ``DesiredGrant.to_resource``). The
     ``API_RESOURCE_TYPES`` used here are ``data_pipeline``/``dashboard``/
     ``page``.
     """

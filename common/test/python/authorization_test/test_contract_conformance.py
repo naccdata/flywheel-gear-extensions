@@ -17,9 +17,9 @@ Two layers:
   single contract violation — proving the client's produced identities match
   what the contract accepts.
 
-A final drift guard pins the client's own ``ResourceObject.check_parent_fields``
-table against the model's ``validParentCombinations`` so the two cannot silently
-diverge.
+A final drift guard pins the client's own
+``ScopedResourceObject.check_parent_fields`` table against the model's
+``validParentCombinations`` so the two cannot silently diverge.
 """
 
 import itertools
@@ -27,7 +27,7 @@ import itertools
 import pytest
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ValidationError
-from authorization.models import _ORGANIZATION_TYPES, ResourceObject
+from authorization.models import _ORGANIZATION_TYPES, ScopedResourceObject
 from authorization_sync.sync_service import AuthorizationSyncService
 from authorization_sync.translator import NACC_COMMUNITY_ID
 from pydantic import ValidationError as PydanticValidationError
@@ -344,12 +344,12 @@ class TestSyncEndToEndThroughContract:
 class TestClientValidatorMatchesContract:
     """The client's parent-field validator agrees with the model contract.
 
-    Pins ``ResourceObject.check_parent_fields`` against the model's
-    ``validParentCombinations`` for the constrained resource types, so
-    the client's hand-maintained table cannot silently drift from the
-    API's published contract. For every one of the 8 possible parent-
-    field combinations, the client accepts a combination iff the model
-    permits it.
+    Pins ``ScopedResourceObject.check_parent_fields`` against the
+    model's ``validParentCombinations`` for the constrained resource
+    types, so the client's hand-maintained table cannot silently drift
+    from the API's published contract. For every one of the 8 possible
+    parent- field combinations, the client accepts a combination iff the
+    model permits it.
     """
 
     @pytest.mark.parametrize("resource_type", ["data_pipeline", "dashboard", "page"])
@@ -369,7 +369,9 @@ class TestClientValidatorMatchesContract:
             kwargs = _fields_to_kwargs(fields)
             client_accepts: bool
             try:
-                ResourceObject(type=resource_type, label=f"{resource_type}-x", **kwargs)
+                ScopedResourceObject(
+                    type=resource_type, label=f"{resource_type}-x", **kwargs
+                )
                 client_accepts = True
             except PydanticValidationError:
                 client_accepts = False
@@ -396,21 +398,21 @@ class TestClientValidatorMatchesContract:
         assert model.types[org_type].valid_parent_combinations is None
 
         # No parents: accepted by both.
-        ResourceObject(type=org_type, label=f"{org_type}-x")
+        ScopedResourceObject(type=org_type, label=f"{org_type}-x")
 
         # Any parent: rejected by the client.
         with pytest.raises(PydanticValidationError):
-            ResourceObject(type=org_type, label=f"{org_type}-x", study="study-1")
+            ScopedResourceObject(type=org_type, label=f"{org_type}-x", study="study-1")
 
     def test_client_organization_type_set_matches_model(self) -> None:
         """The client's organization-type set equals the model's exactly.
 
-        ``ResourceObject`` treats a type not in ``_ORGANIZATION_TYPES``
-        and not in the per-type combination table as a forward-
-        compatible resource type (unconstrained parents). If the model
-        declares an organization type the client omits, the client would
-        wrongly accept parents on it. Pin the set against the model so
-        the two cannot drift.
+        ``ScopedResourceObject`` treats a type not in
+        ``_ORGANIZATION_TYPES`` and not in the per-type combination
+        table as a forward-compatible resource type (unconstrained
+        parents). If the model declares an organization type the client
+        omits, the client would wrongly accept parents on it. Pin the
+        set against the model so the two cannot drift.
         """
         model_org_types = {
             name

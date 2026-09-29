@@ -11,7 +11,7 @@ second copy of the client's assumptions:
   ``validParentCombinations`` per type. A parent-field combination the API
   would reject (including a parentless resource type, or an organization type
   carrying parents) is rejected here with an HTTP 400 — without consulting the
-  client's own ``ResourceObject.check_parent_fields``.
+  client's own ``ScopedResourceObject.check_parent_fields``.
 - Responses are generated *from the contract*: the structured ``resource`` is
   rebuilt from the request's structured identity and given a server-owned
   ``flat_id`` derived by the model's flat-form rule, never by echoing a handle
