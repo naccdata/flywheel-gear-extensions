@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.5.2
+
+* Fixes authorization sync failing to revoke a grant the permissions endpoint returns without structured scope
+  * The endpoint can return a current grant in a catalog-gap fallback shape (a resource with no study/center/community parents); the sync tried to rebuild a structured resource to revoke it, which the Authorization API rejects for resource types that require a parent, failing the whole batch
+  * Stale grants are now revoked by round-tripping the opaque `resourceId` handle the API returned (`type` + `resourceId`) instead of reconstructing a structured identity; new grants continue to be sent with a structured resource
+
 ## 4.5.1
 
 * Fixes authorization sync failing to parse the permissions response when a resource has no parent scope
