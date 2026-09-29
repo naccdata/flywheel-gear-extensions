@@ -14,9 +14,9 @@ from authorization.models import (
     GrantRequest,
     GrantResult,
     PermissionCheckRequest,
-    ResourceObject,
     RevokeRequest,
     RevokeResult,
+    ScopedResourceObject,
 )
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -80,7 +80,7 @@ error_messages = st.text(
 # (resource_type, resource_label, and applicable parent fields) instead of
 # a flat resource_id. This strategy produces keyword arguments carrying a
 # resource type, a non-empty label, and a parent-field combination the type
-# permits, so the pre-transmission ResourceObject validation always passes
+# permits, so the pre-transmission ScopedResourceObject validation always passes
 # and the request reaches the transport.
 
 
@@ -445,13 +445,18 @@ valid_flat_ids = st.text(
 
 
 @st.composite
-def structured_identities(draw: st.DrawFn) -> ResourceObject:
-    """Generate a ``ResourceObject`` from a valid Structured Identity.
+def structured_identities(draw: st.DrawFn) -> ScopedResourceObject:
+    """Generate a ``ScopedResourceObject`` from a valid Structured Identity.
+
+    Uses the scoped (request-side) model because these identities feed
+    write-request models (``GrantRequest``/``RevokeRequest``/
+    ``PermissionCheckRequest``/``BatchOperationModel``), whose ``resource``
+    field is a ``ScopedResourceObject``.
 
     Each generated resource carries a resource type, a non-empty label,
     and a parent-field combination permitted for that type (per the
-    design's per-type table), so ``ResourceObject`` construction always
-    succeeds. To exercise the flat_id-exclusion guarantee, roughly half
+    design's per-type table), so ``ScopedResourceObject`` construction
+    always succeeds. To exercise the flat_id-exclusion guarantee, roughly half
     the resources are also given an arbitrary server-owned ``flat_id``
     (as a response resource would carry); a request must never emit it.
     """
@@ -485,7 +490,7 @@ def structured_identities(draw: st.DrawFn) -> ResourceObject:
 
     flat_id = draw(st.one_of(st.none(), valid_flat_ids))
 
-    return ResourceObject(
+    return ScopedResourceObject(
         type=resource_type,
         label=draw(valid_labels),
         flat_id=flat_id,
@@ -558,7 +563,7 @@ class TestMigrationProperty1StructuredIdentity:
         self,
         user_id: str,
         relation: str,
-        resource: ResourceObject,
+        resource: ScopedResourceObject,
     ) -> None:
         """A serialized ``GrantRequest`` carries only structured identity."""
         request = GrantRequest(user_id=user_id, relation=relation, resource=resource)
@@ -578,7 +583,7 @@ class TestMigrationProperty1StructuredIdentity:
         self,
         user_id: str,
         relation: str,
-        resource: ResourceObject,
+        resource: ScopedResourceObject,
     ) -> None:
         """A serialized ``RevokeRequest`` carries only structured identity."""
         request = RevokeRequest(user_id=user_id, relation=relation, resource=resource)
@@ -598,7 +603,7 @@ class TestMigrationProperty1StructuredIdentity:
         self,
         user_id: str,
         relation: str,
-        resource: ResourceObject,
+        resource: ScopedResourceObject,
     ) -> None:
         """A serialized ``PermissionCheckRequest`` carries structured
         identity."""
@@ -623,7 +628,7 @@ class TestMigrationProperty1StructuredIdentity:
         action: str,
         user_id: str,
         relation: str,
-        resource: ResourceObject,
+        resource: ScopedResourceObject,
     ) -> None:
         """A serialized ``BatchOperationModel`` carries structured identity.
 

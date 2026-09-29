@@ -21,6 +21,7 @@ from authorization.models import (
     ResourceObject,
     ResourceParents,
     RevokeResult,
+    ScopedResourceObject,
     UserPermissions,
 )
 from hypothesis import given, settings
@@ -539,14 +540,18 @@ _ALLOWED_COMBINATIONS: dict[str, set[tuple[bool, bool, bool]]] = {
 
 def _build_resource(
     resource_type: str, presence: tuple[bool, bool, bool]
-) -> "ResourceObject":
-    """Construct a ResourceObject with the given parent-field presence.
+) -> "ScopedResourceObject":
+    """Construct a ScopedResourceObject with the given parent-field presence.
+
+    Uses the scoped (request-side) model because this exercises the
+    parent-field combination validator; the lenient ``ResourceObject``
+    base used for responses does not validate combinations.
 
     Each present parent field is populated with a distinct non-empty
     value; each absent field is left as ``None``.
     """
     study_present, center_present, community_present = presence
-    return ResourceObject(
+    return ScopedResourceObject(
         type=resource_type,
         label="ingest-example",
         study="study-1" if study_present else None,
@@ -560,7 +565,7 @@ class TestProperty7ParentFieldCombinations:
 
     For any resource type and any combination of the parent fields
     (``study``, ``center``, ``community``) present or absent,
-    constructing a ``ResourceObject`` succeeds if and only if the
+    constructing a ``ScopedResourceObject`` succeeds if and only if the
     combination is permitted for that type. When it is not permitted the
     validator raises an error whose message names the offending type.
     Types outside the per-type table (and not organization types) are

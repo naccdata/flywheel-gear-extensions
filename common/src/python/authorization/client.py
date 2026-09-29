@@ -30,10 +30,10 @@ from authorization.models import (
     PermissionCheckRequest,
     PermissionCheckResponse,
     ResourceListResponse,
-    ResourceObject,
     ResourceParents,
     RevokeRequest,
     RevokeResult,
+    ScopedResourceObject,
     SetParentsRequestModel,
     UpdateResourceRequest,
     UpdateResourceResponse,
@@ -129,18 +129,28 @@ class AuthorizationClient:
         center: str | None = None,
         study: str | None = None,
         community: str | None = None,
-    ) -> ResourceObject:
-        """Build a structured ResourceObject for a write request.
+    ) -> ScopedResourceObject:
+        """Build a structured resource for a write request.
 
-        Constructs a :class:`ResourceObject` from the Structured Identity
-        (type, label, and applicable parent fields), validating it before
-        any HTTP call. A missing type, an empty label, or a parent-field
-        combination invalid for the type raises a
-        :class:`~pydantic.ValidationError` inside ``ResourceObject``;
+        Constructs a :class:`ScopedResourceObject` from the Structured
+        Identity (type, label, and applicable parent fields), validating
+        it before any HTTP call. A missing type, an empty label, or a
+        parent-field combination invalid for the type raises a
+        :class:`~pydantic.ValidationError` inside ``ScopedResourceObject``;
         this method surfaces it as the client's own
         :class:`~authorization.exceptions.ValidationError`, naming the
         offending Structured Identity component, so no request is sent
         (Requirement 1.7).
+
+        Why the scoped model here: a request is where an invalid scope
+        should be caught, before it reaches the API. Responses are parsed
+        with the permissive :class:`ResourceObject` base instead, because
+        the API may return a resource with unresolved (all-null) parent
+        fields — the catalog-gap fallback documented for
+        ``PermissionEntry.resource`` in ``openapi.yaml``. Validating that
+        fallback on the read path would make an otherwise-usable response
+        unparseable, so the scope rule is enforced only on the write path,
+        here.
 
         Args:
             resource_type: The type of resource.
@@ -151,7 +161,7 @@ class AuthorizationClient:
                 type.
 
         Returns:
-            A validated ResourceObject.
+            A validated ScopedResourceObject.
 
         Raises:
             ValidationError: If the Structured Identity is missing a
@@ -159,7 +169,7 @@ class AuthorizationClient:
                 parent-field combination for the type.
         """
         try:
-            return ResourceObject(
+            return ScopedResourceObject(
                 type=resource_type,
                 label=resource_label,
                 center=center,

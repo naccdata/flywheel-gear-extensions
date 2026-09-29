@@ -36,12 +36,12 @@ def _grant_request_payload(
 # Organization types carry no parent fields of their own. They are the
 # structural containers in the Authorization API hierarchy: every type the
 # authorization model marks ``category: organization`` (equivalently, with
-# no ``validParentCombinations``). ``ResourceObject`` uses this set to
-# distinguish an organization type (which must carry none of ``study``/
-# ``center``/``community``) from a resource type (which follows the
-# per-type parent-field combination table). A type that is neither in this
-# set nor in the per-type table is treated as a forward-compatible resource
-# type and carries no parent-field combination constraint.
+# no ``validParentCombinations``). :meth:`ScopedResourceObject.check_parent_fields`
+# uses this set to distinguish an organization type (which must carry none
+# of ``study``/``center``/``community``) from a resource type (which follows
+# the per-type parent-field combination table). A type that is neither in
+# this set nor in the per-type table is treated as a forward-compatible
+# resource type and carries no parent-field combination constraint.
 #
 # This set mirrors the organization types in the authorization model
 # metadata (``GET /model``): ``study``, ``research_center``,
@@ -74,7 +74,7 @@ class GrantRequest(BaseModel):
 
     user_id: str = Field(alias="userId")
     relation: str
-    resource: "ResourceObject"
+    resource: "ScopedResourceObject"
 
     def request_body(self) -> bytes:
         """Serialize this request to a JSON-encoded body.
@@ -99,7 +99,7 @@ class RevokeRequest(BaseModel):
 
     user_id: str = Field(alias="userId")
     relation: str
-    resource: "ResourceObject"
+    resource: "ScopedResourceObject"
 
     def request_body(self) -> bytes:
         """Serialize this request to a JSON-encoded body.
@@ -125,7 +125,7 @@ class BatchOperationModel(BaseModel):
     action: Literal["grant", "revoke"]
     user_id: str = Field(alias="userId")
     relation: str
-    resource: "ResourceObject"
+    resource: "ScopedResourceObject"
 
     def request_dump(self) -> dict[str, Any]:
         """Serialize this operation for a batch request body.
@@ -188,17 +188,21 @@ class SetParentsRequestModel(BaseModel):
 class ResourceObject(BaseModel):
     """Structured resource identity with explicit parent fields.
 
-    Replaces opaque flat resource IDs at the API boundary. A single
-    model is used for both request serialization and response parsing.
-
-    Identity is the structured tuple of ``type``, ``label``, and the
+    Identity is the structured tuple of ``type``, ``label``, and any
     applicable parent fields (``study``, ``center``, ``community``). The
-    ``flat_id`` field is a server-owned, read-only handle: it is only
-    populated when parsing a response and is never emitted on a request.
+    parent fields are optional and unconstrained here: an instance may
+    carry any combination of them, including none. This base does not
+    validate that the combination is meaningful for the ``type``.
 
-    ``extra="ignore"`` drops any legacy ``id`` field supplied on parsed
-    input so it is never serialized back. Requests are serialized via
-    :meth:`request_dump`, which excludes ``flat_id``.
+    That validation is the job of :class:`ScopedResourceObject`, which
+    adds it. Keep this base permissive — it must be able to represent an
+    identity whose parent fields are simply absent. (Do not move the
+    parent-field validation down onto this base.)
+
+    The ``flat_id`` field is a server-owned, read-only handle: it is only
+    populated when the value comes from a server, and is never emitted by
+    :meth:`request_dump`. ``extra="ignore"`` drops any legacy ``id`` field
+    from parsed input so it is never carried through.
     """
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
@@ -211,8 +215,42 @@ class ResourceObject(BaseModel):
     center: str | None = None
     community: str | None = None
 
+    def request_dump(self) -> dict[str, Any]:
+        """Serialize this resource to a plain dict for a request body.
+
+        Uses field aliases, omits unset optional fields, and always
+        excludes the ``flat_id`` handle.
+
+        Note:
+            ``exclude_none=True`` means a field set explicitly to ``None``
+            and a field left unset serialize identically — both are
+            omitted. For identity fields (``name`` and the parent fields
+            ``study``/``center``/``community``) this is intended: an
+            absent parent and an explicit ``None`` both mean "this parent
+            does not apply". This method never emits an explicit ``null``.
+        """
+        return self.model_dump(by_alias=True, exclude_none=True, exclude={"flat_id"})
+
+
+class ScopedResourceObject(ResourceObject):
+    """A :class:`ResourceObject` whose scope is valid for its type.
+
+    The parent fields (``study``, ``center``, ``community``) are the
+    resource's *scope* in the authorization hierarchy. This subclass adds
+    a validator, :meth:`check_parent_fields`, that requires the scope to
+    be a combination permitted for the resource's ``type`` — including
+    requiring organization types to carry no scope at all. Constructing an
+    instance with an invalid combination raises a validation error.
+
+    Use this model wherever a resource identity must be well-scoped;
+    :class:`GrantRequest` and the other write-request models require it.
+    Use the permissive :class:`ResourceObject` base where an identity may
+    legitimately be unscoped. See :meth:`AuthorizationClient._build_resource`
+    for why the two are kept distinct.
+    """
+
     @model_validator(mode="after")
-    def check_parent_fields(self) -> "ResourceObject":
+    def check_parent_fields(self) -> "ScopedResourceObject":
         """Validate the parent-field combination against the resource type.
 
         Which parent fields (``study``, ``center``, ``community``) a
@@ -280,29 +318,10 @@ class ResourceObject(BaseModel):
 
         return self
 
-    def request_dump(self) -> dict[str, Any]:
-        """Serialize this resource for a request body.
 
-        Uses API aliases, omits unset optional fields, and always
-        excludes the server-owned ``flat_id`` handle so it never appears
-        in a request payload.
-
-        Note:
-            ``exclude_none=True`` means a field set explicitly to ``None``
-            and a field left unset serialize identically — both are
-            omitted. For identity fields (``name`` and the parent fields
-            ``study``/``center``/``community``) this is intended: absence
-            and an explicit ``None`` carry the same "this parent does not
-            apply" meaning, and the API treats a missing parent field the
-            same as a null one. Do not rely on emitting an explicit
-            ``null`` for any field through this method.
-        """
-        return self.model_dump(by_alias=True, exclude_none=True, exclude={"flat_id"})
-
-
-# The write-request models above reference ``ResourceObject`` as a forward
-# reference (it is defined here, after them). Resolve those references now
-# that ``ResourceObject`` exists in the module namespace.
+# The write-request models above reference ``ScopedResourceObject`` as a
+# forward reference (it is defined here, after them). Resolve those
+# references now that both classes exist in the module namespace.
 GrantRequest.model_rebuild()
 RevokeRequest.model_rebuild()
 BatchOperationModel.model_rebuild()
@@ -656,7 +675,7 @@ class PermissionCheckRequest(BaseModel):
 
     user_id: str = Field(alias="userId")
     relation: str
-    resource: "ResourceObject"
+    resource: "ScopedResourceObject"
 
     def request_body(self) -> bytes:
         """Serialize this request to a JSON-encoded body.

@@ -183,6 +183,69 @@ class TestGetUserPermissions:
         assert entry.resource.center == "center-1"
         assert entry.relation == "submitter"
 
+    def test_parses_parentless_dashboard_and_page_resources(self) -> None:
+        """Verify a present ``resource`` with no parent fields still parses.
+
+        Regression for the auth-sync failure: the API's permissions
+        response may carry a structured ``resource`` whose parent fields
+        (``study``/``center``/``community``) are all absent — the
+        documented catalog-gap fallback (``PermissionEntry.resource`` in
+        the OpenAPI spec, "may be a fallback ... no parent fields"). The
+        response ``ResourceObject`` is lenient and must accept it; the
+        per-type parent-combination rule is a request-side invariant on
+        ``ScopedResourceObject`` only. Before the scoped/lenient split,
+        the ``dashboard``/``page`` entries below failed validation and
+        made the whole ``UserPermissions`` response unparseable, so no
+        user's authorizations synced.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "Registry101346@naccdata.org",
+                "permissions": {
+                    "dashboard": [
+                        {
+                            "resource": {
+                                "type": "dashboard",
+                                "label": "dashboard-reports-adrc",
+                            },
+                            "relation": "viewer",
+                        }
+                    ],
+                    "page": [
+                        {
+                            "resource": {
+                                "type": "page",
+                                "label": "page-community-resources",
+                            },
+                            "relation": "viewer",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="Registry101346@naccdata.org", type_filter="dashboard"
+        )
+
+        dashboard_entry = result.permissions["dashboard"][0]
+        assert dashboard_entry.resource is not None
+        assert dashboard_entry.resource.type == "dashboard"
+        assert dashboard_entry.resource.label == "dashboard-reports-adrc"
+        assert dashboard_entry.resource.study is None
+        assert dashboard_entry.resource.center is None
+        assert dashboard_entry.resource.community is None
+
+        page_entry = result.permissions["page"][0]
+        assert page_entry.resource is not None
+        assert page_entry.resource.type == "page"
+        assert page_entry.resource.label == "page-community-resources"
+        assert page_entry.resource.study is None
+        assert page_entry.resource.center is None
+        assert page_entry.resource.community is None
+
     def test_absent_resource_yields_no_identity(self) -> None:
         """Verify an entry without a ``resource`` parses with no identity.
 
