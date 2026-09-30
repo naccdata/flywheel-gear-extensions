@@ -2,6 +2,11 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.4
+
+* Updates `nacc-attribute-deriver` to `2.5.1` - fixes UDSv4 `FTLD`, `CDOMMEM`, `CDOMATTN` and `OTHCILLIF` falling back to -4 (DED matrix key mismatches), UDSv4 `NACCALZP` and `NACCETPR` values, follow-up `GEN*`/`SEXORN*` checkboxes inheriting boxes from the previous visit, and V1-3 `TOBAC30` being overwritten by the V4 `TOBAC100` gate
+* Derived values change for the variables listed above, so curation needs to be re-run over already-curated files to pick them up
+
 ## 1.4.3
 
 * Updates `nacc-attribute-deriver` to `2.5.0` - adds `NACCNIHR` and `NACCEDULVL` as quasi-cross-sectional, fixes `NACCLANGX` never resolving for V1-3, stops V4 packets overwriting known cross-sectional values with unknowns, fills NP gate sub-values when the gate is 0, and a round of falsy-zero and UDSv4 diagnosis bugfixes
