@@ -125,7 +125,9 @@ class TestExistingVisitPassedQC:
         visit_file = create_visit_file(forms_json=STORED_VISIT, qc=PASS_QC)
         harness = create_rejection_harness(visit_file=visit_file)
 
-        def fail_with_error(*, input_record, line_num, ivp_record=None):
+        def fail_with_error(
+            *, input_record, line_num, ivp_record=None, batch_records=None
+        ):
             harness.visitor._CSVTransformVisitor__error_writer.write(  # noqa: SLF001
                 FileError(
                     error_type="error",  # pyright: ignore[reportCallIssue]
