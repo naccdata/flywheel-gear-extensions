@@ -125,3 +125,76 @@ data=["error 1", "error 2"]
 data=[{"type": "error", "code": "system-error", "message": "..."}]
 data=None
 ```
+
+## Error Handling: `-FAIL` tag / QC `FAIL` vs. `GearExecutionError`
+
+Gears must distinguish a **per-item data problem** from a **whole-gear failure**,
+because the two mean different things to the pipeline and to the Flywheel job
+state.
+
+### The convention
+
+- **Per-item data problem** — a record, file, subject, or session whose data is
+  bad or unresolvable (e.g. no unique `record_id` can be determined, conflicting
+  information between sources, unexpected or missing field values). Record the
+  failure as a signal and let the gear **exit normally (exit 0)**:
+  - write a QC result with `state="FAIL"` (see the QC Result Structure above), and/or
+  - apply the `<gear_name>-FAIL` tag.
+
+  This says "the gear ran as expected; this item's data is in a failed state."
+  The gear should stop processing that item and move on (or return), not raise.
+
+- **Whole-gear / precondition / infrastructure failure** — the gear cannot run
+  as intended (e.g. a required input file is missing, config can't be parsed,
+  the destination container isn't the expected type, an external service or API
+  call fails, a required project/metadata value is absent). Raise
+  `GearExecutionError`.
+
+  The shared engine in `common/src/python/gear_execution/gear_execution.py`
+  catches `GearExecutionError` and calls `sys.exit(1)`, which fails the Flywheel
+  **job**. A failed job should mean "the gear could not run," not "the gear ran
+  and found the data bad."
+
+### Why
+
+Downstream gears (`form-scheduler`, `form-qc-coordinator`,
+`pipeline-event-logger`) key off the `-PASS`/`-FAIL` tag and the QC `state`,
+read via Flywheel search filters — **not** off the producing job's exit code. A
+gear that tags `-FAIL` and exits 0 is fully visible to the pipeline and the
+Flywheel UI. Raising additionally marks the job failed, which is misleading
+noise when the data condition was expected and already captured by the tag/QC
+state. Failed sessions are discoverable from the `-FAIL` tag; a failed job is
+not required to surface them.
+
+### Reference implementations
+
+- `form_qc_checker` — writes `validation` QC `PASS`/`FAIL` + tag, exits 0 on bad
+  data; raises `GearExecutionError` only for setup problems (missing input,
+  unreadable config, inaccessible S3).
+- `identifier_lookup` — unexpected values / unresolvable IDs write an error and
+  return `False` (no raise); raises only when the identifier *service* errors.
+- `image_identifier_lookup` — data lookup failures set `success = False`
+  (no raise); missing project metadata / PTID raise `GearExecutionError`.
+
+### What not to do
+
+```python
+# ❌ Don't tag -FAIL AND raise for an ordinary data condition
+def tag_fail(session, msg) -> NoReturn:
+    session.add_tag(f"{gear_name}-FAIL")
+    raise GearExecutionError(msg)   # fails the job for a data problem
+
+# ✅ Do tag / record QC FAIL and return for a data condition
+def tag_fail(session, msg) -> None:
+    session.add_tag(f"{gear_name}-FAIL")
+    log.warning(msg)
+    # caller stops processing this item and continues / returns
+
+# ✅ Do raise only for genuine preconditions / infrastructure
+if destination_type != "session":
+    raise GearExecutionError(f"Expected a session, given {destination_type}")
+```
+
+Prefer the shared `nacc_common.error_models.GearTags` helper for tag management
+(it manipulates tags only and never raises) and `add_qc_result(..., state=...)`
+for the QC state, so every gear emits the same signals the pipeline reads.
