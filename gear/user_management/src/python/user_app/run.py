@@ -26,7 +26,6 @@ from inputs.yaml import YAMLReadError, load_from_stream
 from notifications.email import EmailClient, EmailSendError, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
-from user_app.main import run
 from users.authorizations import AuthMap
 from users.csv_export import export_errors_to_csv
 from users.domain_config import (
@@ -44,6 +43,8 @@ from users.user_processes import (
     UserQueue,
 )
 from users.user_registry import RegistryError, UserRegistry
+
+from user_app.main import run
 
 log = logging.getLogger(__name__)
 
