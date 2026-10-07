@@ -8,7 +8,6 @@ from typing import NoReturn, Optional
 
 from flywheel.models.container_output import ContainerOutput
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from gear_execution.gear_execution import GearExecutionError
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_project import REDCapProject
 from redcap_imaging_forms.image_submission_form import ImageSubmissionForm
@@ -32,24 +31,22 @@ def tag_pass(session: ContainerOutput) -> None:
         session.add_tag(pass_tag)
 
 
-def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> NoReturn:
-    """Handles gear-related tagging upon failure and raises an error.
+def tag_fail(dry_run: bool, session: ContainerOutput | None, msg: str) -> NoReturn:
+    """Handles gear-related tagging upon failure and exits.
 
     Args:
         dry_run: flag for dry run (data collected but no modifications)
         session: target Flywheel session
         msg: string that describes the failure reason
-
-    Raises:
-        GearExecutionError because the gear has failed
     """
 
-    if not dry_run:
+    if not dry_run and session is not None:
         if pass_tag in session.tags:
             session.delete_tag(pass_tag)
         if fail_tag not in session.tags:
             session.add_tag(fail_tag)
-    raise GearExecutionError(msg)
+    log.error(msg)
+    exit(1)
 
 
 def get_record_id_suffix(session: ContainerOutput, proxy: FlywheelProxy) -> int:
@@ -205,7 +202,8 @@ def ensure_record_id_is_unique(
 def generate_unique_record_id(
     dry_run: bool, session: ContainerOutput, proxy: FlywheelProxy, adcid: int
 ) -> Optional[str]:
-    """Generates a unique REDCap record_id for the session.
+    """Generates a unique REDCap record_id for the session; exits if a unique
+    record_id cannot be secured.
 
     Args:
         dry_run: flag for dry run (data collected but no modifications)
@@ -215,9 +213,6 @@ def generate_unique_record_id(
 
     Returns:
         The unique record_id (confirmed if not a dry run)
-
-    Raises:
-        GearExecutionError if a unique record_id cannot be secured
     """
 
     record_id = compose_record_id(dry_run, adcid, session, proxy)
@@ -243,7 +238,8 @@ def import_new_record_for_session(
     session: ContainerOutput,
     proxy: FlywheelProxy,
 ) -> None:
-    """Imports the session's information into a new REDCap record.
+    """Imports the session's information into a new REDCap record; exits if a
+    unique record_id cannot be secured.
 
     Args:
         dry_run: flag for dry run (data collected but no modifications)
@@ -251,9 +247,6 @@ def import_new_record_for_session(
         session_info_to_import: dict-style information for REDCap form
         session: target Flywheel session
         proxy: FlywheelProxy to check for uniqueness of record_id on Flywheel
-
-    Raises:
-        GearExecutionError if a unique record_id cannot be secured
     """
 
     assert session_info_to_import.adcid is not None
@@ -286,6 +279,37 @@ def import_new_record_for_session(
         tag_fail(dry_run, session, "Unable to generate unique new record_id")
 
 
+def get_session_container(
+    dry_run: bool, session_id: str, proxy: FlywheelProxy
+) -> ContainerOutput:
+    """Finds the associated session for the gear run.
+
+    Args:
+        dry_run: flag for dry run (data collected but no modifications)
+        session_id: Flywheel ID for the session
+        proxy: the proxy for the Flywheel instance
+
+    Returns: the associated session container
+    """
+
+    session = proxy.get_container_by_id(session_id)
+    if session.container_type != "session":
+        if session.parents.get("project") is None:
+            tag_fail(dry_run, None, f"Expected session, not {session.container_type}")
+        log.info(f"Looking for session container in parent of {session.container_type}")
+        session = proxy.get_container_by_id(session.parents[0])
+        if session.container_type != "session":
+            log.info(
+                f"Looking for session container in parent of {session.container_type}"
+            )
+            session = proxy.get_container_by_id(session.parents[0])
+            if session.container_type != "session":
+                tag_fail(
+                    dry_run, None, f"Expected session, not {session.container_type}"
+                )
+    return session
+
+
 def run(
     *,
     dry_run: bool,
@@ -295,46 +319,36 @@ def run(
 ):
     """Runs the REDCap Image Form Creator process, collecting the available
     information from the uploaded image on Flywheel to be uploaded to the
-    REDCap image form.
+    REDCap image form; exits if critical information is not found or the new
+    record_id cannot be assigned.
 
     Args:
         dry_run: flag for dry run (data collected but no modifications)
         session_id: Flywheel ID for the session
         redcap_con: API connection to REDCap project
         proxy: the proxy for the Flywheel instance
-
-    Raises:
-        GearExecutionError if critical information is not found
-        or the new record_id cannot be assigned
     """
 
-    session = proxy.get_container_by_id(session_id)
-    if session.container_type != "session":
-        log.info(f"Looking for session container in parent of {session.container_type}")
-        session = proxy.get_container_by_id(session.parents[0])
-        if session.container_type != "session":
-            log.info(
-                f"Looking for session container in parent of {session.container_type}"
-            )
-            session = proxy.get_container_by_id(session.parents[0])
-            if session.container_type != "session":
-                raise GearExecutionError(
-                    f"Expected session, not {session.container_type}"
-                )
+    session = get_session_container(dry_run, session_id, proxy)
     if session.info.get("record_id"):
         log.info(f"Note previous record_id for session is {session.info['record_id']}")
 
     session_info_to_import = ImageSubmissionForm.from_session(session, proxy)
+    conflicts = session_info_to_import.get_conflicts()
+    if conflicts:
+        for field_name, reason in conflicts.items():
+            log.warning(f"conflict in {field_name}: {reason}")
     missing_fields = session_info_to_import.check_required_fields()
     if missing_fields:
         for field_name in missing_fields:
-            log.warning(f"Missing {field_name}")
+            log.warning(f"missing {field_name}")
+    if conflicts or missing_fields:
         tag_fail(
-            dry_run, session, f"Missing information for {session.label} ({session.id})"
+            dry_run,
+            session,
+            f"missing/conflicting information for {session.label} ({session.id})",
         )
 
     import_new_record_for_session(
         dry_run, redcap_con, session_info_to_import, session, proxy
     )
-
-    log.info("Completed run from main")

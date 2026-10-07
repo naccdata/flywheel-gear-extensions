@@ -1,5 +1,5 @@
 import logging
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Final, Optional
 
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
@@ -29,6 +29,10 @@ class ImageSubmissionForm(BaseModel):
     uploader_email: Optional[str] = None
     uploader_fullname: Optional[str] = None
     fw_mri_series: Optional[str] = None
+    fw_header: Optional[str] = None
+    fw_dicom: Optional[str] = None
+
+    __conflicts: dict[str, str]
 
     # keys are Flywheel's two-character modality
     # values are NACC's imagetype code
@@ -41,14 +45,31 @@ class ImageSubmissionForm(BaseModel):
     # values are DICOM tag names
     _pet_tag_for_variable: ClassVar[dict[str, str]] = {
         "emission_start_time": "AcquisitionTime",
+        "tracer": "Radiopharmaceutical",
         "tracer_dose_assay": "RadionuclideTotalDose",
         "tracer_inj_time": "RadiopharmaceuticalStartDateTime",
     }
 
     # PET-specific fields stored as extra data
     emission_start_time: Optional[str] = None
+    tracer: Optional[str] = None
     tracer_dose_assay: Optional[str] = None
     tracer_inj_time: Optional[str] = None
+
+    # PET-specific mapping to search for each allowed tracer code
+    # Keys have precedence and no key or list item should contain another
+    _pet_matches_for_code: Final[dict[str, list[str]]] = {
+        "FBB": ["Florbetaben"],
+        "FBP": ["Florbetapir"],
+        "FTP": ["Flortaucipir"],
+        "FDG": ["Fludeoxyglucose"],
+        "FLUTE": ["Flutemetamol"],
+        "GTP1": [],
+        "MK6240": [],
+        "NAV": ["NAV4694"],
+        "PI2620": [],
+        "PIB": ["Pittsburgh Compound B"],
+    }
 
     # Fields that must be present for a successful export
     required_fields: ClassVar[list[str]] = [
@@ -96,9 +117,28 @@ class ImageSubmissionForm(BaseModel):
                 missing.append(field_name)
         return missing
 
+    def get_conflicts(self) -> dict[str, str]:
+        """Returns the conflicts found during creation.
+
+        Returns:
+            a copy of the internal variable __conflicts
+        """
+        return self.__conflicts.copy()
+
+    def _add_conflict(self, field_name: str, conflict_reason: str):
+        """Incorporates the given conflict into any existing conflicts.
+
+        Args:
+            field_name: the field to set
+            conflict_reason: an explanation for the conflict
+        """
+        if field_name in self.__conflicts:
+            self.__conflicts[field_name] += "; " + conflict_reason
+        else:
+            self.__conflicts[field_name] = conflict_reason
+
     def _set_or_agree(
         self,
-        conflicts: dict[str, str],
         field_name: str,
         value: Any,
         info_context: str,
@@ -107,7 +147,6 @@ class ImageSubmissionForm(BaseModel):
         conflicting value already present.
 
         Args:
-            conflicts: dict with field names as keys and conflict descriptions
             field_name: the field to set
             value: value to assign
             info_context: describes the source for conflict messages
@@ -116,14 +155,11 @@ class ImageSubmissionForm(BaseModel):
         if current is None:
             setattr(self, field_name, value)
         elif current != value:
-            conflict_str = (
-                f'; Expected "{current}" not "{value}" '
-                f"for {field_name} from {info_context}"
+            self._add_conflict(
+                field_name,
+                f'; Expected "{current}" not "{value}" for {field_name} '
+                f"from {info_context}",
             )
-            if field_name in conflicts:
-                conflicts[field_name] += "; " + conflict_str
-            else:
-                conflicts[field_name] = conflict_str
 
     def _find_flywheel_origin_user_id(
         self, flywheel_obj, proxy: FlywheelProxy
@@ -160,6 +196,10 @@ class ImageSubmissionForm(BaseModel):
             file: target file from Flywheel
             fw_mri_series: list to store classifications for MRI series
         """
+        if "SeriesDescription" in file.info["header"]["dicom"]:
+            series_description = file.info["header"]["dicom"]["SeriesDescription"]
+        else:
+            series_description = "no_SeriesDescription_available"
         if file.get("classification"):
             classifications = []
             for classification_key in ["Measurement", "Intent"]:
@@ -172,24 +212,69 @@ class ImageSubmissionForm(BaseModel):
                     )
             if classifications:
                 fw_mri_series.append(
-                    ",".join(classifications)
-                    + ":"
-                    + file.info["header"]["dicom"]["SeriesDescription"]
+                    ",".join(classifications) + ":" + series_description
                 )
             else:
-                fw_mri_series.append(
-                    "no_classification_elements:"
-                    + file.info["header"]["dicom"]["SeriesDescription"]
-                )
+                fw_mri_series.append("no_classification_elements:" + series_description)
         else:
-            fw_mri_series.append(
-                "no_classification:" + file.info["header"]["dicom"]["SeriesDescription"]
-            )
+            fw_mri_series.append("no_classification:" + series_description)
+
+    def _sanitize_tracer(self) -> None:
+        """Maps the given tracer to an allowable value for REDCap."""
+        if self.tracer is not None:
+            # matching a key gets precedence
+            for redcap_code in self._pet_matches_for_code:
+                if redcap_code.lower() in self.tracer.lower():
+                    self.tracer = redcap_code
+                    return
+            # if no key, inspect any associated list of terms
+            for redcap_code, possible_match_list in self._pet_matches_for_code.items():
+                for possible_match in possible_match_list:
+                    if possible_match.lower() in self.tracer.lower():
+                        self.tracer = redcap_code
+                        return
+        self.tracer = "Unknown"
+
+    def _inspect_pet(self, pet_file: FileEntry) -> None:
+        """Inspects file for PET-specific information.
+
+        Args:
+            pet_file: PET file to inspect
+        """
+        for pet_var, pet_tag in self._pet_tag_for_variable.items():
+            if pet_tag in pet_file.info["header"]["dicom"]:
+                variable_value = pet_file.info["header"]["dicom"][pet_tag]
+                if pet_var.endswith("_time"):
+                    variable_value = variable_value.split(".")[0]
+                    variable_value = (
+                        variable_value[:2]
+                        + ":"
+                        + variable_value[2:4]
+                        + ":"
+                        + variable_value[4:6]
+                    )
+                self._set_or_agree(
+                    pet_var,
+                    variable_value,
+                    f"file.info['header']['dicom']['{pet_var}'] in {pet_file.name}",
+                )
+        if self.tracer is None:
+            ris = "RadiopharmaceuticalInformationSequence"
+            if ris in pet_file.info["header"]["dicom"]:
+                for ri_dict in pet_file.info["header"]["dicom"][ris]:
+                    if "Radiopharmaceutical" in ri_dict:
+                        self._set_or_agree(
+                            "tracer",
+                            ri_dict["Radiopharmaceutical"],
+                            "file.info['header']['dicom']"
+                            f"['{ris}']...['Radiopharmaceutical']"
+                            f" in {pet_file.name}",
+                        )
+        self._sanitize_tracer()
 
     def _inspect_acquisition(
         self,
         fw_mri_series: list[str],
-        conflicts: dict[str, str],
         acq: Acquisition,
         proxy: FlywheelProxy,
     ) -> None:
@@ -197,7 +282,6 @@ class ImageSubmissionForm(BaseModel):
 
         Args:
             fw_mri_series: list of classifications for MRI series
-            conflicts: dict tracking field conflicts
             acq: target Flywheel acquisition
             proxy: the proxy for the Flywheel instance
         """
@@ -207,48 +291,48 @@ class ImageSubmissionForm(BaseModel):
             user_id = self._find_flywheel_origin_user_id(reloaded_file, proxy)
             if user_id is not None:
                 self._set_or_agree(
-                    conflicts,
                     "uploader_email",
                     user_id,
                     f"origin['id'] in {reloaded_file.name}",
                 )
-            self._set_or_agree(
-                conflicts,
-                "imagetype",
-                self._imagetype_from_modality[reloaded_file.modality],
-                f"file.modality in {reloaded_file.name}",
-            )
+            if reloaded_file.modality is None:
+                self._add_conflict(
+                    "imagetype",
+                    f"interprettable modality missing from {reloaded_file.name}",
+                )
+            elif reloaded_file.modality not in self._imagetype_from_modality:
+                self._add_conflict(
+                    "imagetype",
+                    f'unrecognized modality "{reloaded_file.modality}" '
+                    f"from {reloaded_file.name}",
+                )
+            else:
+                self._set_or_agree(
+                    "imagetype",
+                    self._imagetype_from_modality[reloaded_file.modality],
+                    f"file.modality in {reloaded_file.name}",
+                )
+            if "header" not in reloaded_file.info:
+                self._add_conflict(
+                    "fw_header", f'"header" missing from {reloaded_file.name}'
+                )
+                return
+            if "dicom" not in reloaded_file.info["header"]:
+                self._add_conflict(
+                    "fw_dicom", f'"dicom" missing from {reloaded_file.name}["header"]'
+                )
+                return
             if "StudyDate" in reloaded_file.info["header"]["dicom"]:
                 studydt = reloaded_file.info["header"]["dicom"]["StudyDate"]
                 studydt = studydt[:4] + "-" + studydt[4:6] + "-" + studydt[6:]
                 self._set_or_agree(
-                    conflicts,
                     "scandt",
                     studydt,
                     "file.info['header']['dicom']['StudyDate']"
                     f" in {reloaded_file.name}",
                 )
             if reloaded_file.modality == "PT":
-                for pet_var, pet_tag in self._pet_tag_for_variable.items():
-                    if pet_tag in reloaded_file.info["header"]["dicom"]:
-                        variable_value = reloaded_file.info["header"]["dicom"][pet_tag]
-                        if pet_var.endswith("_time"):
-                            variable_value = variable_value.split(".")[0]
-                            variable_value = (
-                                variable_value[:2]
-                                + ":"
-                                + variable_value[2:4]
-                                + ":"
-                                + variable_value[4:6]
-                            )
-                        self._set_or_agree(
-                            conflicts,
-                            pet_var,
-                            variable_value,
-                            "file.info['header']['dicom']"
-                            f"['{pet_var}']"
-                            f" in {reloaded_file.name}",
-                        )
+                self._inspect_pet(reloaded_file)
             elif reloaded_file.modality == "MR":
                 self._collect_classification(reloaded_file, fw_mri_series)
 
@@ -262,10 +346,10 @@ class ImageSubmissionForm(BaseModel):
             proxy: the proxy for the Flywheel instance
         """
         fw_mri_series: list[str] = []
-        conflicts: dict[str, str] = {}
+        self.__conflicts = {}
         for acq in session.acquisitions():
-            self._inspect_acquisition(fw_mri_series, conflicts, acq, proxy)
-        for field_name, reason in conflicts.items():
+            self._inspect_acquisition(fw_mri_series, acq, proxy)
+        for field_name, reason in self.__conflicts.items():
             log.warning(f"{field_name}: {reason}")
             # Setting to None causes check_required_fields() to flag
             # this field as missing, which fails the gear with a clear
