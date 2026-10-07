@@ -139,3 +139,6 @@ dmypy.json
 
 /scratch
 /semantic-review
+
+# Agent workflow artifacts (reports, plans, review verdicts)
+/.agents
