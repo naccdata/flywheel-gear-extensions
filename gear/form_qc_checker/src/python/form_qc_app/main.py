@@ -24,7 +24,6 @@ from gear_execution.gear_execution import (
 )
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.error_models import FileErrorList, GearTags
-from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from nacc_form_validator.quality_check import (
     QualityCheck,
     QualityCheckException,
@@ -72,8 +71,10 @@ def update_input_file_qc_status(
         data=errors.model_dump(by_alias=True) if errors is not None else None,
     )
 
-    # set/update the validation timestamp in file.info
-    timestamp = (datetime.now(timezone.utc)).strftime(DEFAULT_DATE_TIME_FORMAT)
+    # Set/update the validation timestamp in file.info.
+    # Written as a datetime, serialized to ISO 8601 with an offset by the
+    # Flywheel metadata encoder. Readers must use form_dates.parse_timestamp.
+    timestamp = datetime.now(timezone.utc)
     gear_context.metadata.update_file_metadata(
         input_wrapper.file_input,
         container_type=gear_context.config.destination["type"],

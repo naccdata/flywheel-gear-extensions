@@ -59,6 +59,15 @@ class TestParseTimestamp:
         """A bare ISO date is valid input and resolves to midnight UTC."""
         assert parse_timestamp(value) == datetime(2026, 10, 7, tzinfo=timezone.utc)
 
+    @pytest.mark.parametrize("value", [1791392, True, {"$date": 1}, ["2026-10-07"]])
+    def test_non_string_returns_none(self, value):
+        """DataView columns are untyped JSON, so a non-string must not raise.
+
+        The callers treat None as "cannot tell" and carry on; an
+        exception here would take down the gear.
+        """
+        assert parse_timestamp(value) is None
+
     def test_result_is_timezone_aware(self):
         """Both input formats yield aware datetimes, never naive ones."""
         for value in ["2026-10-07 16:45:51", "2026-10-07T16:51:59+00:00"]:

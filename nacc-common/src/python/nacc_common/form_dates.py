@@ -52,7 +52,9 @@ def parse_timestamp(timestamp: Optional[str]) -> Optional[datetime]:
     in-repo writer.
 
     Args:
-        timestamp: a timestamp as a string
+        timestamp: a timestamp as a string. Values read from Flywheel
+            DataView columns are untyped JSON, so a non-string is handled
+            rather than raising.
 
     Returns:
         The timestamp as a UTC datetime, or None if the value is missing or
@@ -64,7 +66,7 @@ def parse_timestamp(timestamp: Optional[str]) -> Optional[datetime]:
 
     try:
         datetime_obj = datetime.fromisoformat(timestamp.strip())
-    except (ValueError, TypeError):
+    except (AttributeError, ValueError, TypeError):
         log.warning("Cannot parse timestamp %s", timestamp)
         return None
 
