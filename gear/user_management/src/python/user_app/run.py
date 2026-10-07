@@ -26,6 +26,7 @@ from inputs.yaml import YAMLReadError, load_from_stream
 from notifications.email import EmailClient, EmailSendError, create_ses_client
 from pydantic import ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
+from user_app.main import run
 from users.authorizations import AuthMap
 from users.csv_export import export_errors_to_csv
 from users.domain_config import (
@@ -43,8 +44,6 @@ from users.user_processes import (
     UserQueue,
 )
 from users.user_registry import RegistryError, UserRegistry
-
-from user_app.main import run
 
 log = logging.getLogger(__name__)
 
@@ -68,6 +67,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         domain_config_filepath: Optional[Path] = None,
         parameter_store: Optional[ParameterStore] = None,
         authorization_path: Optional[str] = None,
+        send_error_emails: bool = True,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -83,6 +83,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self.__domain_config_filepath = domain_config_filepath
         self.__parameter_store = parameter_store
         self.__authorization_path = authorization_path
+        self.__send_error_emails = send_error_emails
 
     @classmethod
     def create(
@@ -160,6 +161,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             domain_config_filepath=domain_config_filepath,
             parameter_store=parameter_store,
             authorization_path=context.config.opts.get("authorization_path"),
+            send_error_emails=context.config.opts.get("send_error_emails", True),
         )
 
     @staticmethod
@@ -382,6 +384,13 @@ class UserManagementVisitor(GearExecutionEnvironment):
             log.warning(
                 "Errors occurred but no support emails configured. "
                 "Skipping error notification."
+            )
+            return
+
+        if not self.__send_error_emails:
+            log.info(
+                "Error email notifications are disabled by config "
+                "(send_error_emails=false). Skipping error notification."
             )
             return
 
