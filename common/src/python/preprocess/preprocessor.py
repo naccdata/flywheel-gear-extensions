@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from configs.ingest_configs import (
     FormProjectConfigs,
@@ -32,6 +32,10 @@ from preprocess.preprocessor_helpers import (
 )
 
 log = logging.getLogger(__name__)
+
+# keys for the per-record cache of the existing visits for this module
+MODULE_VISITS_CACHE_KEY = "module_visits"
+LEGACY_VISITS_CACHE_KEY = "legacy_module_visits"
 
 
 class FormPreprocessor:
@@ -74,6 +78,15 @@ class FormPreprocessor:
             PreprocessingChecks.CLINICAL_FORMS: self._check_clinical_forms,
             PreprocessingChecks.NP_UDS_RESTRICTIONS: self._check_np_uds_restrictions,
             PreprocessingChecks.NP_MLST_RESTRICTIONS: self._check_np_mlst_restrictions,
+            # COVID specific checks, evaluated last.
+            # The forms check comes first, the other two compare the forms in
+            # the record and a packet with no forms is the more basic problem.
+            # The visit conflict check must come before the IVP check, an FVP
+            # submitted on the date of an existing IVP fails both and the
+            # packet code conflict is the more actionable of the two errors.
+            PreprocessingChecks.COVID_FORMS: self._check_covid_forms,
+            PreprocessingChecks.COVID_VISIT_CONFLICT: self._check_covid_visit_conflict,
+            PreprocessingChecks.COVID_IVP: self._check_covid_ivp,
         }
 
         # order the preprocessing checks defined for the module
@@ -133,6 +146,38 @@ class FormPreprocessor:
 
         return True
 
+    def __get_optional_forms(self, input_record: Dict[str, Any]) -> Optional[List[str]]:
+        """Returns the optional forms defined for the record version/packet.
+
+        Args:
+            input_record: input visit record
+
+        Returns:
+            List of optional form names, or None if not defined
+        """
+        module_configs = self.__module_configs
+        if not module_configs.optional_forms:
+            log.warning(
+                "Optional forms information not defined for module %s", self.__module
+            )
+            return None
+
+        version = str(float(input_record[FieldNames.FORMVER]))
+        packet = input_record[FieldNames.PACKET]
+        optional_forms = module_configs.optional_forms.get_optional_forms(
+            version=version, packet=packet
+        )
+
+        if not optional_forms:
+            log.warning(
+                "Optional forms information not available for %s/%s/%s",
+                self.__module,
+                version,
+                packet,
+            )
+
+        return optional_forms
+
     def _check_optional_forms_status(self, pp_context: PreprocessingContext) -> bool:
         """Validate whether the submission status filled for optional forms for
         the respective module/version/packet.
@@ -147,29 +192,11 @@ class FormPreprocessor:
         module_configs = self.__module_configs
         input_record = pp_context.input_record
 
-        if not module_configs.optional_forms:
-            log.warning(
-                "Optional forms information not defined for module %s",
-                self.__module,
-            )
-            return True
-
-        version = float(input_record[FieldNames.FORMVER])
-        packet = input_record[FieldNames.PACKET]
-
-        optional_forms = module_configs.optional_forms.get_optional_forms(
-            version=str(version), packet=packet
-        )
-
+        optional_forms = self.__get_optional_forms(input_record)
         if not optional_forms:
-            log.warning(
-                "Optional forms information not available for %s/%s/%s",
-                self.__module,
-                version,
-                packet,
-            )
             return True
 
+        packet = input_record[FieldNames.PACKET]
         visit_date = input_record.get(module_configs.date_field, "")
         release_configs = module_configs.release_dates
         found_all = True
@@ -1377,12 +1404,413 @@ class FormPreprocessor:
 
         return True
 
+    def __get_module_visits(
+        self, pp_context: PreprocessingContext
+    ) -> List[Dict[str, Any]]:
+        """Retrieve all the existing visits for this participant/module.
+
+        The result is cached on the preprocessing context, the COVID checks
+        each need the full list.
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            List of existing visits, in descending order of visit date
+        """
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        cached = pp_context.query_cache.get(MODULE_VISITS_CACHE_KEY)
+        if cached is not None:
+            return cached
+
+        # query_form_data sorts the result by the search column, so the search
+        # column has to be the date field for the order to be by visit date
+        visits = self.__forms_store.query_form_data(
+            subject_lbl=pp_context.subject_lbl,
+            module=self.__module,
+            legacy=False,
+            search_col=self.__module_configs.date_field,
+            extra_columns=[FieldNames.PACKET],
+            find_all=True,
+        )
+
+        visits = visits if visits else []
+        pp_context.query_cache[MODULE_VISITS_CACHE_KEY] = visits
+        return visits
+
+    def __get_legacy_module_visits(
+        self, pp_context: PreprocessingContext
+    ) -> List[Dict[str, Any]]:
+        """Retrieve the existing legacy visits for this participant/module.
+
+        The packet code is not requested, a dataview drops the rows that do not
+        have one of the requested columns and the legacy records are not
+        guaranteed to have a packet code.
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            List of existing legacy visits, in descending order of visit date
+        """
+        assert pp_context.subject_lbl, "pp_context.subject_lbl required"
+
+        cached = pp_context.query_cache.get(LEGACY_VISITS_CACHE_KEY)
+        if cached is not None:
+            return cached
+
+        module_configs = self.__module_configs
+        module = self.__module
+        date_field = module_configs.date_field
+        if module_configs.legacy_module:
+            module = module_configs.legacy_module.label
+            date_field = module_configs.legacy_module.date_field
+
+        visits = self.__forms_store.query_form_data(
+            subject_lbl=pp_context.subject_lbl,
+            module=module,
+            legacy=True,
+            search_col=date_field,
+            find_all=True,
+        )
+
+        visits = visits if visits else []
+
+        # normalize the date column so legacy and ingest visits can be compared
+        date_lbl = MetadataKeys.get_column_key(module_configs.date_field)
+        legacy_date_lbl = MetadataKeys.get_column_key(date_field)
+        if legacy_date_lbl != date_lbl:
+            for visit in visits:
+                visit[date_lbl] = visit[legacy_date_lbl]
+
+        pp_context.query_cache[LEGACY_VISITS_CACHE_KEY] = visits
+        return visits
+
+    def __is_form_submitted(self, record: Dict[str, Any], form: str) -> bool:
+        """Check whether an optional form was submitted with the given record.
+
+        Modules mark an optional form that was not submitted in one of two
+        ways, the module transformations drop the mode variable for the form,
+        or the mode variable is retained with the value 0. A mode variable
+        that is missing or blank is treated as not submitted, matching how the
+        submission status is evaluated for the QC checks.
+
+        Args:
+            record: visit record
+            form: optional form name
+
+        Returns:
+            bool: True if the form was submitted with the record
+        """
+        mode = str(record.get(f"{FieldNames.MODE}{form.lower()}", "")).strip()
+        if not mode:
+            return False
+
+        try:
+            return float(mode) != DefaultValues.NOTFILLED
+        except ValueError:
+            # an unexpected mode value is reported by the QC checks,
+            # only an explicit 0 means the form was not submitted
+            log.warning(
+                "Unexpected submission status %s for form %s in module %s",
+                mode,
+                form,
+                self.__module,
+            )
+            return True
+
+    def __get_submitted_forms(
+        self, record: Dict[str, Any], optional_forms: List[str]
+    ) -> Set[str]:
+        """Returns the optional forms submitted with the given record.
+
+        Args:
+            record: visit record
+            optional_forms: optional forms defined for the module/version/packet
+
+        Returns:
+            Set of submitted form names
+        """
+        return {
+            form for form in optional_forms if self.__is_form_submitted(record, form)
+        }
+
+    def __get_forms_for_visit(
+        self, visit_info: Dict[str, Any], optional_forms: List[str]
+    ) -> Set[str]:
+        """Returns the optional forms submitted with an existing visit.
+
+        Reads the visit file instead of the file metadata, a dataview that
+        selects a mode variable drops the visits that do not have it, which is
+        the set of visits these checks need to detect.
+
+        Args:
+            visit_info: info on the existing visit
+            optional_forms: optional forms defined for the module/version/packet
+
+        Raises:
+            PreprocessingException: if the visit file cannot be retrieved
+
+        Returns:
+            Set of submitted form names
+        """
+        file_name = visit_info["file.name"]
+        visit_data = self.__forms_store.get_visit_data(
+            file_name=file_name,
+            acq_id=visit_info["file.parents.acquisition"],
+        )
+
+        if not visit_data:
+            raise PreprocessingException(
+                f"Failed to retrieve existing visit {file_name}"
+            )
+
+        return self.__get_submitted_forms(visit_data, optional_forms)
+
+    def __check_forms_in_initial_visit(
+        self,
+        *,
+        pp_context: PreprocessingContext,
+        ivp_visits: List[Dict[str, Any]],
+        batch_ivps: List[Dict[str, Any]],
+    ) -> bool:
+        """Check each optional form submitted with a follow-up packet was also
+        submitted with at least one of the initial packets.
+
+        Args:
+            pp_context: preprocessing context
+            ivp_visits: existing initial packets, in descending visit date order
+            batch_ivps: initial packets accepted in the current batch
+
+        Returns:
+            bool: False if a form is not found in any of the initial packets
+        """
+        input_record = pp_context.input_record
+
+        optional_forms = self.__get_optional_forms(input_record)
+        if not optional_forms:
+            return True
+
+        submitted_forms = self.__get_submitted_forms(input_record, optional_forms)
+        if not submitted_forms:
+            return True
+
+        # forms submitted with this packet that are yet to be
+        # found in one of the initial packets
+        unmatched_forms = set(submitted_forms)
+
+        # records in the current batch are not uploaded yet, no file to read
+        for record in batch_ivps:
+            unmatched_forms -= self.__get_submitted_forms(record, optional_forms)
+            if not unmatched_forms:
+                return True
+
+        # latest initial packet first, most likely to have the same forms
+        for visit_info in ivp_visits:
+            unmatched_forms -= self.__get_forms_for_visit(visit_info, optional_forms)
+            if not unmatched_forms:
+                return True
+
+        self.__error_handler.write_preprocessing_error(
+            field="MODExx",
+            value="",
+            pp_context=pp_context,
+            error_code=SysErrorCodes.MISSING_IVP_FORMS,
+            extra_args=[sorted(unmatched_forms)],
+        )
+        return False
+
+    def _check_covid_forms(self, pp_context: PreprocessingContext) -> bool:
+        """Check at least one of the forms is submitted with the visit.
+
+        Every form is optional for COVID module, a packet that does not
+        include any of them has no data to validate.
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            bool: False if none of the optional forms were submitted
+        """
+        input_record = pp_context.input_record
+
+        optional_forms = self.__get_optional_forms(input_record)
+        if not optional_forms:
+            return True
+
+        if self.__get_submitted_forms(input_record, optional_forms):
+            return True
+
+        self.__error_handler.write_preprocessing_error(
+            field="MODExx",
+            value="",
+            pp_context=pp_context,
+            error_code=SysErrorCodes.COVID_FORMS_REQUIRED,
+            extra_args=[sorted(optional_forms)],
+        )
+        return False
+
+    def _check_covid_ivp(self, pp_context: PreprocessingContext) -> bool:
+        """Initial visit validations for a module that accepts more than one
+        initial visit packet for a participant.
+
+        A follow-up packet requires at least one existing initial packet, must
+        have a visit date after the latest initial packet, and cannot include
+        an optional form that none of the initial packets have. An initial
+        packet cannot have a visit date on or after an existing follow-up
+        packet.
+
+        Legacy visits are counted as initial packets, the legacy submissions
+        for these modules do not include follow-up packets.
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            bool: False if any of the validations fail
+        """
+        module_configs = self.__module_configs
+        input_record = pp_context.input_record
+
+        packet = input_record[FieldNames.PACKET]
+        initial_visit = packet in module_configs.initial_packets
+        followup_visit = packet in module_configs.followup_packets
+
+        # validity of the packet code is evaluated by the packet check
+        if not initial_visit and not followup_visit:
+            return True
+
+        date_field = module_configs.date_field
+        date_lbl = MetadataKeys.get_column_key(date_field)
+        packet_lbl = MetadataKeys.get_column_key(FieldNames.PACKET)
+        current_date = input_record[date_field]
+
+        visits = self.__get_module_visits(pp_context)
+        ivp_visits = [
+            visit
+            for visit in visits
+            if visit[packet_lbl] in module_configs.initial_packets
+        ]
+        # legacy submissions for these modules only have initial visit packets
+        ivp_visits.extend(self.__get_legacy_module_visits(pp_context))
+        ivp_visits.sort(key=lambda visit: visit[date_lbl], reverse=True)
+
+        batch_ivps = [
+            record
+            for record in pp_context.batch_records
+            if record[FieldNames.PACKET] in module_configs.initial_packets
+        ]
+
+        if initial_visit:
+            fvp_dates = [
+                visit[date_lbl]
+                for visit in visits
+                if visit[packet_lbl] in module_configs.followup_packets
+            ]
+            fvp_dates.extend(
+                record[date_field]
+                for record in pp_context.batch_records
+                if record[FieldNames.PACKET] in module_configs.followup_packets
+            )
+
+            if fvp_dates and min(fvp_dates) <= current_date:
+                self.__error_handler.write_date_error(
+                    pp_context=pp_context,
+                    error_code=SysErrorCodes.HIGHER_IVP_VISITDATE,
+                )
+                return False
+
+            return True
+
+        ivp_dates = [visit[date_lbl] for visit in ivp_visits]
+        ivp_dates.extend(record[date_field] for record in batch_ivps)
+
+        if not ivp_dates:
+            self.__error_handler.write_packet_error(
+                pp_context=pp_context, error_code=SysErrorCodes.MISSING_IVP
+            )
+            return False
+
+        if max(ivp_dates) >= current_date:
+            self.__error_handler.write_date_error(
+                pp_context=pp_context, error_code=SysErrorCodes.LOWER_FVP_VISITDATE
+            )
+            return False
+
+        return self.__check_forms_in_initial_visit(
+            pp_context=pp_context, ivp_visits=ivp_visits, batch_ivps=batch_ivps
+        )
+
+    def _check_covid_visit_conflict(self, pp_context: PreprocessingContext) -> bool:
+        """Check for an existing visit with the same visit date that is not an
+        update of the record being submitted.
+
+        The packet code is not part of the acquisition file name for these
+        modules, so a visit submitted with a different packet code for the same
+        visit date would silently replace the existing visit file.
+
+        Note: two records with the same visit date within the same batch are
+        reported as duplicates before the pre-processing checks are evaluated.
+
+        Args:
+            pp_context: preprocessing context
+
+        Returns:
+            bool: False if a conflicting visit found
+        """
+        module_configs = self.__module_configs
+        input_record = pp_context.input_record
+
+        date_field = module_configs.date_field
+        date_lbl = MetadataKeys.get_column_key(date_field)
+        packet_lbl = MetadataKeys.get_column_key(FieldNames.PACKET)
+        packet = input_record[FieldNames.PACKET]
+
+        visits = self.__get_module_visits(pp_context)
+        date_matches = [
+            visit for visit in visits if visit[date_lbl] == input_record[date_field]
+        ]
+
+        if not date_matches:
+            return True
+
+        for visit_info in date_matches:
+            existing_packet = visit_info[packet_lbl]
+            if existing_packet != packet:
+                self.__error_handler.write_packet_error(
+                    pp_context=pp_context,
+                    error_code=SysErrorCodes.DIFF_PACKET,
+                    extra_args=[existing_packet],
+                )
+                return False
+
+        optional_forms = self.__get_optional_forms(input_record)
+        if not optional_forms:
+            return True
+
+        current_forms = self.__get_submitted_forms(input_record, optional_forms)
+        for visit_info in date_matches:
+            previous_forms = self.__get_forms_for_visit(visit_info, optional_forms)
+            # adding a form to an existing visit is an update,
+            # dropping a form that was submitted before is not
+            if previous_forms - current_forms:
+                self.__error_handler.write_date_error(
+                    pp_context=pp_context,
+                    error_code=SysErrorCodes.COVID_FORM_CONFLICT,
+                    extra_args=[sorted(previous_forms), sorted(current_forms)],
+                )
+                return False
+
+        return True
+
     def preprocess(
         self,
         *,
         input_record: Dict[str, Any],
         line_num: int,
         ivp_record: Optional[Dict[str, Any]] = None,
+        batch_records: Optional[List[Dict[str, Any]]] = None,
     ) -> bool:
         """Run pre-processing checks for the input record.
 
@@ -1390,6 +1818,8 @@ class FormPreprocessor:
             input_record: input visit record
             line_num: line number in CSV file
             ivp_record (optional): IVP packet, if found in current batch, else None
+            batch_records (optional): visits accepted earlier in the current batch,
+                in ascending order of visit date
 
         Returns:
             bool: True, if input record pass the pre-processing checks
@@ -1412,6 +1842,7 @@ class FormPreprocessor:
             input_record=input_record,
             line_num=line_num,
             ivp_record=ivp_record,
+            batch_records=batch_records if batch_records else [],
         )
 
         # execute the pre-processing checks defined for the module
