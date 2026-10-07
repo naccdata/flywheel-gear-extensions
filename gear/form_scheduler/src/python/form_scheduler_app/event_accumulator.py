@@ -15,11 +15,13 @@ from event_capture.visit_events import (
 from event_capture.visit_extractor import DataIdentificationExtractor
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from keys.keys import MetadataKeys
 from nacc_common.error_models import (
     QC_STATUS_PASS,
     DataIdentification,
     FileQCModel,
 )
+from nacc_common.form_dates import parse_timestamp
 from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
@@ -206,8 +208,10 @@ class EventAccumulator:
                 return
 
             # Create and log QC-pass event
-            timestamp = (
-                json_file.info.get("validated-timestamp") if json_file.info else None
+            timestamp = parse_timestamp(
+                json_file.info.get(MetadataKeys.VALIDATED_TIMESTAMP)
+                if json_file.info
+                else None
             )
             visit_event = create_visit_event(
                 action=ACTION_PASS_QC,
