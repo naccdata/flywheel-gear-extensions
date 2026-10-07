@@ -68,6 +68,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         domain_config_filepath: Optional[Path] = None,
         parameter_store: Optional[ParameterStore] = None,
         authorization_path: Optional[str] = None,
+        send_error_emails: bool = True,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -83,6 +84,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
         self.__domain_config_filepath = domain_config_filepath
         self.__parameter_store = parameter_store
         self.__authorization_path = authorization_path
+        self.__send_error_emails = send_error_emails
 
     @classmethod
     def create(
@@ -160,6 +162,7 @@ class UserManagementVisitor(GearExecutionEnvironment):
             domain_config_filepath=domain_config_filepath,
             parameter_store=parameter_store,
             authorization_path=context.config.opts.get("authorization_path"),
+            send_error_emails=context.config.opts.get("send_error_emails", True),
         )
 
     @staticmethod
@@ -382,6 +385,13 @@ class UserManagementVisitor(GearExecutionEnvironment):
             log.warning(
                 "Errors occurred but no support emails configured. "
                 "Skipping error notification."
+            )
+            return
+
+        if not self.__send_error_emails:
+            log.info(
+                "Error email notifications are disabled by config "
+                "(send_error_emails=false). Skipping error notification."
             )
             return
 

@@ -102,6 +102,11 @@
       "description": "Parameter path for the Authorization API endpoint URL",
       "type": "string",
       "default": "/production/authorization/api-endpoint"
+    },
+    "send_error_emails": {
+      "description": "Whether to send email notifications when errors occur during the gear run",
+      "type": "boolean",
+      "default": true
     }
   },
   "command": "/bin/run"
