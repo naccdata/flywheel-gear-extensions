@@ -2,6 +2,13 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.6.0
+
+* Adds `send_error_emails` config option to control error email notifications
+  * Defaults to `true`, preserving existing behavior
+  * When set to `false`, the gear skips sending the error notification email while still exporting the error CSV and uploading it to the Flywheel project
+  * Does not affect the REDCap-disable notification email, which remains independent
+
 ## 4.5.2
 
 * Fixes authorization sync failing to revoke a grant the permissions endpoint returns without structured scope
