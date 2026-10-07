@@ -37,6 +37,25 @@ gh api repos/{owner}/{repo}/pulls \
 - Creating with a placeholder body and editing after — same push delay applies
 - Using `--no-maintainer-edit` — does not skip the push
 
+## Logical Commits
+
+When splitting a batch of changes into logical commits, the groups must
+**partition** the changed set:
+
+- Every changed or untracked file lands in exactly one commit.
+- No file appears in two commits.
+- The union of all groups equals the full set of changes.
+
+Stage by explicit filename (never `git add -A` or `git add .`) so the partition
+is enforced deliberately. After the last commit, run `git status` and confirm
+the working tree is clean — a non-empty status means a file was missed and the
+groups did not partition the set. If groups appear to overlap, resolve the
+overlap by assigning each shared file to the single group where its change is
+most significant.
+
+Group by coherent concern (source vs. tests, one module vs. another, config/
+bookkeeping on its own) and keep commit messages concise and in imperative mood.
+
 ## Branch Conventions
 
 - Push to a new branch, never directly to main/master

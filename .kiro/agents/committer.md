@@ -4,13 +4,27 @@ tools:
   - read
   - shell
 permissions:
+  # Kiro resolves rules with a deny-overrides algorithm (deny > ask > allow);
+  # rule order and specificity do NOT matter. A catch-all `capability: shell`
+  # with `effect: deny` would therefore block the git commands too, since deny
+  # beats allow regardless of a more-specific match. To restrict this agent to
+  # git only, we allow the read-only git commands, ask before add/commit, and
+  # let every other shell command fall through to an explicit catch-all `ask`
+  # (never a catch-all `deny`).
   rules:
     - capability: shell
       match:
+        - "git status"
         - "git status *"
+        - "git diff"
         - "git diff *"
+        - "git log"
         - "git log *"
+        - "git show"
         - "git show *"
+        - "git branch"
+        - "git branch --show-current"
+        - "git rev-parse *"
       effect: allow
     - capability: shell
       match:
@@ -18,7 +32,7 @@ permissions:
         - "git commit *"
       effect: ask
     - capability: shell
-      effect: deny
+      effect: ask
 ---
 
 # Commit Grouping Agent

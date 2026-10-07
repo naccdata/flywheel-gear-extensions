@@ -16,7 +16,7 @@ permissions:
         - "git rev-parse *"
       effect: allow
     - capability: shell
-      effect: deny
+      effect: ask
     - capability: subagent
       match:
         - "semantic_reviewer"

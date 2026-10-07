@@ -83,7 +83,7 @@ class TestFactoryRetryConfiguration:
             client.grant(
                 user_id="u",
                 resource_type="study",
-                resource_id="r",
+                resource_label="r",
                 relation="member",
             )
 
@@ -124,7 +124,7 @@ class TestFactoryRetryConfiguration:
             client.grant(
                 user_id="u",
                 resource_type="study",
-                resource_id="r",
+                resource_label="r",
                 relation="member",
             )
 

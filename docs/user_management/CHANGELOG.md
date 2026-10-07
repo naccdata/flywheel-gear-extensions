@@ -2,6 +2,26 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.5.2
+
+* Fixes authorization sync failing to revoke a grant the permissions endpoint returns without structured scope
+  * The endpoint can return a current grant in a catalog-gap fallback shape (a resource with no study/center/community parents); the sync tried to rebuild a structured resource to revoke it, which the Authorization API rejects for resource types that require a parent, failing the whole batch
+  * Stale grants are now revoked by round-tripping the opaque `resourceId` handle the API returned (`type` + `resourceId`) instead of reconstructing a structured identity; new grants continue to be sent with a structured resource
+
+## 4.5.1
+
+* Fixes authorization sync failing to parse the permissions response when a resource has no parent scope
+  * The permissions endpoint may return a `dashboard` or `page` resource with its parent fields (study/center/community) all unset — the documented catalog-gap fallback used when the resource catalog cannot resolve them; the shared `common/authorization` client rejected that combination, making the whole `UserPermissions` response unparseable and failing sync for affected users
+  * Splits the resource model by role: response parsing uses a permissive `ResourceObject` that accepts an unscoped resource, while write requests use a `ScopedResourceObject` that still validates the parent-field combination locally before a request is sent
+
+## 4.5.0
+
+* Migrates the authorization client and authorization sync to a structured resource contract
+  * Grants and revokes now use a server-owned structured `ResourceObject` (flat resource ID plus label) instead of ad hoc `type:resource_id` strings, and sync is keyed on a structured identity
+  * Recognizes all model organization types in `ResourceObject`
+* Fixes general-scope page grants to be community-scoped so they are no longer over-revoked during center/general sync reconciliation
+* Dedupes grant request serialization and removes dead code so single-item and batch paths serialize grants identically
+
 ## 4.4.7
 
 * Fixes authorization sync revoking grants that belong to a scope other than the one being reconciled

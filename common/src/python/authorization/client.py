@@ -7,6 +7,8 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from pydantic import ValidationError as PydanticValidationError
+
 from authorization.exceptions import (
     NotFoundError,
     ParseError,
@@ -31,6 +33,7 @@ from authorization.models import (
     ResourceParents,
     RevokeRequest,
     RevokeResult,
+    ScopedResourceObject,
     SetParentsRequestModel,
     UpdateResourceRequest,
     UpdateResourceResponse,
@@ -119,39 +122,170 @@ class AuthorizationClient:
                 ),
             )
 
+    @staticmethod
+    def _build_resource(
+        resource_type: str,
+        resource_label: str,
+        center: str | None = None,
+        study: str | None = None,
+        community: str | None = None,
+    ) -> ScopedResourceObject:
+        """Build a structured resource for a write request.
+
+        Constructs a :class:`ScopedResourceObject` from the Structured
+        Identity (type, label, and applicable parent fields), validating
+        it before any HTTP call. A missing type, an empty label, or a
+        parent-field combination invalid for the type raises a
+        :class:`~pydantic.ValidationError` inside ``ScopedResourceObject``;
+        this method surfaces it as the client's own
+        :class:`~authorization.exceptions.ValidationError`, naming the
+        offending Structured Identity component, so no request is sent
+        (Requirement 1.7).
+
+        Why the scoped model here: a request is where an invalid scope
+        should be caught, before it reaches the API. Responses are parsed
+        with the permissive :class:`ResourceObject` base instead, because
+        the API may return a resource with unresolved (all-null) parent
+        fields — the catalog-gap fallback documented for
+        ``PermissionEntry.resource`` in ``openapi.yaml``. Validating that
+        fallback on the read path would make an otherwise-usable response
+        unparseable, so the scope rule is enforced only on the write path,
+        here.
+
+        Args:
+            resource_type: The type of resource.
+            resource_label: The resource label (identity core).
+            center: Optional center parent, if applicable to the type.
+            study: Optional study parent, if applicable to the type.
+            community: Optional community parent, if applicable to the
+                type.
+
+        Returns:
+            A validated ScopedResourceObject.
+
+        Raises:
+            ValidationError: If the Structured Identity is missing a
+                type, has an empty label, or carries an invalid
+                parent-field combination for the type.
+        """
+        try:
+            return ScopedResourceObject(
+                type=resource_type,
+                label=resource_label,
+                center=center,
+                study=study,
+                community=community,
+            )
+        except PydanticValidationError as exc:
+            raise ValidationError(
+                message=(
+                    "Invalid resource identity for "
+                    f"type={resource_type!r}, label={resource_label!r}: {exc}"
+                ),
+            ) from exc
+
+    def _build_batch_operation(self, op: BatchOperation) -> BatchOperationModel:
+        """Build a wire batch operation from a caller-facing one.
+
+        A ``revoke`` carrying an opaque ``resource_id`` is serialized as a
+        flat ``type`` + ``resourceId`` operation (round-tripping the
+        handle the API returned) with no structured resource built. Every
+        other operation carries a structured :class:`ScopedResourceObject`
+        built from the label and parent fields, so grants — and revokes of
+        a known structured identity — populate/validate scope as before.
+
+        Args:
+            op: The caller-facing batch operation.
+
+        Returns:
+            A wire :class:`BatchOperationModel` in the appropriate form.
+
+        Raises:
+            ValidationError: If a structured operation carries an invalid
+                resource identity (missing type/label or an invalid
+                parent-field combination).
+        """
+        if op.action == "revoke" and op.resource_id is not None:
+            return BatchOperationModel(
+                action=op.action,
+                user_id=op.user_id,
+                relation=op.relation,
+                resource_type=op.resource_type,
+                resource_id=op.resource_id,
+            )
+
+        if op.resource_label is None:
+            raise ValidationError(
+                message=(
+                    "Batch operation for type="
+                    f"{op.resource_type!r} requires either a resource_label "
+                    "(structured) or a resource_id (flat revoke)"
+                ),
+            )
+
+        return BatchOperationModel(
+            action=op.action,
+            user_id=op.user_id,
+            relation=op.relation,
+            resource=self._build_resource(
+                resource_type=op.resource_type,
+                resource_label=op.resource_label,
+                center=op.center,
+                study=op.study,
+                community=op.community,
+            ),
+        )
+
     def grant(
         self,
         user_id: str,
         resource_type: str,
-        resource_id: str,
+        resource_label: str,
         relation: str,
+        center: str | None = None,
+        study: str | None = None,
+        community: str | None = None,
     ) -> GrantResult:
         """Grant a user a relation on a resource.
 
-        Sends a POST request to /grants. Treats HTTP 409 (grant already
-        exists) as a successful idempotent outcome.
+        Sends a POST request to /grants with a structured ``resource``
+        carrying the Structured Identity (type, label, and applicable
+        parent fields). Treats HTTP 409 (grant already exists) as a
+        successful idempotent outcome.
 
         Args:
             user_id: The user identifier (e.g., ePPN).
             resource_type: The type of resource.
-            resource_id: The resource identifier.
+            resource_label: The resource label (identity core).
             relation: The relation to grant.
+            center: Optional center parent, if applicable to the type.
+            study: Optional study parent, if applicable to the type.
+            community: Optional community parent, if applicable to the
+                type.
 
         Returns:
             GrantResult containing the granted relationship details.
 
         Raises:
-            ValidationError: If the API returns 400.
+            ValidationError: If the Structured Identity is invalid
+                (missing type, empty label, or an invalid parent-field
+                combination) or the API returns 400.
             ServiceUnavailableError: If retries are exhausted on 503.
             UnexpectedError: On other unexpected HTTP errors.
         """
+        resource = self._build_resource(
+            resource_type=resource_type,
+            resource_label=resource_label,
+            center=center,
+            study=study,
+            community=community,
+        )
         request = GrantRequest(
             user_id=user_id,
             relation=relation,
-            type=resource_type,
-            resource_id=resource_id,
+            resource=resource,
         )
-        body = request.model_dump_json(by_alias=True).encode()
+        body = request.request_body()
 
         def do_request() -> HttpResponse:
             return self._transport.request(
@@ -164,10 +298,10 @@ class AuthorizationClient:
 
         if response.status_code in (200, 201):
             log.debug(
-                "Grant succeeded: user=%s, type=%s, resource=%s, relation=%s",
+                "Grant succeeded: user=%s, type=%s, label=%s, relation=%s",
                 user_id,
                 resource_type,
-                resource_id,
+                resource_label,
                 relation,
             )
             try:
@@ -181,17 +315,16 @@ class AuthorizationClient:
         if response.status_code == 409:
             log.debug(
                 "Grant already exists (idempotent): user=%s, type=%s, "
-                "resource=%s, relation=%s",
+                "label=%s, relation=%s",
                 user_id,
                 resource_type,
-                resource_id,
+                resource_label,
                 relation,
             )
             return GrantResult(
                 user_id=user_id,
                 relation=relation,
-                type=resource_type,
-                resource_id=resource_id,
+                resource=resource,
             )
 
         if response.status_code == 400:
@@ -221,35 +354,52 @@ class AuthorizationClient:
         self,
         user_id: str,
         resource_type: str,
-        resource_id: str,
+        resource_label: str,
         relation: str,
+        center: str | None = None,
+        study: str | None = None,
+        community: str | None = None,
     ) -> RevokeResult:
         """Revoke a user's relation on a resource.
 
-        Sends a DELETE request to /grants. Treats HTTP 404 (grant does
-        not exist) as a successful idempotent outcome.
+        Sends a DELETE request to /grants with a structured ``resource``
+        carrying the Structured Identity (type, label, and applicable
+        parent fields). Treats HTTP 404 (grant does not exist) as a
+        successful idempotent outcome.
 
         Args:
             user_id: The user identifier (e.g., ePPN).
             resource_type: The type of resource.
-            resource_id: The resource identifier.
+            resource_label: The resource label (identity core).
             relation: The relation to revoke.
+            center: Optional center parent, if applicable to the type.
+            study: Optional study parent, if applicable to the type.
+            community: Optional community parent, if applicable to the
+                type.
 
         Returns:
             RevokeResult containing the revoked relationship details.
 
         Raises:
-            ValidationError: If the API returns 400.
+            ValidationError: If the Structured Identity is invalid
+                (missing type, empty label, or an invalid parent-field
+                combination) or the API returns 400.
             ServiceUnavailableError: If retries are exhausted on 503.
             UnexpectedError: On other unexpected HTTP errors.
         """
+        resource = self._build_resource(
+            resource_type=resource_type,
+            resource_label=resource_label,
+            center=center,
+            study=study,
+            community=community,
+        )
         request = RevokeRequest(
             user_id=user_id,
             relation=relation,
-            type=resource_type,
-            resource_id=resource_id,
+            resource=resource,
         )
-        body = request.model_dump_json(by_alias=True).encode()
+        body = request.request_body()
 
         def do_request() -> HttpResponse:
             return self._transport.request(
@@ -262,10 +412,10 @@ class AuthorizationClient:
 
         if response.status_code == 200:
             log.debug(
-                "Revoke succeeded: user=%s, type=%s, resource=%s, relation=%s",
+                "Revoke succeeded: user=%s, type=%s, label=%s, relation=%s",
                 user_id,
                 resource_type,
-                resource_id,
+                resource_label,
                 relation,
             )
             try:
@@ -279,17 +429,16 @@ class AuthorizationClient:
         if response.status_code == 404:
             log.debug(
                 "Revoke target not found (idempotent): user=%s, type=%s, "
-                "resource=%s, relation=%s",
+                "label=%s, relation=%s",
                 user_id,
                 resource_type,
-                resource_id,
+                resource_label,
                 relation,
             )
             return RevokeResult(
                 user_id=user_id,
                 relation=relation,
-                type=resource_type,
-                resource_id=resource_id,
+                resource=resource,
             )
 
         if response.status_code == 400:
@@ -383,20 +532,16 @@ class AuthorizationClient:
         Returns:
             BatchResult for this chunk with classified outcomes.
         """
-        request_model = BatchRequestModel(
-            operations=[
-                BatchOperationModel(
-                    action=op.action,
-                    user_id=op.user_id,
-                    relation=op.relation,
-                    type=op.resource_type,
-                    resource_id=op.resource_id,
-                )
-                for op in chunk
-            ]
+        request = BatchRequestModel(
+            operations=[self._build_batch_operation(op) for op in chunk]
         )
 
-        body = request_model.model_dump_json(by_alias=True).encode()
+        # Serialize via BatchRequestModel.request_body, which routes each
+        # operation through the same shared payload builder as grant/revoke
+        # (structured resource via request_dump: no flat_id, no null fields,
+        # no top-level type/resourceId). Order is preserved from the chunk
+        # (Requirement 1.3, 9.4).
+        body = request.request_body()
 
         def do_request() -> HttpResponse:
             return self._transport.request(
@@ -1062,36 +1207,53 @@ class AuthorizationClient:
         self,
         user_id: str,
         resource_type: str,
-        resource_id: str,
+        resource_label: str,
         relation: str,
+        center: str | None = None,
+        study: str | None = None,
+        community: str | None = None,
     ) -> bool:
         """Check whether a user has a specific permission.
 
-        Sends a POST request to /check. Returns whether the user has
-        the specified relation on the specified resource.
+        Sends a POST request to /check with a structured ``resource``
+        carrying the Structured Identity (type, label, and applicable
+        parent fields). Returns whether the user has the specified
+        relation on the specified resource.
 
         Args:
             user_id: The user identifier (e.g., ePPN).
             resource_type: The type of resource.
-            resource_id: The resource identifier.
+            resource_label: The resource label (identity core).
             relation: The relation to check.
+            center: Optional center parent, if applicable to the type.
+            study: Optional study parent, if applicable to the type.
+            community: Optional community parent, if applicable to the
+                type.
 
         Returns:
             True if the user has the permission, False otherwise.
 
         Raises:
-            ValidationError: If the API returns 400.
+            ValidationError: If the Structured Identity is invalid
+                (missing type, empty label, or an invalid parent-field
+                combination) or the API returns 400.
             ServiceUnavailableError: If retries are exhausted on 503.
             UnexpectedError: On other unexpected HTTP errors.
             ParseError: If the response body cannot be parsed.
         """
+        resource = self._build_resource(
+            resource_type=resource_type,
+            resource_label=resource_label,
+            center=center,
+            study=study,
+            community=community,
+        )
         request = PermissionCheckRequest(
             user_id=user_id,
             relation=relation,
-            type=resource_type,
-            resource_id=resource_id,
+            resource=resource,
         )
-        body = request.model_dump_json(by_alias=True).encode()
+        body = request.request_body()
 
         def do_request() -> HttpResponse:
             return self._transport.request(
@@ -1104,11 +1266,10 @@ class AuthorizationClient:
 
         if response.status_code == 200:
             log.debug(
-                "Check permission succeeded: user=%s, type=%s, "
-                "resource=%s, relation=%s",
+                "Check permission succeeded: user=%s, type=%s, label=%s, relation=%s",
                 user_id,
                 resource_type,
-                resource_id,
+                resource_label,
                 relation,
             )
             try:

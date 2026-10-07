@@ -16,14 +16,20 @@ from .conftest import MockResponse, MockTransport, no_sleep
 
 
 def _make_operations(count: int) -> list[BatchOperation]:
-    """Create a list of batch operations for testing."""
+    """Create a list of batch operations for testing.
+
+    Uses structured identity: a resource ``label`` plus applicable
+    parent fields, not a flat ``resource_id``.
+    """
     return [
         BatchOperation(
             action="grant" if i % 2 == 0 else "revoke",
             user_id=f"user-{i}",
-            resource_type="study",
-            resource_id=f"resource-{i}",
+            resource_type="data_pipeline",
+            resource_label=f"resource-{i}",
             relation="member",
+            study="study-1",
+            center="center-1",
         )
         for i in range(count)
     ]
@@ -164,15 +170,18 @@ class TestBatchOrderPreservation:
 class TestBatchRequestConstruction:
     """Tests for correct request body construction."""
 
-    def test_request_body_uses_camel_case_aliases(self) -> None:
-        """Request body uses camelCase field names."""
+    def test_request_body_carries_structured_resource(self) -> None:
+        """Each operation carries a structured resource with no flat identity
+        (no top-level type/resourceId, no flat_id)."""
         ops = [
             BatchOperation(
                 action="grant",
                 user_id="user-1",
-                resource_type="study",
-                resource_id="res-1",
+                resource_type="data_pipeline",
+                resource_label="res-1",
                 relation="member",
+                study="study-1",
+                center="center-1",
             )
         ]
         transport = MockTransport(
@@ -186,13 +195,24 @@ class TestBatchRequestConstruction:
         assert request_body is not None
         body = json.loads(request_body)
         op = body["operations"][0]
-        assert "userId" in op
-        assert "resourceId" in op
+
         assert op["userId"] == "user-1"
-        assert op["resourceId"] == "res-1"
-        assert op["type"] == "study"
         assert op["relation"] == "member"
         assert op["action"] == "grant"
+        # No flat identity at the operation level.
+        assert "resourceId" not in op
+        assert "type" not in op
+
+        resource = op["resource"]
+        assert resource["type"] == "data_pipeline"
+        assert resource["label"] == "res-1"
+        assert resource["study"] == "study-1"
+        assert resource["center"] == "center-1"
+        # No populated server-owned flat identity is emitted: the batch
+        # payload carries no snake_case flat_id, and the aliased flatId is
+        # never populated on a request.
+        assert "flat_id" not in resource
+        assert resource.get("flatId") is None
 
 
 class TestBatchErrorClassification:

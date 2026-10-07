@@ -94,20 +94,27 @@ class TestGetUserPermissions:
         assert query_params == {"type": "study", "relation": "admin"}
 
     def test_returns_user_permissions_on_200(self) -> None:
-        """Verify 200 response is parsed into UserPermissions model."""
+        """Verify 200 response is parsed into UserPermissions model.
+
+        Identity is read from the structured ``resource`` object, not a
+        flat top-level ``resourceId``.
+        """
         response_body = json.dumps(
             {
                 "userId": "user@example.com",
                 "permissions": {
                     "study": [
                         {
-                            "resourceId": "study-1",
+                            "resource": {"type": "study", "label": "study-1"},
                             "relation": "member",
                         }
                     ],
                     "research_center": [
                         {
-                            "resourceId": "center-1",
+                            "resource": {
+                                "type": "research_center",
+                                "label": "center-1",
+                            },
                             "relation": "admin",
                         }
                     ],
@@ -125,10 +132,186 @@ class TestGetUserPermissions:
         assert result.user_id == "user@example.com"
         assert len(result.permissions) == 2
         assert len(result.permissions["study"]) == 1
-        assert result.permissions["study"][0].resource_id == "study-1"
-        assert result.permissions["study"][0].relation == "member"
-        assert result.permissions["study"][0].access is None
-        assert result.permissions["research_center"][0].relation == "admin"
+        study_entry = result.permissions["study"][0]
+        assert study_entry.resource is not None
+        assert study_entry.resource.type == "study"
+        assert study_entry.resource.label == "study-1"
+        assert study_entry.relation == "member"
+        assert study_entry.access is None
+        center_entry = result.permissions["research_center"][0]
+        assert center_entry.resource is not None
+        assert center_entry.resource.type == "research_center"
+        assert center_entry.resource.label == "center-1"
+        assert center_entry.relation == "admin"
+
+    def test_parses_resource_with_parent_fields(self) -> None:
+        """Verify a structured resource carrying parent fields parses.
+
+        A ``data_pipeline`` resource carries ``study`` + ``center``
+        parents, read directly from the structured ``resource`` object.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "user@example.com",
+                "permissions": {
+                    "data_pipeline": [
+                        {
+                            "resource": {
+                                "type": "data_pipeline",
+                                "label": "ingest-form",
+                                "study": "study-1",
+                                "center": "center-1",
+                            },
+                            "relation": "submitter",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="user@example.com", type_filter="data_pipeline"
+        )
+
+        entry = result.permissions["data_pipeline"][0]
+        assert entry.resource is not None
+        assert entry.resource.type == "data_pipeline"
+        assert entry.resource.label == "ingest-form"
+        assert entry.resource.study == "study-1"
+        assert entry.resource.center == "center-1"
+        assert entry.relation == "submitter"
+
+    def test_parses_parentless_dashboard_and_page_resources(self) -> None:
+        """Verify a present ``resource`` with no parent fields still parses.
+
+        Regression for the auth-sync failure: the API's permissions
+        response may carry a structured ``resource`` whose parent fields
+        (``study``/``center``/``community``) are all absent — the
+        documented catalog-gap fallback (``PermissionEntry.resource`` in
+        the OpenAPI spec, "may be a fallback ... no parent fields"). The
+        response ``ResourceObject`` is lenient and must accept it; the
+        per-type parent-combination rule is a request-side invariant on
+        ``ScopedResourceObject`` only. Before the scoped/lenient split,
+        the ``dashboard``/``page`` entries below failed validation and
+        made the whole ``UserPermissions`` response unparseable, so no
+        user's authorizations synced.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "Registry101346@naccdata.org",
+                "permissions": {
+                    "dashboard": [
+                        {
+                            "resource": {
+                                "type": "dashboard",
+                                "label": "dashboard-reports-adrc",
+                            },
+                            "relation": "viewer",
+                        }
+                    ],
+                    "page": [
+                        {
+                            "resource": {
+                                "type": "page",
+                                "label": "page-community-resources",
+                            },
+                            "relation": "viewer",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="Registry101346@naccdata.org", type_filter="dashboard"
+        )
+
+        dashboard_entry = result.permissions["dashboard"][0]
+        assert dashboard_entry.resource is not None
+        assert dashboard_entry.resource.type == "dashboard"
+        assert dashboard_entry.resource.label == "dashboard-reports-adrc"
+        assert dashboard_entry.resource.study is None
+        assert dashboard_entry.resource.center is None
+        assert dashboard_entry.resource.community is None
+
+        page_entry = result.permissions["page"][0]
+        assert page_entry.resource is not None
+        assert page_entry.resource.type == "page"
+        assert page_entry.resource.label == "page-community-resources"
+        assert page_entry.resource.study is None
+        assert page_entry.resource.center is None
+        assert page_entry.resource.community is None
+
+    def test_absent_resource_yields_no_identity(self) -> None:
+        """Verify an entry without a ``resource`` parses with no identity.
+
+        A catalog-gap entry has no ``resource`` field. It must parse
+        with ``resource is None`` rather than failing.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "user@example.com",
+                "permissions": {
+                    "study": [
+                        {
+                            "relation": "member",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="user@example.com", type_filter="study"
+        )
+
+        entry = result.permissions["study"][0]
+        assert entry.resource is None
+        assert entry.relation == "member"
+
+    def test_top_level_resource_id_is_retained_as_handle_not_identity(self) -> None:
+        """Verify a top-level ``resourceId`` is kept as the opaque handle.
+
+        The top-level ``resourceId`` is retained on the entry as the
+        opaque revoke handle (``resource_id``), but it must **not**
+        reconstruct structured identity: with no ``resource`` in the
+        body, ``resource`` stays ``None`` (scope is never inferred from
+        the flat id). The handle is available so the grant can be
+        revoked by round-trip even though its structured scope did not
+        resolve.
+        """
+        response_body = json.dumps(
+            {
+                "userId": "user@example.com",
+                "permissions": {
+                    "study": [
+                        {
+                            "resourceId": "study-legacy",
+                            "relation": "member",
+                        }
+                    ],
+                },
+            }
+        ).encode()
+        transport = MockTransport(MockResponse(status_code=200, body=response_body))
+        client = AuthorizationClient(transport=transport)
+
+        result = client.get_user_permissions(
+            user_id="user@example.com", type_filter="study"
+        )
+
+        entry = result.permissions["study"][0]
+        # No structured identity is reconstructed from the flat id.
+        assert entry.resource is None
+        # But the opaque handle is retained for revocation.
+        assert entry.resource_id == "study-legacy"
+        assert entry.relation == "member"
 
     def test_retries_on_503(self) -> None:
         """Verify 503 triggers retry and succeeds on subsequent 200."""
