@@ -2,7 +2,7 @@
 
 All notable changes to this gear are documented in this file.
 
-## 0.2.2
+## Unreleased (0.2.2)
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
 * Writes `file.info.validated-timestamp` in ISO 8601 format with UTC offset, to match the Issue Manager
 
