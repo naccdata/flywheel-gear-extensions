@@ -116,12 +116,13 @@ Some gears record when a file was last validated by setting `file.info.validated
 
 ### Writing
 
-Write an aware `datetime`, not a formatted string. The Flywheel metadata encoder serializes it to ISO 8601 with an offset (`2026-10-07T16:51:59.920+00:00`), which matches what the issue-manager app writes to the same key.
+Write `DEFAULT_DATE_TIME_FORMAT` in UTC. The issue-manager app writes the same format to this key (`fw-client.service.ts:180-191`), so all writers agree.
 
 ```python
 from keys.keys import MetadataKeys
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 
-timestamp = datetime.now(timezone.utc)
+timestamp = datetime.now(timezone.utc).strftime(DEFAULT_DATE_TIME_FORMAT)
 context.metadata.update_file_metadata(
     file_input,
     container_type=context.config.destination["type"],
@@ -131,7 +132,7 @@ context.metadata.update_file_metadata(
 
 ### Reading
 
-Always parse with `parse_timestamp`. Never use `datetime.strptime` with `DEFAULT_DATE_TIME_FORMAT` — files written before this convention carry the older `%Y-%m-%d %H:%M:%S` form, and that constant cannot parse the ISO form. `parse_timestamp` accepts both and normalizes to timezone-aware UTC, returning `None` when the value is missing or unparseable.
+Always parse with `parse_timestamp`. Never use `datetime.strptime` with `DEFAULT_DATE_TIME_FORMAT`, **even though that is the format written** — the value's format depends on the read path. Read through the Flywheel SDK (`file.info`) it comes back as stored, but read as a DataView column it comes back as ISO 8601 with an offset (`2026-10-07T16:51:59+00:00`), which `DEFAULT_DATE_TIME_FORMAT` cannot parse. `parse_timestamp` accepts both and normalizes to timezone-aware UTC, returning `None` when the value is missing or unparsable.
 
 ```python
 from nacc_common.form_dates import parse_timestamp

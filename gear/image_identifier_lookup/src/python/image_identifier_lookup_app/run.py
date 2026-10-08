@@ -24,6 +24,7 @@ from keys.keys import MetadataKeys
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import FileErrorList, GearTags
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from outputs.error_writer import ListErrorWriter
 from s3.s3_bucket import S3BucketInterface
 
@@ -316,11 +317,8 @@ class ImageIdentifierLookupVisitor(GearExecutionEnvironment):
                 data=(errors.model_dump(by_alias=True) if errors else None),
             )
 
-            # Set/update the validation timestamp in file.info.
-            # Written as a datetime, serialized to ISO 8601 with an offset by
-            # the Flywheel metadata encoder. Readers must use
-            # form_dates.parse_timestamp.
-            timestamp = datetime.now(timezone.utc)
+            # Set/update the validation timestamp in file.info
+            timestamp = datetime.now(timezone.utc).strftime(DEFAULT_DATE_TIME_FORMAT)
             context.metadata.update_file_metadata(
                 self.__file_input.file_input,
                 container_type=context.config.destination["type"],

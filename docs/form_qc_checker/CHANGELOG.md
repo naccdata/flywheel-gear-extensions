@@ -2,9 +2,6 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.10.2
-* Writes `file.info.validated-timestamp` in ISO 8601 format with UTC offset, to match the Issue Manager
-
 ## 1.10.1
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
 * Checks whether the QC checks REDCap Connection is live (to detect REDCap outages and prevent silently skipping error code mapping)

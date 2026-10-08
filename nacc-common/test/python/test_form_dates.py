@@ -9,20 +9,21 @@ from nacc_common.form_dates import parse_timestamp
 class TestParseTimestamp:
     """Tests for parse_timestamp.
 
-    `file.info.validated-timestamp` has two writers using two formats:
-    the gears write DEFAULT_DATE_TIME_FORMAT in UTC, the issue-manager
-    app writes ISO 8601 with an offset. Both must parse and compare
-    against each other.
+    Every writer stores `file.info.validated-timestamp` as
+    DEFAULT_DATE_TIME_FORMAT in UTC, but a Flywheel DataView column
+    returns it as ISO 8601 with an offset. The same stored value
+    therefore arrives in two formats depending on the read path, and
+    both must parse and compare against each other.
     """
 
     def test_default_date_time_format(self):
-        """Gear-written format is read as UTC."""
+        """The stored format, as the SDK returns it, is read as UTC."""
         assert parse_timestamp("2026-10-07 16:45:51") == datetime(
             2026, 10, 7, 16, 45, 51, tzinfo=timezone.utc
         )
 
     def test_iso_format_with_offset(self):
-        """issue-manager format is read as UTC."""
+        """The form a DataView column returns is read as UTC."""
         assert parse_timestamp("2026-10-07T16:51:59+00:00") == datetime(
             2026, 10, 7, 16, 51, 59, tzinfo=timezone.utc
         )
@@ -76,9 +77,10 @@ class TestParseTimestamp:
     def test_mixed_formats_compare(self):
         """The comparison that crashed form-qc-coordinator.
 
-        The LBD visit was validated via the issue-manager (ISO) after a
-        trigger stamped by a gear (DEFAULT_DATE_TIME_FORMAT), so the
-        trigger is outdated.
+        The visit timestamp came from a DataView column (ISO) and the
+        trigger timestamp from an SDK read (DEFAULT_DATE_TIME_FORMAT).
+        The visit was validated after the trigger, so the trigger is
+        outdated.
         """
         validated = parse_timestamp("2026-10-07T16:51:59+00:00")
         triggered = parse_timestamp("2026-10-07 16:45:51")

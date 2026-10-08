@@ -44,12 +44,13 @@ def parse_date(*, date_string: str, formats: List[str]) -> datetime:
 def parse_timestamp(timestamp: Optional[str]) -> Optional[datetime]:
     """Parse a metadata timestamp into a timezone-aware UTC datetime.
 
-    Accepts both conventions written to `file.info.validated-timestamp`:
-    DEFAULT_DATE_TIME_FORMAT ("2026-10-07 16:45:51", UTC) as written by the
-    gears, and ISO 8601 with or without an offset
-    ("2026-10-07T16:51:59+00:00", "2026-10-07T16:51:59Z") as written by the
-    issue-manager app. Naive values are assumed to be UTC, matching every
-    in-repo writer.
+    Accepts both forms seen for `file.info.validated-timestamp`:
+    DEFAULT_DATE_TIME_FORMAT ("2026-10-07 16:45:51", UTC) as every writer
+    stores it, and ISO 8601 with or without an offset
+    ("2026-10-07T16:51:59+00:00", "2026-10-07T16:51:59Z") as a Flywheel
+    DataView column returns it. The format therefore depends on the read
+    path, not on the writer. Naive values are assumed to be UTC, matching
+    every known writer.
 
     Args:
         timestamp: a timestamp as a string. Values read from Flywheel
