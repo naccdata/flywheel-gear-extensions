@@ -3,8 +3,7 @@
 ## Unreleased (0.2.1)
 
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
-* Reads `validated-timestamp` in both ISO 8601 and `YYYY-MM-DD HH:MM:SS` formats
-* Event timestamps are now timezone-aware UTC
+* Parses `validated-timestamp` in both ISO 8601 and `YYYY-MM-DD HH:MM:SS` formats
 
 ## 0.2.0
 
