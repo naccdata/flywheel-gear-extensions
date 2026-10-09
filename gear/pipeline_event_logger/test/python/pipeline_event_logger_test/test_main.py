@@ -1,6 +1,6 @@
 """Unit tests for PipelineEventLogger business logic."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -299,7 +299,10 @@ class TestTimestampResolution:
         logger.run()
 
         call_kwargs = mock_create_event.call_args.kwargs
-        assert call_kwargs["completion_time"] == datetime(2024, 6, 15, 10, 30, 0)
+        # written without an offset by the gears, read back as UTC
+        assert call_kwargs["completion_time"] == datetime(
+            2024, 6, 15, 10, 30, 0, tzinfo=timezone.utc
+        )
 
     @patch("pipeline_event_logger_app.main.create_visit_event")
     @patch("pipeline_event_logger_app.main.QCStatusLogManager")

@@ -4,7 +4,7 @@ Feature: pipeline-event-logger
 Uses Hypothesis to validate correctness properties from the design document.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 from hypothesis import given, settings
@@ -246,9 +246,10 @@ class TestPropertyTimestampResolution:
 
         logger.run()
 
-        # Verify the timestamp passed to create_visit_event
+        # Verify the timestamp passed to create_visit_event.
+        # validated-timestamp carries no offset, so it reads back as UTC.
         call_kwargs = mock_create_event.call_args.kwargs
-        expected = validated_ts.replace(microsecond=0)
+        expected = validated_ts.replace(microsecond=0, tzinfo=timezone.utc)
         assert call_kwargs["completion_time"] == expected
 
     @settings(max_examples=100)

@@ -114,6 +114,10 @@ errors = qc_model.get_errors("form-qc-checker")        # Per-gear errors
 
 Some gears record when a file was last validated by setting `file.info.validated_timestamp` to the current UTC time. This is used by downstream gears (e.g., `form-qc-coordinator`) to determine whether a file needs re-validation.
 
+### Writing
+
+Write `DEFAULT_DATE_TIME_FORMAT` in UTC. The issue-manager app writes the same format to this key (`fw-client.service.ts:180-191`), so all writers agree.
+
 ```python
 from keys.keys import MetadataKeys
 from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
@@ -125,6 +129,18 @@ context.metadata.update_file_metadata(
     info={MetadataKeys.VALIDATED_TIMESTAMP: timestamp},
 )
 ```
+
+### Reading
+
+Always parse with `parse_timestamp`. Never use `datetime.strptime` with `DEFAULT_DATE_TIME_FORMAT`, **even though that is the format written** — the value's format depends on the read path. Read through the Flywheel SDK (`file.info`) it comes back as stored, but read as a DataView column it comes back as ISO 8601 with an offset (`2026-10-07T16:51:59+00:00`), which `DEFAULT_DATE_TIME_FORMAT` cannot parse. `parse_timestamp` accepts both and normalizes to timezone-aware UTC, returning `None` when the value is missing or unparsable.
+
+```python
+from nacc_common.form_dates import parse_timestamp
+
+timestamp = parse_timestamp(file.info.get(MetadataKeys.VALIDATED_TIMESTAMP))
+```
+
+Note that `reset_visit_qc_metadata` clears this key by writing an empty string rather than removing it, so the DataView column stays present; `parse_timestamp("")` returns `None`.
 
 ## Gear Tags
 
