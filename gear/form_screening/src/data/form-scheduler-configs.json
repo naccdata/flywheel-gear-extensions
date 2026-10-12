@@ -1,8 +1,22 @@
 {
     "gear_name": "form-scheduler",
+    "inputs": [
+        {
+            "label": "pipeline_configs_file",
+            "file_locator": "fixed",
+            "file_name": "pipeline-configs.json"
+        },
+        {
+            "label": "form_configs_file",
+            "file_locator": "fixed",
+            "file_name": "form-data-module-configs.json"
+        }
+    ],
     "configs": {
-        "source_email": "no-reply@naccdata.org",
-        "portal_url_path": "/sandbox/flywheel/portal",
-        "apikey_path_prefix": "/sandbox/flywheel/gearbot"
+        "source_email": "nacc_dev@uw.edu",
+        "portal_url_path": "/sandbox/flywheel/portal/url",
+        "apikey_path_prefix": "/sandbox/flywheel/gearbot",
+        "event_bucket": "submission-events",
+        "event_environment": "dev"
     }
 }

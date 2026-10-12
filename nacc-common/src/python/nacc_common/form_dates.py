@@ -1,10 +1,13 @@
 """Utilities to handle dates."""
 
+import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from dateutil import parser
+
+log = logging.getLogger(__name__)
 
 DATE_FORMATS = ["%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d", "%Y-%m-%d"]
 DATE_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
@@ -36,6 +39,42 @@ def parse_date(*, date_string: str, formats: List[str]) -> datetime:
             pass
 
     raise DateFormatException(formats=formats)
+
+
+def parse_timestamp(timestamp: Optional[str]) -> Optional[datetime]:
+    """Parse a metadata timestamp into a timezone-aware UTC datetime.
+
+    Accepts both forms seen for `file.info.validated-timestamp`:
+    DEFAULT_DATE_TIME_FORMAT ("2026-10-07 16:45:51", UTC) as every writer
+    stores it, and ISO 8601 with or without an offset
+    ("2026-10-07T16:51:59+00:00", "2026-10-07T16:51:59Z") as a Flywheel
+    DataView column returns it. The format therefore depends on the read
+    path, not on the writer. Naive values are assumed to be UTC, matching
+    every known writer.
+
+    Args:
+        timestamp: a timestamp as a string. Values read from Flywheel
+            DataView columns are untyped JSON, so a non-string is handled
+            rather than raising.
+
+    Returns:
+        The timestamp as a UTC datetime, or None if the value is missing or
+        cannot be parsed.
+    """
+
+    if not timestamp:
+        return None
+
+    try:
+        datetime_obj = datetime.fromisoformat(timestamp.strip())
+    except (AttributeError, ValueError, TypeError):
+        log.warning("Cannot parse timestamp %s", timestamp)
+        return None
+
+    if datetime_obj.tzinfo is None:
+        return datetime_obj.replace(tzinfo=timezone.utc)
+
+    return datetime_obj.astimezone(timezone.utc)
 
 
 def convert_date(*, date_string: str, date_format: str) -> Optional[str]:

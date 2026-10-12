@@ -38,7 +38,7 @@ from nacc_common.error_models import (
     QCStatus,
 )
 from nacc_common.field_names import FieldNames
-from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT, parse_timestamp
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import (
     preprocessing_error,
@@ -520,9 +520,19 @@ class QCCoordinator:
         if not module_timestamp or not trigger_timestamp:
             return False
 
-        outdated = datetime.strptime(
-            module_timestamp, DEFAULT_DATE_TIME_FORMAT
-        ) >= datetime.strptime(trigger_timestamp, DEFAULT_DATE_TIME_FORMAT)
+        module_time = parse_timestamp(module_timestamp)
+        trigger_time = parse_timestamp(trigger_timestamp)
+
+        # cannot tell whether the trigger is outdated, process the visit
+        if not module_time or not trigger_time:
+            log.warning(
+                f"Cannot compare timestamps for file {visit['file.name']}: "
+                f"trigger timestamp {trigger_timestamp} - "
+                f"visit last validated at timestamp {module_timestamp}"
+            )
+            return False
+
+        outdated = module_time >= trigger_time
         if outdated:
             log.info(
                 f"Ignoring outdated finalization trigger "

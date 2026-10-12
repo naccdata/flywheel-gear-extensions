@@ -12,9 +12,10 @@ from event_capture.visit_events import VisitEventType
 from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
+from keys.keys import MetadataKeys
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import FileErrorList, QCStatus
-from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
+from nacc_common.form_dates import parse_timestamp
 from pydantic import ValidationError
 
 from .qc_reader import GearQC, QCErrorConfig
@@ -142,12 +143,19 @@ class PipelineEventLogger:
         otherwise falls back to file.modified.
 
         Returns:
-            The resolved timestamp
+            The resolved timestamp, as a timezone-aware UTC datetime
         """
-        validated_ts = self._file_entry.info.get("validated-timestamp")
+        validated_ts = self._file_entry.info.get(MetadataKeys.VALIDATED_TIMESTAMP)
+        timestamp = parse_timestamp(validated_ts)
+        if timestamp:
+            log.info("Resolved timestamp: %s (from validated-timestamp)", timestamp)
+            return timestamp
+
         if validated_ts:
-            log.info("Resolved timestamp: %s (from validated-timestamp)", validated_ts)
-            return datetime.strptime(validated_ts, DEFAULT_DATE_TIME_FORMAT)
+            log.warning(
+                "Cannot parse validated-timestamp %s, using file.modified",
+                validated_ts,
+            )
 
         timestamp = self._file_entry.modified
         log.info("Resolved timestamp: %s (from file.modified)", timestamp)
