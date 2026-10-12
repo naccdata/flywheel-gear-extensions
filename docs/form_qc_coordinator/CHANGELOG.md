@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 1.6.3
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+* Fixes crash in the finalization trigger check when `validated-timestamp` is in ISO 8601 format
 
 ## 1.6.2
 * Rebuilt for module configs update
