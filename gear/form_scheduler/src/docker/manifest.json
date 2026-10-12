@@ -55,7 +55,7 @@
         "portal_url_path": {
             "description": "Parameter path for the portal URL",
             "type": "string",
-            "default": "/prod/flywheel/portal"
+            "default": "/prod/flywheel/portal/url"
         },
         "apikey_path_prefix": {
             "description": "The instance specific AWS parameter path prefix for apikey",

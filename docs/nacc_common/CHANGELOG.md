@@ -4,6 +4,10 @@ Documentation of release versions of the `nacc-common` package.
 
 ## Unreleased
 
+### Features
+
+* Add `parse_timestamp` to `form_dates` to parse timestamps in both ISO 8601 and `YYYY-MM-DD HH:MM:SS` formats to timezone-aware UTC
+
 ## v3.1.3
 
 ### Bug Fixes
