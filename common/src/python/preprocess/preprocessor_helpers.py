@@ -2,7 +2,7 @@
 
 import logging
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -33,6 +33,10 @@ class PreprocessingContext:
     line_num: int
     subject_lbl: Optional[str] = None
     ivp_record: Optional[Dict[str, Any]] = None
+    # visits accepted earlier in the current batch, in ascending visit date order
+    batch_records: List[Dict[str, Any]] = field(default_factory=list)
+    # per-record cache for queries shared by more than one check
+    query_cache: Dict[str, Any] = field(default_factory=dict)
 
 
 class FormPreprocessorErrorHandler:
@@ -103,6 +107,7 @@ class FormPreprocessorErrorHandler:
         pp_context: PreprocessingContext,
         error_code: str,
         suppress_logs: bool = False,
+        extra_args: Optional[List[Any]] = None,
     ) -> None:
         """Write a packet-related preprocessing error."""
         input_record = pp_context.input_record
@@ -113,6 +118,7 @@ class FormPreprocessorErrorHandler:
             pp_context=pp_context,
             error_code=error_code,
             suppress_logs=suppress_logs,
+            extra_args=extra_args,
         )
 
     def write_module_error(
@@ -163,6 +169,7 @@ class FormPreprocessorErrorHandler:
         pp_context: PreprocessingContext,
         error_code: str,
         date_field: Optional[str] = None,
+        extra_args: Optional[List[Any]] = None,
     ) -> None:
         """Write a date-related preprocessing error."""
         if not date_field:
@@ -176,6 +183,7 @@ class FormPreprocessorErrorHandler:
             value=date_value,
             pp_context=pp_context,
             error_code=error_code,
+            extra_args=extra_args,
         )
 
 

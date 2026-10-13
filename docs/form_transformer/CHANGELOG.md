@@ -2,6 +2,16 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.0
+* Adds `covid-ivp` pre-processing check (covid module accepts more than one initial visit packet)
+    * A follow-up packet requires at least one existing initial visit packet
+    * A follow-up packet visit date must be after the latest initial visit packet, and an initial visit packet cannot be submitted with a visit date on or after an existing follow-up packet
+* Adds `covid-forms` pre-processing check, requires at least one of the optional forms to be submitted with the packet
+* Adds `covid-visit-conflict` pre-processing check, rejects a visit submitted with a different packet code for the same visit date, or conflicting list of forms for the same visit date
+* Passes the visits accepted so far in the current batch to the pre-processing checks
+* Exempts the `version_map` indicator field from the `nofill` check, so a form whose submission status is `0` can be excluded without the record being rejected
+* Normalizes the form date fields (any field named `frmdate*`) to `YYYY-MM-DD`
+
 ## 2.1.2
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
 
