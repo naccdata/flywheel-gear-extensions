@@ -26,18 +26,18 @@ fi
 
 pants export --py-resolve-format=symlinked_immutable_virtualenv --resolve=python-default
 
-ln -snf dist/export/python/virtualenvs/python-default ./.venv
-
-# Clean up any dead symlinks in .venv before creating new ones
-if [ -d .venv ]; then
-    find .venv -type l ! -exec test -e {} \; -delete 2>/dev/null || true
+# Link .venv to the exported virtualenv for the latest Python version.
+# The link has to point at the version directory rather than the resolve
+# directory, pyvenv.cfg lives in the version directory and Python looks for it
+# next to the parent of the interpreter. Without it Python does not detect a
+# virtualenv and falls back to the system interpreter, so the editor reports
+# every third party import as unresolved.
+EXPORT_DIR=dist/export/python/virtualenvs/python-default
+LATEST_PY_VERSION=$(ls -1 "${EXPORT_DIR}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1)
+if [ -z "$LATEST_PY_VERSION" ]; then
+    echo "Error: Could not find a Python version directory in ${EXPORT_DIR}"
+    exit 1
 fi
 
-# Find the latest Python version directory and create a bin symlink
-LATEST_PY_VERSION=$(ls -1 dist/export/python/virtualenvs/python-default/ | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1)
-if [ -n "$LATEST_PY_VERSION" ]; then
-    ln -snf "$LATEST_PY_VERSION/bin" ./.venv/bin
-    echo "Created .venv/bin symlink pointing to Python $LATEST_PY_VERSION"
-else
-    echo "Warning: Could not find Python version directory in .venv"
-fi
+ln -snf "${EXPORT_DIR}/${LATEST_PY_VERSION}" ./.venv
+echo "Created .venv symlink pointing to Python $LATEST_PY_VERSION"

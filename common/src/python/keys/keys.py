@@ -56,6 +56,7 @@ class DefaultValues:
     DELETION_PIPELINE = "deletion"
     FINALIZED_TAG = "submission-completed"
     MODULE_PATTERN = "a-zA-Z1-9_"
+    FORM_DATE_PREFIX = "frmdate"  # prefix of the per-form date fields, e.g. frmdated1c
 
 
 CLINICAL_MODULES = [
@@ -124,6 +125,11 @@ class SysErrorCodes:
     MULTIPLE_SUBMISSIONS = "preprocess-032"
     DUPLICATE_LEGACY_VISIT = "preprocess-033"
     UDS_I4_REQUIRED = "preprocess-034"
+    HIGHER_IVP_VISITDATE = "preprocess-035"
+    MISSING_IVP_FORMS = "preprocess-036"
+    DIFF_PACKET = "preprocess-037"
+    COVID_FORM_CONFLICT = "preprocess-038"
+    COVID_FORMS_REQUIRED = "preprocess-039"
 
     # other errors for preprocessing issues that don't fall
     # in above categories
@@ -144,6 +150,9 @@ class PreprocessingChecks:
     NP_MLST_RESTRICTIONS = "np-mlst-restrictions"
     NP_UDS_RESTRICTIONS = "np-uds-restrictions"
     SINGLETON = "singleton"
+    COVID_FORMS = "covid-forms"
+    COVID_VISIT_CONFLICT = "covid-visit-conflict"
+    COVID_IVP = "covid-ivp"
 
     @classmethod
     def is_check_defined(cls, check: str) -> bool:

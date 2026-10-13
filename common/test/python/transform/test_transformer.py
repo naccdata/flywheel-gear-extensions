@@ -109,6 +109,76 @@ class TestVersionMapTransformation:
         assert record
         assert [k for k in record if k in input_record and k != "b1"]
 
+    def __mode_transformation(self, nofill: bool = True):
+        """Creates a transformation where the indicator field is one of the
+        fields it drops, as the COVID mode variables are configured."""
+        return VersionMapTransformation(
+            version_map=VersionMap(
+                fieldname="modef2",
+                value_map={"1": "F2_SUBMITTED", "2": "F2_SUBMITTED"},
+                default="F2_NOT_SUBMITTED",
+            ),
+            nofill=nofill,
+            fields={
+                "F2_SUBMITTED": [],
+                "F2_NOT_SUBMITTED": ["modef2", "c19cdr"],
+            },
+        )
+
+    def test_indicator_field_exempt_from_nofill(self):
+        """The indicator field is dropped without being checked for a value.
+
+        Its value is what selected the fields to drop, so it is not
+        stray data.
+        """
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "0", "c19cdr": "", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert record == {"ptid": "dummy-ptid"}
+        assert not error_writer.errors()
+
+    def test_indicator_field_blank(self):
+        """A blank indicator field drops the same fields."""
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "", "c19cdr": "", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert record == {"ptid": "dummy-ptid"}
+        assert not error_writer.errors()
+
+    def test_data_fields_still_checked(self):
+        """Exempting the indicator field does not exempt the data fields."""
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "0", "c19cdr": "5", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert not record
+        assert len(error_writer.errors()) == 1
+        file_error = error_writer.errors()[0]
+        assert file_error.error_code == SysErrorCodes.EXCLUDED_FIELDS
+        # only the data field is reported, not the indicator field
+        assert "c19cdr" in file_error.message
+        assert "modef2" not in file_error.message
+
+    def test_indicator_field_retained_when_submitted(self):
+        """Nothing is dropped when the indicator selects an empty field
+        list."""
+        field_filter = self.__mode_transformation()
+        input_record = {"modef2": "1", "c19cdr": "5", "ptid": "dummy-ptid"}
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+
+        record = field_filter.apply(input_record, error_writer, 1, uds_ingest_configs())
+
+        assert record == input_record
+        assert not error_writer.errors()
+
 
 class TestDateTransformer:
     def test_nodate(self):
@@ -133,6 +203,100 @@ class TestDateTransformer:
 
         record = transformer.transform({FieldNames.DATE_COLUMN: "01012024"}, 0)
         assert not record
+
+    @staticmethod
+    def __transformer(date_field: str | None = None) -> DateTransformer:
+        return DateTransformer(
+            ListErrorWriter(container_id="dummy", fw_path="dummy/dummy"),
+            date_field=date_field,
+        )
+
+    def test_form_dates_normalized(self):
+        """Any field named frmdate* is normalized along with the date field."""
+        transformer = self.__transformer()
+        record = transformer.transform(
+            {
+                FieldNames.DATE_COLUMN: "2024/1/1",
+                "frmdated1c": "2024/1/2",
+                "frmdatea1": "20240103",
+            },
+            1,
+        )
+        assert record == {
+            FieldNames.DATE_COLUMN: "2024-01-01",
+            "frmdated1c": "2024-01-02",
+            "frmdatea1": "2024-01-03",
+        }
+
+    def test_form_date_blank_skipped(self):
+        """A form date is blank when the form was not submitted, so a blank
+        value is left as is and is not an error."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer)
+        record = transformer.transform(
+            {
+                FieldNames.DATE_COLUMN: "2024/1/1",
+                "frmdated1c": "",
+                "frmdateb1": "   ",
+            },
+            1,
+        )
+        assert record == {
+            FieldNames.DATE_COLUMN: "2024-01-01",
+            "frmdated1c": "",
+            "frmdateb1": "   ",
+        }
+        assert not error_writer.errors()
+
+    def test_form_date_invalid_kept(self):
+        """An unparsable form date is left as submitted without an error, and
+        the remaining form dates are still normalized."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer)
+        record = transformer.transform(
+            {
+                FieldNames.DATE_COLUMN: "2024/1/1",
+                "frmdated1c": "01012024",
+                "frmdatea1": "2024/1/3",
+            },
+            1,
+        )
+        assert record == {
+            FieldNames.DATE_COLUMN: "2024-01-01",
+            "frmdated1c": "01012024",
+            "frmdatea1": "2024-01-03",
+        }
+        assert not error_writer.errors()
+
+    def test_form_date_case_insensitive(self):
+        """The field name is matched regardless of case."""
+        record = self.__transformer().transform({"FRMDATED1C": "2024/1/2"}, 1)
+        assert record == {"FRMDATED1C": "2024-01-02"}
+
+    def test_invalid_date_skips_form_dates(self):
+        """A record rejected for the date field is returned unnormalized."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer)
+        input_record = {
+            FieldNames.DATE_COLUMN: "01012024",
+            "frmdated1c": "2024/1/2",
+        }
+        assert not transformer.transform(input_record, 1)
+        assert input_record["frmdated1c"] == "2024/1/2"
+        assert len(error_writer.errors()) == 1
+
+    def test_no_date_field_normalizes_form_dates(self):
+        """The form dates are normalized when the record has no date field."""
+        record = self.__transformer().transform({"frmdated1c": "2024/1/2"}, 1)
+        assert record == {"frmdated1c": "2024-01-02"}
+
+    def test_form_date_as_date_field(self):
+        """A form date configured as the date field is handled by the date
+        field check, and is not reported twice."""
+        error_writer = ListErrorWriter(container_id="dummy", fw_path="dummy/dummy")
+        transformer = DateTransformer(error_writer, date_field=FieldNames.ENRLFRM_DATE)
+        assert not transformer.transform({FieldNames.ENRLFRM_DATE: "01012024"}, 1)
+        assert len(error_writer.errors()) == 1
 
 
 class TestReleaseDateTransformation:
