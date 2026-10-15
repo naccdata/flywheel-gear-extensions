@@ -157,7 +157,6 @@ class ModuleConfigs(BaseModel):
     optional_forms: Optional[OptionalFormsConfigs] = None
     release_dates: Optional[FormReleaseDates] = None
     preprocess_checks: Optional[List[str]] = None
-    errorlog_template: Optional[ErrorLogTemplate] = None
     longitudinal: Optional[bool] = True
 
     def validate_preprocess_checks(self) -> None:
@@ -185,6 +184,7 @@ class FormProjectConfigs(BaseModel):
     legacy_project_label: Optional[str] = None
     qc_gear: Optional[str] = DefaultValues.QC_GEAR
     legacy_qc_gear: Optional[str] = DefaultValues.LEGACY_QC_GEAR
+    errorlog_template: ErrorLogTemplate = Field(default_factory=ErrorLogTemplate)
 
     def get_module_dependencies(
         self, module: str, exact_match: Optional[bool] = True
