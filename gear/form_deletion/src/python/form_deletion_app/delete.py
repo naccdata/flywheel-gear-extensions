@@ -4,7 +4,6 @@ from typing import Optional
 
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from deletions.models import DeletedItems, DeleteRequest
-from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
     QCStatusLogManager,
@@ -68,7 +67,7 @@ class FormDeletionProcessor:
         )
 
         self.__qc_log_manager = QCStatusLogManager(
-            error_log_template=ErrorLogTemplate(),
+            error_log_template=form_configs.errorlog_template,
             visit_annotator=FileVisitAnnotator(project),
         )
 
