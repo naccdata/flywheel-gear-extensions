@@ -204,7 +204,8 @@ class QCEventProcessor:
             form_configs: optional form module configs used to resolve the
                 module-specific date field when extracting visit metadata from
                 forms.json. Falls back to auto-detection when configs are not
-                provided or the module is unknown.
+                provided or the module is unknown. Also provides the QC status log
+                naming template, defaults to qc-status when configs not provided.
         """
         self._project = project
         self._event_generator = event_generator
@@ -212,7 +213,9 @@ class QCEventProcessor:
         self._event_capture = event_capture
         self._dry_run = dry_run
         self._date_filter = date_filter
-        self._error_log_template = ErrorLogTemplate()
+        self._error_log_template = (
+            form_configs.errorlog_template if form_configs else ErrorLogTemplate()
+        )
         self._form_configs = form_configs
 
     def process_json_files(self) -> None:
