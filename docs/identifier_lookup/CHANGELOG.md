@@ -4,6 +4,7 @@ All notable changes to this gear are documented in this file.
 
 ## 2.4.5
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
+* Uses the QC status log naming template (`errorlog_template`) from the form configs
 
 ## 2.4.4
 
