@@ -178,6 +178,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # Determine module name using the new logic
         module_configs: Optional[ModuleConfigs] = None
         module: Optional[str] = None
+        error_log_template = ErrorLogTemplate()
 
         if self.__config_input:
             # Module is defined in uppercase in form configs file (e.g., "UDS", "LBD")
@@ -202,6 +203,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 )
 
             module_configs = form_project_configs.module_configs.get(module)
+            error_log_template = form_project_configs.errorlog_template
 
         agg_validator = None
         if module_configs and self.__single_center:
@@ -261,7 +263,6 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # single center mode)
         if module_configs and self.__single_center:
             assert project is not None, "project set when single center"
-            error_log_template = ErrorLogTemplate()
             visit_annotator = FileVisitAnnotator(project=project)
             qc_log_manager = QCStatusLogManager(
                 error_log_template=error_log_template, visit_annotator=visit_annotator

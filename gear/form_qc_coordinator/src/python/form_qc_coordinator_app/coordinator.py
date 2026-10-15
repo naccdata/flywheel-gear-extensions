@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from configs.ingest_configs import (
-    ErrorLogTemplate,
     FormProjectConfigs,
     SupplementModuleConfigs,
 )
@@ -331,7 +330,7 @@ class QCCoordinator:
             )
 
         qc_manager = QCStatusLogManager(
-            error_log_template=ErrorLogTemplate(),
+            error_log_template=self.__form_project_configs.errorlog_template,
             visit_annotator=FileVisitAnnotator(project_adaptor),
         )
 
