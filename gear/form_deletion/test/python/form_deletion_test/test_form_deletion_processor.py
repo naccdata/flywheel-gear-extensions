@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from configs.ingest_configs import FormProjectConfigs
 from deletions.models import DeleteRequest
+from error_logging.error_logger import ErrorLogTemplate
 from form_deletion_app.delete import FormDeletionProcessor
 from form_deletion_test.conftest import MockProjectAdaptorForDeletion
 
@@ -35,7 +36,6 @@ def create_processor(
 
     with (
         patch("form_deletion_app.delete.QCStatusLogManager", return_value=mock_qcm),
-        patch("form_deletion_app.delete.ErrorLogTemplate"),
         patch("form_deletion_app.delete.FileVisitAnnotator"),
     ):
         return FormDeletionProcessor(
@@ -48,6 +48,30 @@ def create_processor(
             identifier=identifier,
             check_sbsq_visits=True,
         )
+
+
+class TestErrorLogTemplate:
+    def test_uses_configured_errorlog_template(
+        self, delete_request, form_configs, error_writer
+    ):
+        configs = form_configs.model_copy(
+            update={"errorlog_template": ErrorLogTemplate(suffix="update-request")}
+        )
+        with (
+            patch("form_deletion_app.delete.QCStatusLogManager") as mock_qcm_cls,
+            patch("form_deletion_app.delete.FileVisitAnnotator"),
+        ):
+            FormDeletionProcessor(
+                project=MockProjectAdaptorForDeletion(label="ingest-form-nacc"),
+                adcid=42,
+                delete_request=delete_request,
+                request_time=datetime.now(timezone.utc),
+                form_configs=configs,
+                error_writer=error_writer,
+            )
+
+        template = mock_qcm_cls.call_args.kwargs["error_log_template"]
+        assert template.suffix == "update-request"
 
 
 class TestProcessRequest:
