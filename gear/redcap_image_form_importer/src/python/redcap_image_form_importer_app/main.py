@@ -6,7 +6,6 @@ from typing import NoReturn
 
 from flywheel.models.container_output import ContainerOutput
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from gear_execution.gear_execution import GearExecutionError
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_module_connection import REDCapModuleConnection
 from redcap_api.redcap_project import REDCapProject
@@ -30,23 +29,21 @@ def tag_pass(session: ContainerOutput) -> None:
         session.add_tag(pass_tag)
 
 
-def tag_fail(dry_run: bool, session: ContainerOutput, msg: str) -> NoReturn:
-    """Handles gear-related tagging upon failure and raises an error.
+def tag_fail(dry_run: bool, session: ContainerOutput | None, msg: str) -> NoReturn:
+    """Handles gear-related tagging upon failure and exits.
 
     Args:
         dry_run: flag for dry run (data collected but no modifications)
         session: target Flywheel session
         msg: string that describes the failure reason
-
-    Raises:
-        GearExecutionError because the gear has failed
     """
-    if not dry_run:
+    if not dry_run and session is not None:
         if pass_tag in session.tags:
             session.delete_tag(pass_tag)
         if fail_tag not in session.tags:
             session.add_tag(fail_tag)
-    raise GearExecutionError(msg)
+    log.error(msg)
+    exit(1)
 
 
 # Names of REDCap variables that are common across session types
@@ -130,9 +127,6 @@ def verify_import_permitted(
         redcap_record: the session's record grabbed from REDCap
         redcap_variable: the name of the REDCap variable to check
         value_to_indicated_permitted: the value that indicates import is permitted.
-
-    Raises:
-        GearExecutionError if a unique record_id cannot be secured
     """
     if redcap_variable not in redcap_record:
         tag_fail(
@@ -178,6 +172,10 @@ def import_content_from_redcap_to_flywheel(
             format_variables_for_session(mri_variables_to_import, redcap_record)
         )
 
+    for key, val in content.items():
+        if '"' in val:
+            content[key] = val.replace('"', "'")  # double-quotes prohibited
+            log.warning(f'sanitized {key}: "{val}" -> "{content[key]}"')
     content_to_import = json.dumps(content, indent=4)
 
     log.info(
@@ -213,18 +211,12 @@ def verify_flywheel_matches_redcap(
         session: target Flywheel session
         fw_record: form data collected from Flywheel
         redcap_record: the session's record from REDCap
-
-    Raises:
-        GearExecutionError on mismatch or missing data
     """
     fw_record_dict = fw_record.model_dump(exclude_none=True)
     for var in fw_record.required_fields:
-        if (
-            var == "redcap_data_access_group"
-            and fw_record_dict.get(var) == ""
-            and fw_record_dict.get("adcid") == 0
-        ):
-            log.info(f"Note: skipping agreement of {var} for test center")
+        # redcap_data_access_group is required for export to REDCap, but not from REDCap
+        if var == "redcap_data_access_group":
+            log.info(f"Note: skipping agreement of {var}")
             continue
         if var not in fw_record_dict:
             tag_fail(
@@ -358,20 +350,19 @@ def run(
         redcap_con: API connection to REDCap project
         redcap_lock_con: API connection to REDCap locking module for the project
         proxy: the proxy for the Flywheel instance
-
-    Raises:
-        GearExecutionError if critical information is not found
     """
     session = proxy.get_container_by_id(session_id)
     if session.container_type != "session":
+        if session.parents.get("project") is None:
+            tag_fail(dry_run, None, f"Expected session, not {session.container_type}")
         log.info(f"Looking for session in parent of {session.container_type}")
         session = proxy.get_container_by_id(session.parents[0])
         if session.container_type != "session":
             log.info(f"Looking for session in parent of {session.container_type}")
             session = proxy.get_container_by_id(session.parents[0])
             if session.container_type != "session":
-                raise GearExecutionError(
-                    f"Expected session, not {session.container_type}"
+                tag_fail(
+                    dry_run, None, f"Expected session, not {session.container_type}"
                 )
 
     if "record_id" not in session.info:

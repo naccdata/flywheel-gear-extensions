@@ -10,7 +10,6 @@ from gear_execution.gear_execution import (
     ContextClient,
     GearEngine,
     GearExecutionEnvironment,
-    GearExecutionError,
 )
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterStore
@@ -45,15 +44,14 @@ class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
     def create(
         cls, context: GearContext, parameter_store: Optional[ParameterStore] = None
     ) -> "REDCapImageFormImporterVisitor":
-        """Creates a REDCap image form importer execution visitor.
+        """Creates a REDCap image form importer execution visitor, exits if
+        expected inputs are missing.
 
         Args:
             context: The gear context.
             parameter_store: The parameter store
         Returns:
           the execution environment
-        Raises:
-          GearExecutionError if any expected inputs are missing
         """
         assert parameter_store, "Parameter store expected"
 
@@ -62,9 +60,8 @@ class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
             lock_record: bool = get_config(gear_context=context, key="lock_record")
             parameter_path: str = get_config(gear_context=context, key="parameter_path")
         except ConfigParseError as error:
-            raise GearExecutionError(
-                f"Incomplete configuration: {error.message}"
-            ) from error
+            log.error(f"Incomplete configuration: {error.message}")
+            exit(1)
 
         client = ContextClient.create(context=context)
 
@@ -84,10 +81,11 @@ class REDCapImageFormImporterVisitor(GearExecutionEnvironment):
                 context.config.destination["id"]
             ).parents["session"]
         else:
-            raise GearExecutionError(
+            log.error(
                 "Expected to run on associated session, given "
                 f"{context.config.destination['type']}"
             )
+            exit(1)
 
         redcap_con = REDCapConnection.create_from(
             self.__param_store.get_parameters(
