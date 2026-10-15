@@ -80,12 +80,6 @@ def uds_ingest_configs() -> ModuleConfigs:
             "udsv4-ivp",
             "visit-conflict",
         ],
-        "errorlog_template": {
-            "id_field": "ptid",
-            "date_field": "visitdate",
-            "suffix": "qc-status",
-            "extension": "log",
-        },
     }
 
     return ModuleConfigs.model_validate(module_configs)
