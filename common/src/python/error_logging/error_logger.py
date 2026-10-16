@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime as dt
+from datetime import timezone
 from typing import Any, Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from keys.keys import MetadataKeys
 from nacc_common.data_identification import (
     AbstractIdentificationVisitor,
     DataIdentification,
@@ -14,13 +16,16 @@ from nacc_common.data_identification import (
     VisitIdentification,
 )
 from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
-from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT, parse_timestamp
 from pydantic import BaseModel, ValidationError
 from utils.decorators import api_retry, retry_with_backoff
 
 log = logging.getLogger(__name__)
 
 MetadataCleanupFlag = Literal["ALL", "GEAR", "NA"]
+
+# single segment with no "_" or ":", so the log name can be parsed by segments
+LOG_TIMESTAMP_FORMAT = "%Y%m%dT%H%M%SZ"
 
 
 class ErrorLogIdentificationVisitor(AbstractIdentificationVisitor):
@@ -111,25 +116,36 @@ class ErrorLogTemplate(BaseModel):
 
     The file name is form using the visit label as the prefix, and
     suffix and extension fields from this template.
+
+    If add_timestamp is set, the submission timestamp is appended to the
+    suffix to keep a separate log for each visit and submission. The
+    timestamp is not part of the configs, gears pass it when generating the
+    file name. Without a timestamp no file name is generated, so gears that
+    do not pass it do not write to the visit log.
     """
 
     suffix: Optional[str] = "qc-status"
     extension: Optional[str] = "log"
+    add_timestamp: bool = False
 
-    def instantiate(self, data_id: "DataIdentification") -> Optional[str]:
+    def instantiate(
+        self, data_id: "DataIdentification", timestamp: Optional[dt] = None
+    ) -> Optional[str]:
         """Generate QC log filename from DataIdentification.
 
         Creates filename that reflects the DataIdentification structure:
         - Date comes before visitnum (date is always present)
         - Includes visitnum if present
         - Packet is excluded (not needed for unique identification)
-        - Format: {ptid}_{date}[_{visitnum}]_{module}_qc-status.log
+        - Format: {ptid}_{date}[_{visitnum}]_{module}[_{timestamp}]_{suffix}.{extension}
+          (timestamp included only if add_timestamp set)
 
         Args:
             data_id: DataIdentification with visit metadata
+            timestamp: submission timestamp, required if add_timestamp set
 
         Returns:
-            QC log filename, or None if required fields are missing
+            Error log filename, or None if required fields are missing
 
         Examples:
             Form with visitnum:
@@ -146,7 +162,7 @@ class ErrorLogTemplate(BaseModel):
         if prefix is None:
             return None
 
-        return self.create_filename(prefix)
+        return self.create_filename(prefix, timestamp)
 
     def instantiate_legacy(self, data_id: "DataIdentification") -> Optional[str]:
         """Generate legacy QC log filename from DataIdentification.
@@ -154,15 +170,22 @@ class ErrorLogTemplate(BaseModel):
         Creates filename in legacy format (without visitnum, without packet):
         - Format: {ptid}_{date}_{module}_qc-status.log
 
+        Logs with timestamp are always created in the new format,
+        so there is no legacy format if add_timestamp set.
+
         Args:
             data_id: DataIdentification with visit metadata
 
         Returns:
             Legacy QC log filename, or None if required fields are missing
+            or add_timestamp set
 
         Examples:
             → 12345_2024-01-15_uds_qc-status.log
         """
+        if self.add_timestamp:
+            return None
+
         visitor = ErrorLogIdentificationVisitor()
         data_id.apply(visitor)
 
@@ -172,18 +195,50 @@ class ErrorLogTemplate(BaseModel):
 
         return self.create_filename(prefix)
 
-    def create_filename(self, visit_label: str) -> str:
+    def create_filename(
+        self, visit_label: str, timestamp: Optional[dt] = None
+    ) -> Optional[str]:
         """Creates a log file name from this template by extending the visit-
         label.
 
-        The format of the file name is "<visit-label>_<suffix>.<extension>".
+        The format of the file name is "<visit-label>_<suffix>.<extension>",
+        or "<visit-label>_<timestamp>_<suffix>.<extension>" if add_timestamp set.
 
         Args:
           visit_label: the visit label
+          timestamp: submission timestamp, required if add_timestamp set
         Returns:
-          the file name build by extending the visit label
+          the file name build by extending the visit label,
+          None if add_timestamp set and timestamp is missing
         """
-        return f"{visit_label}_{self.suffix}.{self.extension}"
+        if not self.add_timestamp:
+            return f"{visit_label}_{self.suffix}.{self.extension}"
+
+        if not timestamp:
+            log.error("Submission timestamp required to create the QC log file name")
+            return None
+
+        ts_str = timestamp.astimezone(timezone.utc).strftime(LOG_TIMESTAMP_FORMAT)
+        return f"{visit_label}_{ts_str}_{self.suffix}.{self.extension}"
+
+
+def get_submission_timestamp(file_entry: FileEntry) -> dt:
+    """Returns the submission timestamp for the file.
+
+    The first gear in the workflow sets the submission timestamp in its
+    output file info, otherwise the file created timestamp is used.
+
+    Args:
+      file_entry: the input file
+    Returns:
+      the submission timestamp
+    """
+    info = file_entry.info if file_entry.info else {}
+    timestamp = parse_timestamp(info.get(MetadataKeys.SUBMISSION_TIMESTAMP))
+    if timestamp:
+        return timestamp
+
+    return file_entry.created
 
 
 @api_retry
