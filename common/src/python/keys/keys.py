@@ -82,6 +82,7 @@ class MetadataKeys:
     FORM_METADATA_PATH = "file.info.forms.json"
     VALIDATED_TIMESTAMP = "validated-timestamp"
     TRIGGERED_TIMESTAMP = "triggered-timestamp"
+    SUBMISSION_TIMESTAMP = "submission-timestamp"
 
     @classmethod
     def get_column_key(cls, column: str) -> str:

@@ -1,6 +1,7 @@
 """QC Status Log Creator and File Visit Annotator."""
 
 import logging
+from datetime import datetime
 from typing import Any, Optional
 
 from flywheel.models.file_entry import FileEntry
@@ -91,16 +92,21 @@ class QCStatusLogManager:
     updates."""
 
     def __init__(
-        self, error_log_template: ErrorLogTemplate, visit_annotator: FileVisitAnnotator
+        self,
+        error_log_template: ErrorLogTemplate,
+        visit_annotator: FileVisitAnnotator,
+        timestamp: Optional[datetime] = None,
     ):
         """Initialize QC status log manager.
 
         Args:
             error_log_template: Template for generating QC status log filenames
             visit_annotator: File visit annotator for adding visit metadata
+            timestamp: Submission timestamp, required if template add_timestamp set
         """
         self.__template = error_log_template
         self.__visit_annotator = visit_annotator
+        self.__timestamp = timestamp
 
     def get_qc_log_filename(
         self, visit_keys: DataIdentification, project: ProjectAdaptor
@@ -121,7 +127,7 @@ class QCStatusLogManager:
             None if filename cannot be generated
         """
         # Generate new format filename
-        new_format_filename = self.__template.instantiate(visit_keys)
+        new_format_filename = self.__template.instantiate(visit_keys, self.__timestamp)
         if not new_format_filename:
             return None
 
