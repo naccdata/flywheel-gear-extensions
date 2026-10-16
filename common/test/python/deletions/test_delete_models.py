@@ -40,6 +40,18 @@ class TestGetDeletedVisitsList:
             "PTID=1010, Module=NP, Date=2024-01-15"
         )
 
+    def test_timestamped_log(self):
+        info = create_info(
+            [
+                "1010_2024-01-15_1_uds_20261016T101530Z_update-request.log",
+                "1010_2024-01-15_np_20261016T101530Z_qc-status.log",
+            ]
+        )
+        assert info.get_deleted_visits_list() == (
+            "PTID=1010, Module=UDS, Date=2024-01-15, Visit Number=1\n"
+            "PTID=1010, Module=NP, Date=2024-01-15"
+        )
+
     def test_non_log_files_skipped(self):
         info = create_info(
             [
