@@ -42,10 +42,13 @@ class EventAccumulator:
             form_configs: optional form module configs used to resolve the
                 module-specific date field when extracting visit metadata from
                 forms.json. Falls back to auto-detection when configs are not
-                provided or the module is unknown.
+                provided or the module is unknown. Also provides the QC status log
+                naming template, defaults to qc-status when configs not provided.
         """
         self.__event_capture = event_capture
-        self.__error_log_template = ErrorLogTemplate()
+        self.__error_log_template = (
+            form_configs.errorlog_template if form_configs else ErrorLogTemplate()
+        )
         self.__form_configs = form_configs
 
     def create_qc_status_file_name(self, json_file: FileEntry) -> Optional[str]:

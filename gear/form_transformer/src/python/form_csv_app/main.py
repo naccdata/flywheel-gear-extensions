@@ -71,6 +71,7 @@ class CSVTransformVisitor(CSVVisitor):
         project: Optional[ProjectAdaptor] = None,
         event_capture: Optional[VisitEventCapture] = None,
         timestamp: Optional[datetime] = None,
+        errorlog_template: Optional[ErrorLogTemplate] = None,
     ) -> None:
         self.__module = module
         self.__id_column = id_column
@@ -95,9 +96,7 @@ class CSVTransformVisitor(CSVVisitor):
             self.__req_fields.append(self.__date_field)
 
         self.__errorlog_template = (
-            self.__module_configs.errorlog_template
-            if self.__module_configs.errorlog_template
-            else ErrorLogTemplate()
+            errorlog_template if errorlog_template else ErrorLogTemplate()
         )
 
         self.__existing_visits: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(
@@ -965,6 +964,7 @@ def run(
     downstream_gears: Optional[List[str]] = None,
     event_capture: Optional[VisitEventCapture] = None,
     timestamp: Optional[datetime] = None,
+    errorlog_template: Optional[ErrorLogTemplate] = None,
 ) -> bool:
     """Reads records from the input file and transforms each into a JSON file.
     Uploads the JSON file to the respective acquisition in Flywheel.
@@ -982,6 +982,7 @@ def run(
         downstream_gears: list of downstream gears
         event_capture: optional VisitEventCapture for logging duplicate events
         timestamp: file entry created timestamp for event capture
+        errorlog_template: QC status log naming template, defaults to qc-status
 
     Returns:
         bool: True if transformation/upload successful
@@ -997,6 +998,7 @@ def run(
         project=destination,
         event_capture=event_capture,
         timestamp=timestamp,
+        errorlog_template=errorlog_template,
     )
     result = read_csv(
         input_file=input_file,

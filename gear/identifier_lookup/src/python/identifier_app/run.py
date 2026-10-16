@@ -2,7 +2,7 @@
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 from typing import List, Literal, Optional, TextIO
@@ -12,7 +12,7 @@ from configs.ingest_configs import (
     ModuleConfigs,
     load_form_ingest_configurations,
 )
-from error_logging.error_logger import ErrorLogTemplate
+from error_logging.error_logger import ErrorLogTemplate, get_submission_timestamp
 from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
     QCStatusLogManager,
@@ -20,6 +20,7 @@ from error_logging.qc_status_log_creator import (
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
+from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from fw_gear import GearContext
 from gear_execution.gear_execution import (
@@ -45,10 +46,11 @@ from inputs.csv_reader import (
 )
 from inputs.date_validator import DateValidator
 from inputs.parameter_store import ParameterStore
-from keys.keys import DefaultValues
+from keys.keys import DefaultValues, MetadataKeys
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
 from outputs.error_writer import ListErrorWriter
 from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
@@ -85,6 +87,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         self.__event_capture = event_capture
         self.__module = module
         self.__single_center = single_center
+        self.__submission_timestamp: Optional[datetime] = None
 
     @classmethod
     def create(
@@ -165,6 +168,19 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
             single_center=single_center,
         )
 
+    def __set_submission_timestamp(
+        self, *, template: ErrorLogTemplate, file_entry: FileEntry
+    ) -> None:
+        """Sets the submission timestamp for error log names, if add_timestamp
+        is enabled in the error log template.
+
+        Args:
+            template: the error log template from form configs
+            file_entry: the input file
+        """
+        if template.add_timestamp:
+            self.__submission_timestamp = get_submission_timestamp(file_entry)
+
     def __build_naccid_lookup(
         self,
         *,
@@ -173,11 +189,13 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         output_file: TextIO,
         error_writer: ListErrorWriter,
         misc_errors: List[FileError],
+        file_entry: FileEntry,
         timestamp: datetime,
     ) -> CSVVisitor:
         # Determine module name using the new logic
         module_configs: Optional[ModuleConfigs] = None
         module: Optional[str] = None
+        error_log_template = ErrorLogTemplate()
 
         if self.__config_input:
             # Module is defined in uppercase in form configs file (e.g., "UDS", "LBD")
@@ -202,6 +220,10 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 )
 
             module_configs = form_project_configs.module_configs.get(module)
+            error_log_template = form_project_configs.errorlog_template
+            self.__set_submission_timestamp(
+                template=error_log_template, file_entry=file_entry
+            )
 
         agg_validator = None
         if module_configs and self.__single_center:
@@ -261,10 +283,11 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
         # single center mode)
         if module_configs and self.__single_center:
             assert project is not None, "project set when single center"
-            error_log_template = ErrorLogTemplate()
             visit_annotator = FileVisitAnnotator(project=project)
             qc_log_manager = QCStatusLogManager(
-                error_log_template=error_log_template, visit_annotator=visit_annotator
+                error_log_template=error_log_template,
+                visit_annotator=visit_annotator,
+                timestamp=self.__submission_timestamp,
             )
 
             qc_visitor = QCStatusLogCSVVisitor(
@@ -391,6 +414,7 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                     output_file=out_file,
                     error_writer=error_writer,
                     misc_errors=misc_errors,
+                    file_entry=file_entry,
                     timestamp=timestamp,
                 )
             elif self.__direction == "center":
@@ -413,6 +437,20 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
                 log.info("Writing contents")
                 with context.open_output(filename, mode="w", encoding="utf-8") as fh:
                     fh.write(contents)
+
+                # pass the submission timestamp to the next gear in the workflow
+                if self.__submission_timestamp:
+                    context.metadata.update_file_metadata(
+                        filename,
+                        container_type=context.config.destination["type"],
+                        info={
+                            MetadataKeys.SUBMISSION_TIMESTAMP: (
+                                self.__submission_timestamp.astimezone(
+                                    timezone.utc
+                                ).strftime(DEFAULT_DATE_TIME_FORMAT)
+                            )
+                        },
+                    )
             else:
                 log.info("Contents empty, will not write output file")
 

@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.1
+* Reads the QC status log naming template (`errorlog_template`) from the top level of the form configs
+
 ## 2.2.0
 * Adds `covid-ivp` pre-processing check (covid module accepts more than one initial visit packet)
     * A follow-up packet requires at least one existing initial visit packet
