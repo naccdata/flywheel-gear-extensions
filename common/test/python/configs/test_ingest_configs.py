@@ -45,6 +45,15 @@ class TestErrorLogTemplateConfigs:
         assert configs.errorlog_template.suffix == "update-request"
         assert configs.errorlog_template.extension == "log"
 
+    def test_add_timestamp_default(self):
+        assert not create_configs().errorlog_template.add_timestamp
+
+    def test_add_timestamp_configured(self):
+        configs = create_configs(
+            errorlog_template={"suffix": "update-request", "add_timestamp": True}
+        )
+        assert configs.errorlog_template.add_timestamp
+
     def test_module_level_errorlog_template_ignored(self):
         module_configs = {
             **MODULE_CONFIGS,
