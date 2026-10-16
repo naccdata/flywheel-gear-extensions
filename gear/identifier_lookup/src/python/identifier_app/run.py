@@ -171,8 +171,8 @@ class IdentifierLookupVisitor(GearExecutionEnvironment):
     def __set_submission_timestamp(
         self, *, template: ErrorLogTemplate, file_entry: FileEntry
     ) -> None:
-        """Sets the submission timestamp for error log names, if
-        add_timestamp is enabled in the error log template.
+        """Sets the submission timestamp for error log names, if add_timestamp
+        is enabled in the error log template.
 
         Args:
             template: the error log template from form configs
