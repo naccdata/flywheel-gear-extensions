@@ -111,18 +111,44 @@ jobs:
         python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v5
+    # Only the nacc-common package and the resolved dependency set affect this
+    # compatibility job. nacc_common is self-contained (its modules import only
+    # from nacc_common and third-party packages, never from common/), so on PRs
+    # we skip packaging/import checks unless those inputs changed. Pushes to main
+    # always run (relevant = true below) as a backstop.
+    - name: Detect nacc-common changes
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          nacc_common:
+            - 'nacc-common/**'
+            - 'python-default.lock'
+    - name: Determine whether to run
+      id: gate
+      run: |
+        if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ steps.filter.outputs.nacc_common }}" = "true" ]; then
+          echo "relevant=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "relevant=false" >> "$GITHUB_OUTPUT"
+          echo "No nacc-common changes on this PR; skipping compatibility checks."
+        fi
     - uses: actions/setup-python@v6
+      if: steps.gate.outputs.relevant == 'true'
       with:
         python-version: ${{ matrix.python-version }}
     - uses: pantsbuild/actions/init-pants@v11
+      if: steps.gate.outputs.relevant == 'true'
       with:
         gha-cache-key: v0
         named-caches-hash: ${{ hashFiles('python-default.lock') }}
         cache-lmdb-store: 'true'
     - name: Package nacc-common
+      if: steps.gate.outputs.relevant == 'true'
       run: |
         pants package nacc-common:dist
     - name: Install and test nacc-common
+      if: steps.gate.outputs.relevant == 'true'
       run: |
         python -m pip install dist/nacc_common-*.whl
         python -c "import nacc_common; print('nacc_common imported successfully')"
