@@ -3,18 +3,24 @@
 
 name: Pants Lint and Test
 
+# NOTE: paths-ignore below skips the ENTIRE workflow (no run, no check reported)
+# for matching changes. This is safe only because branch protection on `main` has
+# no required status checks (required_status_checks: null; it requires 1 review).
+# If "Pants Lint and Test" is ever made a required check, a docs-only / ignored PR
+# would never report that check and would hang indefinitely. Do not add this
+# workflow as a required check without first removing these paths-ignore filters.
 on:
   push:
     branches: [ "main" ]
     paths-ignore:
       - 'docs/**'
-      - '**/*.md'
+      - '*.md'
       - '.gitignore'
   pull_request:
     branches: [ "main" ]
     paths-ignore:
       - 'docs/**'
-      - '**/*.md'
+      - '*.md'
       - '.gitignore'
 
 permissions:
@@ -86,6 +92,10 @@ jobs:
     # pull in transitive dependents so every consumer of a changed target is checked.
     # Validated: a change to comanage/coreapi.yaml correctly selects the generated
     # client, the users subsystem, and the user_management gear as dependents.
+    # --changed-dependents=transitive is load-bearing: it is the only guard that a
+    # PR-scoped run checks every consumer of a changed target. If Pants dependency
+    # inference ever misses an edge, a regression could merge; the full `::` run on
+    # pushes to main is the backstop that catches it before the next release.
     - name: Determine Pants scope
       id: scope
       run: |
@@ -118,7 +128,8 @@ jobs:
     # always run (relevant = true below) as a backstop.
     - name: Detect nacc-common changes
       id: filter
-      uses: dorny/paths-filter@v3
+      # Pinned to a commit SHA (not the mutable v3 tag) for supply-chain safety.
+      uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
       with:
         filters: |
           nacc_common:
