@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# Serialize release runs per tag; never cancel an in-progress release to avoid
+# leaving a half-published GitHub release behind.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Build and Release nacc-common

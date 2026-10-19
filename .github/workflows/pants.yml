@@ -3,14 +3,34 @@
 
 name: Pants Lint and Test
 
+# NOTE: paths-ignore below skips the ENTIRE workflow (no run, no check reported)
+# for matching changes. This is safe only because branch protection on `main` has
+# no required status checks (required_status_checks: null; it requires 1 review).
+# If "Pants Lint and Test" is ever made a required check, a docs-only / ignored PR
+# would never report that check and would hang indefinitely. Do not add this
+# workflow as a required check without first removing these paths-ignore filters.
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
 
 permissions:
   contents: read
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR branch).
+# Runs on main are not grouped together so each main commit still gets a full run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -21,6 +41,10 @@ jobs:
         python-version: [3.12]
     steps:
     - uses: actions/checkout@v5
+      with:
+        # Full history so Pants can compute the merge-base against origin/main
+        # for --changed-since on pull requests. The default shallow clone cannot.
+        fetch-depth: 0
     - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
@@ -34,11 +58,11 @@ jobs:
         # The Python backend uses named_caches for Pip/PEX state,
         # so it is appropriate to invalidate on lockfile changes.
         named-caches-hash: ${{ hashFiles('python-default.lock') }}
-        # If you're not using a fine-grained remote caching service (see https://www.pantsbuild.org/docs/remote-caching),
-        # then you may also want to preserve the local Pants cache (lmdb_store). However this must invalidate for
-        # changes to any file that can affect the build, so may not be practical in larger repos.
-        # A remote cache service integrates with Pants's fine-grained invalidation and avoids these problems.
-        cache-lmdb-store: 'false'  # defaults to 'false'
+        # Preserve the local Pants cache (lmdb_store) between runs so lint/check/test
+        # results are reused incrementally instead of recomputed from scratch.
+        # The cache falls back to partial restore keys and grows over time; bump
+        # gha-cache-key above to reset it if it gets stale or too large.
+        cache-lmdb-store: 'true'
         # Note that named_caches and lmdb_store falls back to partial restore keys which
         # may give a useful partial result that will save time over completely clean state,
         # but will cause the cache entry to grow without bound over time.
@@ -47,17 +71,47 @@ jobs:
     - name: Check Build
       run: |
         pants update-build-files --check ::
+    # Cache the generated CoManage client so we skip the openapi-generator Docker
+    # image pull + JVM codegen on every run. The generated output is a function of
+    # both the schema (coreapi.yaml) and the generator config/version (comanage/BUILD
+    # pins the openapi-generator-cli image tag), so key the cache on both. A generator
+    # version bump in BUILD therefore invalidates the cache and forces regeneration.
+    - name: Cache CoManage generated client
+      id: comanage-cache
+      uses: actions/cache@v4
+      with:
+        path: comanage/coreapi/src/python
+        key: comanage-client-${{ hashFiles('comanage/coreapi.yaml', 'comanage/BUILD') }}
     - name: Build CoManage
+      if: steps.comanage-cache.outputs.cache-hit != 'true'
       run: |
         pants run comanage:build_client
+    # Scope lint/check/test to the diff on pull requests, but run the full repo on
+    # pushes to main as a backstop against any missed dependency edge. On PRs we
+    # compare against the PR base commit (already fetched via fetch-depth: 0) and
+    # pull in transitive dependents so every consumer of a changed target is checked.
+    # Validated: a change to comanage/coreapi.yaml correctly selects the generated
+    # client, the users subsystem, and the user_management gear as dependents.
+    # --changed-dependents=transitive is load-bearing: it is the only guard that a
+    # PR-scoped run checks every consumer of a changed target. If Pants dependency
+    # inference ever misses an edge, a regression could merge; the full `::` run on
+    # pushes to main is the backstop that catches it before the next release.
+    - name: Determine Pants scope
+      id: scope
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "args=--changed-since=${{ github.event.pull_request.base.sha }} --changed-dependents=transitive" >> "$GITHUB_OUTPUT"
+        else
+          echo "args=::" >> "$GITHUB_OUTPUT"
+        fi
     - name: Lint
       run: |
-        pants lint ::
-        pants check ::
+        pants ${{ steps.scope.outputs.args }} lint
+        pants ${{ steps.scope.outputs.args }} check
     - name: Test
       if: always()
       run: |
-        pants test ::
+        pants ${{ steps.scope.outputs.args }} test
 
   nacc-common-compat:
     name: nacc-common Python ${{ matrix.python-version }}
@@ -67,18 +121,45 @@ jobs:
         python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v5
+    # Only the nacc-common package and the resolved dependency set affect this
+    # compatibility job. nacc_common is self-contained (its modules import only
+    # from nacc_common and third-party packages, never from common/), so on PRs
+    # we skip packaging/import checks unless those inputs changed. Pushes to main
+    # always run (relevant = true below) as a backstop.
+    - name: Detect nacc-common changes
+      id: filter
+      # Pinned to a commit SHA (not the mutable v3 tag) for supply-chain safety.
+      uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+      with:
+        filters: |
+          nacc_common:
+            - 'nacc-common/**'
+            - 'python-default.lock'
+    - name: Determine whether to run
+      id: gate
+      run: |
+        if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ steps.filter.outputs.nacc_common }}" = "true" ]; then
+          echo "relevant=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "relevant=false" >> "$GITHUB_OUTPUT"
+          echo "No nacc-common changes on this PR; skipping compatibility checks."
+        fi
     - uses: actions/setup-python@v6
+      if: steps.gate.outputs.relevant == 'true'
       with:
         python-version: ${{ matrix.python-version }}
     - uses: pantsbuild/actions/init-pants@v11
+      if: steps.gate.outputs.relevant == 'true'
       with:
         gha-cache-key: v0
         named-caches-hash: ${{ hashFiles('python-default.lock') }}
-        cache-lmdb-store: 'false'
+        cache-lmdb-store: 'true'
     - name: Package nacc-common
+      if: steps.gate.outputs.relevant == 'true'
       run: |
         pants package nacc-common:dist
     - name: Install and test nacc-common
+      if: steps.gate.outputs.relevant == 'true'
       run: |
         python -m pip install dist/nacc_common-*.whl
         python -c "import nacc_common; print('nacc_common imported successfully')"
