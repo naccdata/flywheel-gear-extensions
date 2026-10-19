@@ -6,11 +6,25 @@ name: Pants Lint and Test
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.gitignore'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.gitignore'
 
 permissions:
   contents: read
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR branch).
+# Runs on main are not grouped together so each main commit still gets a full run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -34,11 +48,11 @@ jobs:
         # The Python backend uses named_caches for Pip/PEX state,
         # so it is appropriate to invalidate on lockfile changes.
         named-caches-hash: ${{ hashFiles('python-default.lock') }}
-        # If you're not using a fine-grained remote caching service (see https://www.pantsbuild.org/docs/remote-caching),
-        # then you may also want to preserve the local Pants cache (lmdb_store). However this must invalidate for
-        # changes to any file that can affect the build, so may not be practical in larger repos.
-        # A remote cache service integrates with Pants's fine-grained invalidation and avoids these problems.
-        cache-lmdb-store: 'false'  # defaults to 'false'
+        # Preserve the local Pants cache (lmdb_store) between runs so lint/check/test
+        # results are reused incrementally instead of recomputed from scratch.
+        # The cache falls back to partial restore keys and grows over time; bump
+        # gha-cache-key above to reset it if it gets stale or too large.
+        cache-lmdb-store: 'true'
         # Note that named_caches and lmdb_store falls back to partial restore keys which
         # may give a useful partial result that will save time over completely clean state,
         # but will cause the cache entry to grow without bound over time.
@@ -47,7 +61,19 @@ jobs:
     - name: Check Build
       run: |
         pants update-build-files --check ::
+    # Cache the generated CoManage client so we skip the openapi-generator Docker
+    # image pull + JVM codegen on every run. The generated output is a function of
+    # both the schema (coreapi.yaml) and the generator config/version (comanage/BUILD
+    # pins the openapi-generator-cli image tag), so key the cache on both. A generator
+    # version bump in BUILD therefore invalidates the cache and forces regeneration.
+    - name: Cache CoManage generated client
+      id: comanage-cache
+      uses: actions/cache@v4
+      with:
+        path: comanage/coreapi/src/python
+        key: comanage-client-${{ hashFiles('comanage/coreapi.yaml', 'comanage/BUILD') }}
     - name: Build CoManage
+      if: steps.comanage-cache.outputs.cache-hit != 'true'
       run: |
         pants run comanage:build_client
     - name: Lint
@@ -74,7 +100,7 @@ jobs:
       with:
         gha-cache-key: v0
         named-caches-hash: ${{ hashFiles('python-default.lock') }}
-        cache-lmdb-store: 'false'
+        cache-lmdb-store: 'true'
     - name: Package nacc-common
       run: |
         pants package nacc-common:dist
