@@ -35,6 +35,10 @@ jobs:
         python-version: [3.12]
     steps:
     - uses: actions/checkout@v5
+      with:
+        # Full history so Pants can compute the merge-base against origin/main
+        # for --changed-since on pull requests. The default shallow clone cannot.
+        fetch-depth: 0
     - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
@@ -76,14 +80,28 @@ jobs:
       if: steps.comanage-cache.outputs.cache-hit != 'true'
       run: |
         pants run comanage:build_client
+    # Scope lint/check/test to the diff on pull requests, but run the full repo on
+    # pushes to main as a backstop against any missed dependency edge. On PRs we
+    # compare against the PR base commit (already fetched via fetch-depth: 0) and
+    # pull in transitive dependents so every consumer of a changed target is checked.
+    # Validated: a change to comanage/coreapi.yaml correctly selects the generated
+    # client, the users subsystem, and the user_management gear as dependents.
+    - name: Determine Pants scope
+      id: scope
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "args=--changed-since=${{ github.event.pull_request.base.sha }} --changed-dependents=transitive" >> "$GITHUB_OUTPUT"
+        else
+          echo "args=::" >> "$GITHUB_OUTPUT"
+        fi
     - name: Lint
       run: |
-        pants lint ::
-        pants check ::
+        pants ${{ steps.scope.outputs.args }} lint
+        pants ${{ steps.scope.outputs.args }} check
     - name: Test
       if: always()
       run: |
-        pants test ::
+        pants ${{ steps.scope.outputs.args }} test
 
   nacc-common-compat:
     name: nacc-common Python ${{ matrix.python-version }}
