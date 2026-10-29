@@ -10,7 +10,6 @@ from pydantic import (
     Field,
     field_validator,
 )
-
 from users.authorizations import (
     ActionType,
     Authorizations,
