@@ -277,9 +277,9 @@ class DirectoryAuthorizations(BaseModel):
     signed_user_agreement: bool = Field(
         default=False, alias="signed_agreement_status_num_ct"
     )
-    permissions_approval: bool
-    permissions_approval_date: date
-    permissions_approval_name: str
+    permissions_approval: bool = False
+    permissions_approval_date: Optional[date] = None
+    permissions_approval_name: Optional[str] = None
 
     @field_validator("firstname", "lastname", mode="before")
     def strip_names(cls, value: Any) -> str:
@@ -391,6 +391,29 @@ class DirectoryAuthorizations(BaseModel):
         if isinstance(value, str) and value == "1":
             return "ViewAccess"
         return "NoAccess"
+
+    @field_validator(
+        "permissions_approval_date", "permissions_approval_name", mode="before"
+    )
+    def convert_empty_to_none(cls, value: Any) -> Any:
+        """Converts empty/whitespace-only strings to None.
+
+        REDCap exports blank values as empty strings. For records that were
+        never approved (e.g., archived-but-unapproved contacts), the approval
+        date and name fields are blank. An empty string cannot be coerced to a
+        date, so it is converted to None here, allowing these optional fields
+        to validate.
+
+        Args:
+            value: the field value to normalize
+
+        Returns:
+            None if the value is an empty or whitespace-only string, otherwise
+            the value unchanged.
+        """
+        if isinstance(value, str) and value.strip() == "":
+            return None
+        return value
 
     @field_validator(
         "inactive", "permissions_approval", "signed_user_agreement", mode="before"
