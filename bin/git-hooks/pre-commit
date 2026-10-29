@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Git pre-commit entrypoint. Delegates to the tracked, reviewable hook script.
+# Enabled via: git config core.hooksPath bin/git-hooks  (see bin/install-git-hooks.sh)
+set -euo pipefail
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+exec "$REPO_ROOT/bin/pre-commit-hook.sh" "$@"
