@@ -1,0 +1,6 @@
+{
+    "gear_name": "soft-copy",
+    "configs": {
+        "target-project": "{{target}}"
+    }
+}
