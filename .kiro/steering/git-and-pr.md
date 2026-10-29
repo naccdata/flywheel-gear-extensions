@@ -60,3 +60,21 @@ bookkeeping on its own) and keep commit messages concise and in imperative mood.
 
 - Push to a new branch, never directly to main/master
 - Use `-u` flag on first push to set up tracking
+
+## Pre-commit Hook
+
+The repo ships a tracked pre-commit hook that mirrors the CI "Lint" step: it
+runs `pants lint` on the staged Python files before a commit is recorded, and
+on failure corrects `I001` import ordering with a file-scoped `pants fix` and
+aborts so you can re-stage and commit again.
+
+- Enable once per clone: `./bin/install-git-hooks.sh` (sets `core.hooksPath` to
+  `bin/git-hooks`).
+- The hook does **not** auto-stage; staging stays explicit and human-approved.
+- Bypass a single commit with `git commit --no-verify` (or
+  `PRE_COMMIT_SKIP=1 git commit`).
+- It runs Pants inside the devcontainer, so the container must be available.
+
+Why it exists: `pants fix ::` can leave ruff's `I001` import sort unapplied
+(see the "Pants `fix` scope caveat" in `.kiro/steering/devcontainer.md`), which
+CI's `pants lint` then rejects. The hook catches that before the commit lands.
