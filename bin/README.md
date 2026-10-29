@@ -66,6 +66,37 @@ Examples:
 ./bin/exec-in-devcontainer.sh python --version
 ```
 
+### `install-git-hooks.sh`
+Enable the repository's tracked git hooks for your clone (run once per clone).
+
+```bash
+./bin/install-git-hooks.sh
+```
+
+Points git at `bin/git-hooks` via `core.hooksPath` so the version-controlled
+pre-commit hook runs on every commit. Disable later with
+`git config --unset core.hooksPath`.
+
+### `pre-commit-hook.sh`
+The pre-commit hook body (invoked by `bin/git-hooks/pre-commit`; you normally
+do not run it directly).
+
+On commit it runs `pants lint` on the staged Python files — the same check CI's
+"Lint" step runs — before the commit is recorded. If lint passes the commit
+proceeds; if it fails the hook runs a **file-scoped** `pants fix` to correct the
+issue and then aborts the commit so you can review, re-stage, and commit again.
+
+This exists because `pants fix ::` (a directory/recursive target) and
+`pants fix <file>.py` (a single-file target) run different fixer pipelines: the
+recursive form can leave ruff's import-sort rule (`I001`) unfixed, so a tree
+that `pants fix ::` reported as clean can still fail CI. The hook closes that
+gap. See the "Pants `fix` scope caveat" note in `.kiro/steering/devcontainer.md`
+for the full explanation.
+
+Bypass a single commit with `git commit --no-verify` (or
+`PRE_COMMIT_SKIP=1 git commit`). The hook requires the devcontainer, since it
+runs Pants inside it.
+
 ## Typical Workflow
 
 1. Build the container (first time or after config changes):
