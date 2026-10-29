@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 4.1.4
+
+* Fixes directory record validation failing for archived contacts that were never approved
+* Makes `permissions_approval`, `permissions_approval_date`, and `permissions_approval_name` optional in the `DirectoryAuthorizations` model, with a validator that converts blank REDCap values to `None`
+* Previously an archived-but-unapproved contact passed the approval pre-filter (via `archive_contact='1'`) but then failed model validation on its blank `permissions_approval_date`, raising a `check_directory_record_format` error instead of processing as an inactive user
+
 ## 4.1.3
 
 * Fixes timezone mismatch in incremental pull date range computation
