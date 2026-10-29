@@ -1,0 +1,9 @@
+{
+    "gear_name": "soft-copy",
+    "configs": {
+        "debug": false,
+        "duplicate-strategy": "move",
+        "include-filter": "subject.label={{subject}}",
+        "target-project": "{{target}}"
+    }
+}

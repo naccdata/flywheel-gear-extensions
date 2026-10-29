@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.0
+* Loads soft-copy gear configs from an input config file
+
 ## 1.1.1
 * Adds support for affiliated studies that doesn't have a separate group in Flywheel
 * Adds support for handling PTIDs with period
