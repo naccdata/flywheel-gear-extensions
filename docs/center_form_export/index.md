@@ -25,6 +25,7 @@ The only input is `api-key` (a Flywheel API key). No file input is required.
 | `source_id` | string | — | yes | Identifier of the project being read, used in output filenames (see Source Identifiers) |
 | `include_derived` | boolean | `false` | no | Whether to include derived variables |
 | `formver_split` | boolean | `false` | no | Split output CSVs by form version |
+| `unsplit_modules` | string | `""` | no | Comma-separated modules to keep in one file when `formver_split` is enabled. Each must also be in `modules` |
 | `batch_size` | integer | `100` | no | Number of subject ids per query batch (see Performance) |
 | `reload_workers` | integer | `10` | no | Concurrent workers used to reload each batch's files (see Performance) |
 | `run_id` | string | `""` | no | Caller-supplied identifier appended to output filenames (see Run Identifiers) |
@@ -56,6 +57,8 @@ When `formver_split` is **enabled**, one file is produced per (module, form vers
 ```
 
 Example: `adrc-ingest-UDS-v4-2025-06-15.csv`
+
+A module listed in `unsplit_modules` is not split: it gets the single-file name above, with the columns of every form version it holds. Use it for a module whose versions share most of their columns, such as UDS v1–v3 in a `retrospective-form` project. A module name in `unsplit_modules` that is not in `modules` fails the job.
 
 `{stamp}` is the run date (`YYYY-MM-DD`), followed by `-{run_id}` when a `run_id` was supplied.
 
