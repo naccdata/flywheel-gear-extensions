@@ -64,14 +64,20 @@ class DeleteInfoModel(BaseModel):
         if not self.delete_response.deleted:
             return None
 
-        # Log file name format: {ptid}_{YYYY-MM-DD}[_{visitnum}]_{module}_qc-status.log
+        # Log file name format:
+        # {ptid}_{YYYY-MM-DD}[_{visitnum}]_{module}[_{timestamp}]_{suffix}.log
         # Anchor on the fixed-format date to handle a ptid that contains "_".
         # visitnum can be any non-underscore characters
         # (digits, decimals, alphanumeric codes, etc.)
-        # module is alphanumeric (uds, mlst, ftld, B1A, etc.)
+        # module is alphanumeric (uds, mlst, ftld, b1a, etc.)
+        # timestamp is YYYYMMDDTHHMMSSZ, present if errorlog_template add_timestamp set
+        # (module must not match the timestamp when there is no visitnum)
+        # suffix can be any non-underscore characters (qc-status by default,
+        # configurable through the form configs errorlog_template)
 
         pattern = re.compile(
-            r"^(.+)_(\d{4}-\d{2}-\d{2})_(?:([^_]+)_)?([A-Za-z0-9]+)_qc-status\.log$"
+            r"^(.+)_(\d{4}-\d{2}-\d{2})_(?:([^_]+)_)?(?!\d{8}T\d{6}Z_)([A-Za-z0-9]+)"
+            r"(?:_\d{8}T\d{6}Z)?_[^_]+\.log$"
         )
 
         visits = []

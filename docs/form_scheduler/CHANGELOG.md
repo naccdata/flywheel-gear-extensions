@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.4.5
+* Uses the QC status log naming template (`errorlog_template`) from the form configs, if provided
+* Deletion email lists deleted visits for status logs with any `.log` suffix
+
 ## 1.4.4
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
 * Parses `validated-timestamp` in both ISO 8601 and `YYYY-MM-DD HH:MM:SS` formats

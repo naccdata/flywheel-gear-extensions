@@ -7,10 +7,7 @@ from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from configs.ingest_configs import FormProjectConfigs
-from error_logging.error_logger import (
-    ErrorLogTemplate,
-    MetadataCleanupFlag,
-)
+from error_logging.error_logger import MetadataCleanupFlag
 from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
     QCStatusLogManager,
@@ -72,7 +69,7 @@ class FileProcessor(ABC):
         self._gear_name = gear_name
         self._module_configs = self._form_configs.module_configs.get(self._module)
         self._req_fields = self._set_required_fields()
-        self._errorlog_template = ErrorLogTemplate()
+        self._errorlog_template = self._form_configs.errorlog_template
 
     @abstractmethod
     def validate_input(
