@@ -26,6 +26,7 @@ def create_visitor(
     source_id: str = "ingest",
     formver_split: bool = False,
     run_id: str = "",
+    unsplit_modules: frozenset[str] = frozenset(),
 ) -> CenterFormExportVisitor:
     """Factory to create a CenterFormExportVisitor with test defaults."""
     if modules is None:
@@ -43,6 +44,7 @@ def create_visitor(
         source_id=source_id,
         formver_split=formver_split,
         run_id=run_id,
+        unsplit_modules=unsplit_modules,
     )
 
 
@@ -522,6 +524,13 @@ class TestCreateValidation:
         with pytest.raises(GearExecutionError, match="source_id must not be empty"):
             self._create(source_id=source_id)
 
+    def test_unsplit_module_outside_modules_rejected(self):
+        with pytest.raises(GearExecutionError, match="not in modules: LBD"):
+            self._create(modules="UDS,FTLD", unsplit_modules="UDS, LBD")
+
+    def test_unsplit_modules_accepted(self):
+        self._create(modules="UDS,FTLD", unsplit_modules=" UDS ,")
+
     def test_omitted_source_id_rejected(self):
         """A config that never sets source_id at all fails the same way an
         empty one does, rather than defaulting to a name without the
@@ -538,6 +547,85 @@ class TestCreateValidation:
             pytest.raises(GearExecutionError, match="source_id must not be empty"),
         ):
             CenterFormExportVisitor.create(context=context, parameter_store=MagicMock())
+
+
+class TestUnsplitModules:
+    """A module in unsplit_modules gets one file with every form version's
+    columns, while the other modules stay split."""
+
+    def _run(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+        **visitor_kwargs,
+    ) -> dict[str, bool]:
+        """Runs the visitor and returns each module's split_by_formver."""
+        setup_single_subject_project(mock_proxy)
+        visitor = create_visitor(mock_client, **visitor_kwargs)
+
+        def make_gatherer(*, module_name, split_by_formver, **_):
+            if split_by_formver:
+                return create_mock_gatherer(
+                    module_name,
+                    content_by_formver={"v2": "a\n1\n", "v3": "a\n2\n"},
+                )
+            return create_mock_gatherer(module_name, content="a\n1\n2\n")
+
+        with (
+            patch(
+                "center_form_export_app.run.ModuleDataGatherer",
+                side_effect=make_gatherer,
+            ) as mock_gatherer_cls,
+            patch("center_form_export_app.run.date") as mock_date,
+        ):
+            mock_date.today.return_value.isoformat.return_value = "2026-07-24"
+            visitor.run(mock_context)
+
+        return {
+            call.kwargs["module_name"]: call.kwargs["split_by_formver"]
+            for call in mock_gatherer_cls.call_args_list
+        }
+
+    def test_unsplit_module_gets_one_file(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        split = self._run(
+            mock_client,
+            mock_proxy,
+            mock_context,
+            modules={"UDS", "FTLD"},
+            source_id="legacy",
+            formver_split=True,
+            unsplit_modules=frozenset({"UDS"}),
+        )
+
+        assert split == {"UDS": False, "FTLD": True}
+        assert sorted(mock_context.output_files) == [
+            "adrc-legacy-FTLD-v2-2026-07-24.csv",
+            "adrc-legacy-FTLD-v3-2026-07-24.csv",
+            "adrc-legacy-UDS-2026-07-24.csv",
+        ]
+
+    def test_no_effect_when_formver_split_is_off(
+        self,
+        mock_client: MagicMock,
+        mock_proxy: MagicMock,
+        mock_context: MagicMock,
+    ):
+        split = self._run(
+            mock_client,
+            mock_proxy,
+            mock_context,
+            modules={"UDS", "FTLD"},
+            formver_split=False,
+            unsplit_modules=frozenset({"UDS"}),
+        )
+
+        assert split == {"UDS": False, "FTLD": False}
 
 
 class TestRunIdStamp:

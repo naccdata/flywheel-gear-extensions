@@ -300,6 +300,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         batch_size: int = 100,
         reload_workers: int = 10,
         run_id: str = "",
+        unsplit_modules: frozenset[str] = frozenset(),
     ):
         super().__init__(client=client)
         self.__group_id = group_id
@@ -309,6 +310,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         self.__study_id = study_id
         self.__source_id = source_id
         self.__formver_split = formver_split
+        self.__unsplit_modules = unsplit_modules
         self.__batch_size = batch_size
         self.__reload_workers = reload_workers
         self.__run_id = run_id
@@ -347,6 +349,10 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
         reload_workers = int(options.get("reload_workers", 10))
         run_id = options.get("run_id", "").strip()
         source_id = options.get("source_id", "").strip()
+        unsplit_modules_str = options.get("unsplit_modules", "")
+        unsplit_modules = frozenset(
+            m.strip() for m in unsplit_modules_str.split(",") if m.strip()
+        )
 
         if not group_id:
             raise GearExecutionError("group_id must not be empty")
@@ -358,6 +364,14 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             raise GearExecutionError("batch_size must be a positive integer")
         if reload_workers <= 0:
             raise GearExecutionError("reload_workers must be a positive integer")
+        # A typo here would leave the module split with no error, so a name
+        # outside `modules` fails the job instead.
+        unknown_unsplit = unsplit_modules - modules
+        if unknown_unsplit:
+            raise GearExecutionError(
+                "unsplit_modules must be a subset of modules; not in modules: "
+                + ", ".join(sorted(unknown_unsplit))
+            )
 
         # Every config value that lands in an output filename, in the order
         # the segments appear in the name.
@@ -402,6 +416,7 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
             batch_size=batch_size,
             reload_workers=reload_workers,
             run_id=run_id,
+            unsplit_modules=unsplit_modules,
         )
 
     def run(self, context: GearContext) -> None:
@@ -457,7 +472,8 @@ class CenterFormExportVisitor(GearExecutionEnvironment):
                 proxy=self.proxy,
                 module_name=module_name,
                 info_paths=self.__info_paths,
-                split_by_formver=self.__formver_split,
+                split_by_formver=self.__formver_split
+                and module_name not in self.__unsplit_modules,
             )
             for module_name in self.__modules
         ]
