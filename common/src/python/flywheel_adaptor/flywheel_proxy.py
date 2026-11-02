@@ -30,10 +30,11 @@ from flywheel.models.subject import Subject
 from flywheel.models.user import User
 from flywheel.rest import ApiException
 from flywheel.view_builder import ViewBuilder
-from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from fw_client.client import FWClient
 from fw_utils import AttrDict
 from utils.decorators import api_retry
+
+from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 
 log = logging.getLogger(__name__)
 
