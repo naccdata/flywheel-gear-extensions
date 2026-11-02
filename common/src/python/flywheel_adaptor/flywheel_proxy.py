@@ -618,7 +618,8 @@ class FlywheelProxy:
     ) -> None:
         """Sets the viewer apps of the project to the list of apps.
 
-        Note: this will replace any existing apps.
+        Note: this will replace any existing apps. Does nothing if the project
+        already has exactly these apps.
 
         Note: temporary fix using FWClient because flywheel-sdk doesn't manage
         type of viewer_apps.
@@ -635,6 +636,11 @@ class FlywheelProxy:
         settings = self.get_project_settings(project)
         if not settings:
             log.warning("Project %s has no settings", project.label)
+            return
+
+        # The settings PUT is slow on large projects, so skip it when unchanged.
+        if settings.get("viewer_apps") == apps:
+            log.info("viewer apps unchanged for project %s, skipping", project.label)
             return
 
         settings["viewer_apps"] = apps  # type: ignore

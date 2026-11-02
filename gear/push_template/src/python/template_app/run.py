@@ -58,8 +58,20 @@ class TemplatingVisitor(GearExecutionEnvironment):
 
         # Need fw-client because the SDK doesn't properly implement
         # ViewerApp type used for copying viewer apps from template projects.
+        #
+        # Use an extended read timeout (connect=10s, read=120s). The project
+        # settings endpoint (PUT /api/projects/{id}/settings), used when copying
+        # viewer apps, is routinely slow and exceeds the fw-client default 30s
+        # read timeout, which previously aborted the whole run with a
+        # ReadTimeout.
         api_key = get_api_key(context)
-        client.set_fw_client(FWClient(api_key=api_key, client_name="push-template"))
+        client.set_fw_client(
+            FWClient(
+                api_key=api_key,
+                client_name="push-template",
+                timeout=(10, 120),
+            )
+        )
 
         options = context.config.opts
 
