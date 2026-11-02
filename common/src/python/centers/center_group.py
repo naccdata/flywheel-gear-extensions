@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, overload
 import flywheel
 from flywheel.models.group import Group
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
+from fw_client.errors import TransportError
 from keys.keys import DefaultValues
 from keys.types import DatatypeNameType, PipelineStageType
 from pipeline.pipeline_label import PipelineLabel
@@ -25,6 +26,24 @@ from centers.center_adaptor import CenterAdaptor
 from centers.center_info import CenterInfo
 
 log = logging.getLogger(__name__)
+
+
+class TemplateApplicationFailure(BaseModel):
+    """Records a transport failure applying a template to a single project.
+
+    Used to accumulate recoverable (transport/timeout) failures across
+    projects so the caller can attempt every project and still fail
+    closed at the end.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    group: str
+    label: str
+    error: str
+
+    def __str__(self) -> str:
+        return f"{self.group}/{self.label}: {self.error}"
 
 
 class CenterGroup(CenterAdaptor):
@@ -277,30 +296,59 @@ class CenterGroup(CenterAdaptor):
 
         return self.__datatypes
 
-    def apply_template(self, template: TemplateProject) -> None:
+    def apply_template(
+        self, template: TemplateProject
+    ) -> List[TemplateApplicationFailure]:
         """Applies the template to projects of this center group that match.
+
+        Attempts every matching project. If applying the template to a project
+        fails with a transport/timeout error (e.g. a slow Flywheel settings
+        endpoint), the failure is recorded and the remaining projects are still
+        attempted; the failure is returned so the caller can fail closed after
+        attempting all projects. Any other (unexpected) error aborts
+        immediately.
 
         Args:
           template: the template project
+        Returns:
+          list of transport failures encountered, empty if all projects applied
         """
         prefix_pattern = template.get_pattern()
         if not prefix_pattern:
-            return
+            return []
 
+        failures: List[TemplateApplicationFailure] = []
         projects = self.get_matching_projects(prefix=prefix_pattern)
         for project in projects:
             pipeline_adcid = project.get_info().get("pipeline_adcid")
             adcid = pipeline_adcid if pipeline_adcid is not None else self.adcid
 
-            template.copy_to(
-                project,
-                value_map={
-                    "adrc": self.label,
-                    "adcid": str(adcid),
-                    "project_id": project.id,
-                    "site": self.proxy().get_site(),
-                },
-            )
+            try:
+                template.copy_to(
+                    project,
+                    value_map={
+                        "adrc": self.label,
+                        "adcid": str(adcid),
+                        "project_id": project.id,
+                        "site": self.proxy().get_site(),
+                    },
+                )
+            except TransportError as error:
+                log.error(
+                    "transport error applying template to %s/%s, continuing: %s",
+                    project.group,
+                    project.label,
+                    error,
+                )
+                failures.append(
+                    TemplateApplicationFailure(
+                        group=project.group,
+                        label=project.label,
+                        error=str(error),
+                    )
+                )
+
+        return failures
 
     def get_portal(self) -> ProjectAdaptor:
         """Returns the center-portal project.
