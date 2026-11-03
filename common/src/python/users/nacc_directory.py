@@ -170,6 +170,10 @@ class DirectoryAuthorizations(BaseModel):
             "web_report_access___repdash", "web_report_access___RepDash"
         )
     )
+    # NACC staff are records with code 14 in the community partner/NGO choice.
+    general_page_staff_tools_access_level: AuthorizationAccessLevel = Field(
+        default="NoAccess", alias="ad_community_partner_or_ngo"
+    )
     adrc_datatype_enrollment_access_level: AuthorizationAccessLevel = Field(
         alias="p30_naccid_enroll_access_level"
     )
@@ -389,6 +393,21 @@ class DirectoryAuthorizations(BaseModel):
         Returns ViewAccess if checked, otherwise NoAccess.
         """
         if isinstance(value, str) and value == "1":
+            return "ViewAccess"
+        return "NoAccess"
+
+    @field_validator("general_page_staff_tools_access_level", mode="before")
+    def convert_staff_access_level(cls, value: Any) -> AuthorizationAccessLevel:
+        """Converts the community partner/NGO choice to staff tools access.
+
+        Code 14 marks NACC staff, so those records get ViewAccess. Any
+        other choice, or a blank value, is NoAccess.
+        """
+        if isinstance(value, bool):
+            return "NoAccess"
+        if isinstance(value, int) and value == 14:
+            return "ViewAccess"
+        if isinstance(value, str) and value.strip() == "14":
             return "ViewAccess"
         return "NoAccess"
 

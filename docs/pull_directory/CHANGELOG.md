@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## Unreleased
+
+* Adds the `view-page-staff-tools` general activity for NACC staff
+  * Exports the `ad_community_partner_or_ngo` directory field; code `14` (NACC staff) gives `ViewAccess` to the `staff-tools` page, any other value gives `NoAccess`
+  * The user_management gear grants the role for `page-staff-tools` only when the `auth_file` maps `view-page-staff-tools` for that project
+
 ## 4.1.4
 
 * Fixes directory record validation failing for archived contacts that were never approved
