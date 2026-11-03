@@ -12,6 +12,7 @@ Validates: Requirements 9.1, 6.1, 6.3
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import NotFoundError
 from authorization.models import ParentRelationshipModel, ResourceParents
