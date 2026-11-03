@@ -6,6 +6,8 @@ from typing import List, Optional
 
 from flywheel.rest import ApiException
 from fw_gear import GearContext
+
+from csv_center_splitter_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -25,8 +27,6 @@ from utils.utils import (
     filter_include_exclude,
     parse_string_to_list,
 )
-
-from csv_center_splitter_app.main import run
 
 log = logging.getLogger(__name__)
 

@@ -8,6 +8,9 @@ preserves all non-status fields**
 from copy import deepcopy
 from unittest.mock import MagicMock
 
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.models.co_person import CoPerson
 from coreapi_client.models.co_person_message import CoPersonMessage
@@ -16,8 +19,6 @@ from coreapi_client.models.email_address import EmailAddress
 from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from users.user_registry import UserRegistry
 
 # --- Fast strategies to avoid slow st.emails() ---

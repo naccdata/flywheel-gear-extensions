@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
+
 from configs.ingest_configs import (
     FormProjectConfigs,
     LabelTemplate,

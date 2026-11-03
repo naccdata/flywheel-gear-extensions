@@ -3,6 +3,7 @@
 from datetime import datetime
 
 import pytest
+
 from event_capture.event_generator import EventGenerator
 from event_capture.models import QCEventData, SubmitEventData
 from nacc_common.data_identification import DataIdentification

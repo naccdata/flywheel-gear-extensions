@@ -10,8 +10,9 @@ from typing import Dict, List, Optional
 
 import flywheel
 from flywheel import DataView, FileEntry, FixedInput, GearRule, GearRuleInput
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from fw_utils import AttrDict
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from utils.files import copy_file
 
 log = logging.getLogger()

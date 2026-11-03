@@ -1,6 +1,7 @@
 """Unit tests for CLARiTI role mapping functionality."""
 
 import pytest
+
 from user_test.directory_test_utils import create_directory_entry
 from users.authorizations import Activity, DashboardResource
 from users.clariti_roles import map_clariti_roles_to_activities

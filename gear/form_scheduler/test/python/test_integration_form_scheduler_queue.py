@@ -6,9 +6,10 @@ from typing import List, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from flywheel.models.file_entry import FileEntry
+
 from configs.ingest_configs import Pipeline, PipelineConfigs
 from event_capture.event_capture import VisitEventCapture
-from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.form_scheduler_queue import (
     FormSchedulerQueue,
     get_subject_from_input_file,

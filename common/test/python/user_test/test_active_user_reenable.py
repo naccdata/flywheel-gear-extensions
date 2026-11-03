@@ -11,6 +11,7 @@ from typing import Optional
 from unittest.mock import Mock
 
 import pytest
+
 from users.authorizations import Authorizations
 from users.event_models import (
     EventCategory,

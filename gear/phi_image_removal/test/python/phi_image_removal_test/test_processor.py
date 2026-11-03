@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from flywheel import FileEntry
 from flywheel.models.acquisition import Acquisition
+
 from phi_image_removal_app.processor import (
     Outcome,
     PHIImageRemovalError,

@@ -13,11 +13,15 @@ from csv import DictReader
 from io import StringIO
 from typing import Any, Dict, List, Mapping, Optional
 
-from configs.ingest_configs import FormProjectConfigs
-from datastore.forms_store import FormsStore
 from flywheel import FileSpec
 from flywheel.rest import ApiException
+
+from configs.ingest_configs import FormProjectConfigs
+from datastore.forms_store import FormsStore
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from form_qc_app.definitions import DefinitionsLoader
+from form_qc_app.processor import FileProcessor
+from form_qc_app.validate import RecordValidator
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import DefaultValues
@@ -33,10 +37,6 @@ from outputs.errors import (
 )
 from outputs.outputs import CSVWriter
 from preprocess.preprocessor import FormPreprocessor, PreprocessingContext
-
-from form_qc_app.definitions import DefinitionsLoader
-from form_qc_app.processor import FileProcessor
-from form_qc_app.validate import RecordValidator
 
 log = logging.getLogger(__name__)
 

@@ -2,10 +2,11 @@
 
 import pytest
 import yaml
-from centers.center_group import REDCapFormProjectMetadata
 from flywheel.models.role_output import RoleOutput
-from keys.keys import DefaultValues
 from pydantic import ValidationError
+
+from centers.center_group import REDCapFormProjectMetadata
+from keys.keys import DefaultValues
 from users.authorizations import (
     Activity,
     AuthMap,

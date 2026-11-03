@@ -4,9 +4,10 @@ import re
 from datetime import datetime
 from typing import List, Optional
 
+from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, field_validator
+
 from nacc_common.error_models import FileError, QCStatus
 from nacc_common.form_dates import DATE_PATTERN
-from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, field_validator
 from serialization.case import kebab_case
 
 

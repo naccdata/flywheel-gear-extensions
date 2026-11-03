@@ -4,6 +4,7 @@ validation."""
 from unittest.mock import Mock, patch
 
 import pytest
+
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearExecutionError,

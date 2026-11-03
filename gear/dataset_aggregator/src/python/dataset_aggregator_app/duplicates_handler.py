@@ -11,6 +11,8 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.csv as pcsv
 import pyarrow.parquet as pq
+from pydantic import BaseModel
+
 from gear_execution.gear_execution import (
     InputFileWrapper,
 )
@@ -23,7 +25,6 @@ from identifiers.identifiers_repository import (
 )
 from identifiers.model import IdentifiersMode
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 

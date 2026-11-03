@@ -1,6 +1,9 @@
 import logging
 from typing import Mapping, Optional
 
+from flywheel.models.user import User
+from redcap_api.redcap_project import REDCapRoles
+
 from centers.center_group import (
     AbstractCenterMetadataVisitor,
     CenterGroup,
@@ -15,10 +18,7 @@ from centers.center_group import (
     REDCapFormProjectMetadata,
 )
 from centers.nacc_group import NACCGroup
-from flywheel.models.user import User
 from flywheel_adaptor.flywheel_proxy import ProjectError
-from redcap_api.redcap_project import REDCapRoles
-
 from users.authorizations import (
     AuthMap,
     Authorizations,

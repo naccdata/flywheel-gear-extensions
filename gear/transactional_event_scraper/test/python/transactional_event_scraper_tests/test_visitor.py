@@ -3,8 +3,9 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from event_capture.event_capture import VisitEventCapture
 from fw_gear import GearContext
+
+from event_capture.event_capture import VisitEventCapture
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import ParameterStore
 from s3.s3_bucket import S3BucketInterface

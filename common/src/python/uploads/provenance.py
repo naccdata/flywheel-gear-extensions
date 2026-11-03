@@ -4,8 +4,9 @@ from typing import Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from pydantic import BaseModel, ValidationError, field_validator
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from utils.decorators import api_retry
 
 log = logging.getLogger(__name__)

@@ -12,6 +12,7 @@ that changed during the study-model-flexible-configuration refactoring. Specific
 from unittest.mock import Mock
 
 import pytest
+
 from projects.study import StudyModel
 from projects.study_mapping import AggregationMapper, DistributionMapper
 

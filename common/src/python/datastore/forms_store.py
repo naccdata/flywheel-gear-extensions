@@ -5,9 +5,10 @@ import logging
 from json import JSONDecodeError
 from typing import Any, Dict, List, Literal, Optional
 
+from pydantic import BaseModel
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues, MetadataKeys
-from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 

@@ -21,6 +21,9 @@ import json
 from dataclasses import dataclass, field
 from unittest.mock import patch
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from authorization.client import AuthorizationClient
 from authorization.models import (
     BatchOperation,
@@ -34,8 +37,6 @@ from authorization_sync.sync_service import (
     AuthorizationSyncService,
     _grants_in_scope,
 )
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from users.authorizations import (
     Activities,
     Activity,

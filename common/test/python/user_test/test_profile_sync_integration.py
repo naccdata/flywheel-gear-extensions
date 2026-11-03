@@ -9,8 +9,9 @@ Validates: Requirements 3.6, 4.3, 4.4
 import logging
 from unittest.mock import Mock
 
-from centers.center_info import CenterMapInfo
 from flywheel.models.user import User
+
+from centers.center_info import CenterMapInfo
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from users.authorizations import Authorizations
 from users.event_models import UserEventCollector

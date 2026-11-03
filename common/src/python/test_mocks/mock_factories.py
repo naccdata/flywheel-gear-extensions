@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import Mock
 
 from flywheel.models.file_entry import FileEntry
+
 from nacc_common.error_models import (
     QC_STATUS_PASS,
     DataIdentification,

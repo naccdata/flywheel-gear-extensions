@@ -5,6 +5,7 @@
 """
 
 from hypothesis import given, settings
+
 from test_mocks.strategies import error_event_strategy, user_context_strategy
 from users.event_models import UserContext
 

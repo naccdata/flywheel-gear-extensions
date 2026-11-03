@@ -5,8 +5,14 @@ from csv import DictWriter
 from pathlib import Path
 from typing import Any, List, Optional
 
-from data_requests.status_request import StatusRequestClusteringVisitor
 from fw_gear import GearContext
+
+from data_requests.status_request import StatusRequestClusteringVisitor
+from gather_submission_status_app.main import (
+    CONSOLIDATED_FIELDNAMES,
+    run,
+    run_consolidated,
+)
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -28,12 +34,6 @@ from nacc_common.visit_submission_status import (
     status_report_visitor_builder,
 )
 from outputs.error_writer import ListErrorWriter
-
-from gather_submission_status_app.main import (
-    CONSOLIDATED_FIELDNAMES,
-    run,
-    run_consolidated,
-)
 
 log = logging.getLogger(__name__)
 

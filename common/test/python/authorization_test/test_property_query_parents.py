@@ -8,11 +8,12 @@ import json
 from dataclasses import dataclass, field
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ServiceUnavailableError, UnexpectedError
 from authorization.models import ParentRelationshipModel
-from hypothesis import given, settings
-from hypothesis import strategies as st
 
 from .conftest import MockResponse, no_sleep
 

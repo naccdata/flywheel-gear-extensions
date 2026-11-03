@@ -2,6 +2,8 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+from flywheel.models.file_entry import FileEntry
+
 from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from deletions.models import DeletedItems, DeleteRequest
 from error_logging.error_logger import ErrorLogTemplate
@@ -9,16 +11,14 @@ from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
     QCStatusLogManager,
 )
-from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, SubjectAdaptor
+from form_deletion_app.helpers import AcquisitionRemover
 from identifiers.model import IdentifierObject
 from keys.keys import CLINICAL_MODULES, DefaultValues, MetadataKeys
 from nacc_common.data_identification import DataIdentification
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import delete_request_failed_error
-
-from form_deletion_app.helpers import AcquisitionRemover
 
 log = logging.getLogger(__name__)
 

@@ -4,7 +4,6 @@ import logging
 from typing import List, Optional
 
 from flywheel_adaptor.flywheel_proxy import FlywheelError
-
 from users.event_models import (
     EventCategory,
     EventType,

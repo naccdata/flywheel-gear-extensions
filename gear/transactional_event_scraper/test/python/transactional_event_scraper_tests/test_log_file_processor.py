@@ -3,6 +3,7 @@
 from datetime import datetime
 
 import pytest
+
 from event_capture.log_file_processor import (
     _extract_from_filename,
     extract_event_from_log,

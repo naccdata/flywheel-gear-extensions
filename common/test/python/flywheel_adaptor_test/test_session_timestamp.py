@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytz
 from flywheel.rest import ApiException
+
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 
 SESSION_LABEL = "FORMS-VISIT-2"

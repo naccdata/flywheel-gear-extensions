@@ -4,6 +4,7 @@ import logging
 from typing import List, Optional
 
 from flywheel import FileEntry
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from jobs.job_poll import JobPoll

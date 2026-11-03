@@ -13,9 +13,10 @@ import logging
 from typing import Annotated, Any, Literal, Optional, Union
 
 from flywheel.models.file_entry import FileEntry
+from pydantic import BaseModel, Field
+
 from gear_execution.gear_execution import GearExecutionError
 from nacc_common.error_models import FileError, FileErrorList, QCStatus
-from pydantic import BaseModel, Field
 
 log = logging.getLogger(__name__)
 

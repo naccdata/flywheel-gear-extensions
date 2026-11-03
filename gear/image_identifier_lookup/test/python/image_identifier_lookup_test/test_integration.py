@@ -8,8 +8,11 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from event_capture.event_capture import VisitEventCapture
 from flywheel import FileEntry
+from moto import mock_aws
+from pydicom.dataset import Dataset
+
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from gear_execution.gear_execution import (
@@ -23,10 +26,8 @@ from image_identifier_lookup_app.extraction import (
     extract_dicom_metadata,
 )
 from image_identifier_lookup_app.main import ImageIdentifierLookup
-from moto import mock_aws
 from nacc_common.data_identification import DataIdentification
 from outputs.error_writer import ListErrorWriter
-from pydicom.dataset import Dataset
 
 
 def _build_lookup_context(

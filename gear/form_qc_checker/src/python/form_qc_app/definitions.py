@@ -7,8 +7,9 @@ from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
-from configs.ingest_configs import ModuleConfigs
 from flywheel.rest import ApiException
+
+from configs.ingest_configs import ModuleConfigs
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import DefaultValues
 from nacc_common.field_names import FieldNames

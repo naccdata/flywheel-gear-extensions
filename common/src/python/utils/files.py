@@ -4,6 +4,7 @@ import logging
 
 from flywheel import FileEntry, FileSpec
 from flywheel.rest import ApiException
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 
 log = logging.getLogger(__name__)

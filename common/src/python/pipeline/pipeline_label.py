@@ -2,7 +2,6 @@
 
 from typing import Any, Optional, Self, get_args
 
-from keys.types import DatatypeNameType, PipelineStageType
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -10,6 +9,8 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+
+from keys.types import DatatypeNameType, PipelineStageType
 
 
 class PipelineLabel(BaseModel):

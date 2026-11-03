@@ -8,6 +8,7 @@ from heapq import heappop, heappush
 from typing import List, Optional, Tuple
 
 from flywheel.rest import ApiException
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_trigger import BatchRunInfo, trigger_gear
 from jobs.job_poll import JobPoll

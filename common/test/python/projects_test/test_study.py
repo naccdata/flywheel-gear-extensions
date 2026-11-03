@@ -3,6 +3,7 @@
 from typing import Optional
 
 import pytest
+
 from projects.study import (
     PageConfig,
     StudyCenterModel,

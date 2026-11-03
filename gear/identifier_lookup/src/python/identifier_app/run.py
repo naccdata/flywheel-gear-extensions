@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import List, Literal, Optional, TextIO
 
 from botocore.exceptions import ClientError
+from fw_gear import GearContext
+from pydantic import ValidationError
+
 from configs.ingest_configs import (
     ModuleConfigs,
     load_form_ingest_configurations,
@@ -21,7 +24,6 @@ from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -50,7 +52,6 @@ from lambdas.lambda_function import LambdaClient, create_lambda_client
 from nacc_common.error_models import FileError
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
-from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)

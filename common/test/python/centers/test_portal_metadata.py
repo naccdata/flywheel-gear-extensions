@@ -1,6 +1,8 @@
 """Tests for serialization of portal metadata managed by CenterGroup."""
 
 import pytest
+from pydantic import ValidationError
+
 from centers.center_group import (
     CenterMetadata,
     CenterStudyMetadata,
@@ -13,7 +15,6 @@ from centers.center_group import (
     REDCapProjectInput,
 )
 from keys.keys import DefaultValues
-from pydantic import ValidationError
 
 
 # pylint: disable=(redefined-outer-name)

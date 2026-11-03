@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 import pyarrow as pa
 import pyarrow.parquet as pq
 from pydantic import BaseModel, root_validator
+
 from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)

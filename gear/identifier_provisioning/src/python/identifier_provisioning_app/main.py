@@ -4,6 +4,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional, TextIO
 
+from pydantic import ValidationError
+
 from enrollment.enrollment_project import EnrollmentProject, TransferInfo
 from enrollment.enrollment_transfer import (
     Demographics,
@@ -54,7 +56,6 @@ from outputs.errors import (
     system_error,
     unexpected_value_error,
 )
-from pydantic import ValidationError
 from uploads.upload_error import UploaderError
 
 log = logging.getLogger(__name__)

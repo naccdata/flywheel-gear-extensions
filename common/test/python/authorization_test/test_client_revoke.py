@@ -3,6 +3,7 @@
 import json
 
 import pytest
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import (
     ParseError,

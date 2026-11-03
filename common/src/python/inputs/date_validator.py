@@ -3,14 +3,13 @@
 import logging
 from typing import Any, Dict
 
+from inputs.csv_reader import RowValidator
 from nacc_common.data_identification import (
     DataIdentification,
 )
 from nacc_common.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from outputs.error_writer import ErrorWriter
 from outputs.errors import unexpected_value_error
-
-from inputs.csv_reader import RowValidator
 
 log = logging.getLogger(__name__)
 

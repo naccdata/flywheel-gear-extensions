@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from fw_client.client import FWClient
+
 from reader_tasks.reader_task_client import (
     FormResponseModel,
     ProtocolModel,

@@ -7,6 +7,10 @@ Properties tested: 2, 10
 import json
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from pydantic import ValidationError
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ParseError
 from authorization.models import (
@@ -24,9 +28,6 @@ from authorization.models import (
     ScopedResourceObject,
     UserPermissions,
 )
-from hypothesis import given, settings
-from hypothesis import strategies as st
-from pydantic import ValidationError
 
 from .conftest import CapturingTransport, MockResponse, no_sleep
 

@@ -3,10 +3,13 @@
 import logging
 from typing import Optional
 
+from fw_gear import GearContext
+from pydantic import ValidationError
+
 from configs.ingest_configs import FormProjectConfigs, load_form_ingest_configurations
 from deletions.models import DeleteRequest
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from fw_gear import GearContext
+from form_deletion_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -19,9 +22,6 @@ from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepositor
 from identifiers.model import IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-from pydantic import ValidationError
-
-from form_deletion_app.main import run
 
 log = logging.getLogger(__name__)
 

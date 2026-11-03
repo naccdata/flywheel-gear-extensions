@@ -4,8 +4,15 @@ import logging
 import sys
 from typing import Optional
 
-from configs.ingest_configs import load_form_ingest_configurations
 from fw_gear import GearContext
+from pydantic import ValidationError
+from redcap_api.redcap_connection import (
+    REDCapConnectionError,
+    REDCapReportConnection,
+)
+
+from configs.ingest_configs import load_form_ingest_configurations
+from form_qc_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -17,14 +24,7 @@ from gear_execution.gear_execution import (
 from inputs.context_parser import get_config
 from inputs.parameter_store import ParameterError, ParameterStore
 from keys.keys import DefaultValues
-from pydantic import ValidationError
-from redcap_api.redcap_connection import (
-    REDCapConnectionError,
-    REDCapReportConnection,
-)
 from s3.s3_bucket import S3BucketInterface
-
-from form_qc_app.main import run
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)

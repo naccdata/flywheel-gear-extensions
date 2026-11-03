@@ -2,8 +2,9 @@
 
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
-from projects.study import StudyCenterModel, StudyVisitor
 from pydantic import AliasChoices, BaseModel, Field, RootModel, field_validator
+
+from projects.study import StudyCenterModel, StudyVisitor
 
 
 class CenterInfo(BaseModel):

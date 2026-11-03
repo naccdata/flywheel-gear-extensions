@@ -3,8 +3,9 @@
 import csv
 import logging
 
-from curator.scheduling import ProjectCurationScheduler
 from fw_gear import GearContext
+
+from curator.scheduling import ProjectCurationScheduler
 
 from .form_curator import FormCurator
 

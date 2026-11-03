@@ -6,8 +6,10 @@ from io import StringIO
 from typing import Any, Dict, List, Optional
 
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from fw_gear import GearContext
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
+from form_screening_app.format import CSVFormatterVisitor
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from gear_execution.gear_trigger import (
     CredentialGearConfigs,
@@ -25,8 +27,6 @@ from outputs.errors import (
     non_utf8_file_error,
     preprocessing_error,
 )
-
-from form_screening_app.format import CSVFormatterVisitor
 
 log = logging.getLogger(__name__)
 

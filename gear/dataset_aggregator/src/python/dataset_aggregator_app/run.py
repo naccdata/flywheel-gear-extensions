@@ -8,6 +8,12 @@ from typing import Dict, List, Optional
 
 from flywheel.rest import ApiException
 from fw_gear import GearContext
+from pydantic import ValidationError
+
+from dataset_aggregator_app.duplicates_handler import (
+    DuplicatesHandler,
+)
+from dataset_aggregator_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -17,17 +23,11 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-from pydantic import ValidationError
 from storage.dataset import (
     AggregateDataset,
     FWDataset,
     ParquetAggregateDataset,
 )
-
-from dataset_aggregator_app.duplicates_handler import (
-    DuplicatesHandler,
-)
-from dataset_aggregator_app.main import run
 
 log = logging.getLogger(__name__)
 

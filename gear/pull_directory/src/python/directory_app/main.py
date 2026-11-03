@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import ValidationError
+
 from users.event_models import (
     EventCategory,
     EventType,

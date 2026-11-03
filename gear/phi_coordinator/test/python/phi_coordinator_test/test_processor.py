@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel import FileEntry
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from phi_coordinator_app.processor import Outcome, PHITaskProcessor
 from reader_tasks.reader_task_client import (

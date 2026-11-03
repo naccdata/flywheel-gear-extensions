@@ -1,8 +1,8 @@
 from botocore.exceptions import ClientError
-from s3.s3_bucket import S3BucketInterface
-from utils.decorators import retry_with_backoff
 
 from event_capture.visit_events import VisitEvent
+from s3.s3_bucket import S3BucketInterface
+from utils.decorators import retry_with_backoff
 
 
 class VisitEventCapture:

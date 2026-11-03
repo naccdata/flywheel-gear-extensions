@@ -3,8 +3,9 @@
 from typing import Dict, List
 
 import pytest
-from notifications.redcap_email_list import REDCapEmailList
 from redcap_api.redcap_connection import REDCapReportConnection
+
+from notifications.redcap_email_list import REDCapEmailList
 
 
 @pytest.fixture(scope="function")

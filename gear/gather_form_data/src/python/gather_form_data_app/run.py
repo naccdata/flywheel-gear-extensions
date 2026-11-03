@@ -5,8 +5,10 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from data_requests.data_request import ModuleDataGatherer
 from fw_gear import GearContext
+
+from data_requests.data_request import ModuleDataGatherer
+from gather_form_data_app.main import GatherConfig, run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -17,8 +19,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from outputs.error_writer import ListErrorWriter
-
-from gather_form_data_app.main import GatherConfig, run
 
 log = logging.getLogger(__name__)
 

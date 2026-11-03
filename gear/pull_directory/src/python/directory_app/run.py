@@ -5,6 +5,14 @@ import logging
 from typing import Dict, List, Optional
 
 from fw_gear import GearContext
+from pydantic import ValidationError
+from redcap_api.redcap_connection import REDCapConnection, REDCapConnectionError
+from redcap_api.redcap_parameter_store import REDCapParameters
+from redcap_api.redcap_project import REDCapProject
+from yaml.representer import RepresenterError
+
+from directory_app.config import TimeWindowConfig
+from directory_app.main import filter_approved_records, run
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -14,17 +22,9 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterError, ParameterStore
 from notifications.email import EmailClient, create_ses_client
-from pydantic import ValidationError
-from redcap_api.redcap_connection import REDCapConnection, REDCapConnectionError
-from redcap_api.redcap_parameter_store import REDCapParameters
-from redcap_api.redcap_project import REDCapProject
 from users.csv_export import export_errors_to_csv
 from users.event_models import UserEventCollector
 from users.nacc_directory import get_directory_field_names
-from yaml.representer import RepresenterError
-
-from directory_app.config import TimeWindowConfig
-from directory_app.main import filter_approved_records, run
 
 log = logging.getLogger(__name__)
 
