@@ -34,11 +34,20 @@ select = ["A", "B", "E", "W", "F", "I", "RUF", "SIM", "C90", "PLW0406", "COM818"
 #
 # Keep this in sync when gears or packages are added (a missing entry fails
 # loud as an I001 on that package). It is the set of top-level package names
-# under the src/python and test/python source roots; regenerate with:
-#   { find . -type d -path '*/src/python/*' -maxdepth 6 -not -path '*/.*';
-#     find . -type d -path '*/test/python/*' -maxdepth 6 -not -path '*/.*'; } \
+# under the src/python and test/python source roots.
+#
+# Use this command to CHECK for entries this list is missing (not to blindly
+# rebuild it) -- diff its output against the list below:
+#   { find . -type d \( -path '*/src/python/*' -o -path '*/test/python/*' \) \
+#       -maxdepth 6 -not -path '*/.*' -not -path './mypy-stubs/*'; } \
 #     | awk -F'/python/' '{print $2}' | awk -F'/' '{print $1}' \
 #     | sort -u | grep -v cookiecutter
+# Notes on why this is a check, not a generator:
+#   - mypy-stubs/ is excluded: the stub packages flywheel and fw_gear must stay
+#     third-party (see above); without the exclude the command would emit them.
+#   - coreapi_client is generated under comanage/ (pants run comanage:build_client),
+#     so the command only finds it after codegen has run; it stays first-party
+#     either way.
 known-first-party = [
     "attribute_curator_app",
     "attribute_curator_app_test",
@@ -114,6 +123,7 @@ known-first-party = [
     "preprocess",
     "preprocess_test",
     "project_app",
+    "project_app_test",
     "projects",
     "projects_test",
     "reader_tasks",

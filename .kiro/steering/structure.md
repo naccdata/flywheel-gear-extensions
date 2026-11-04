@@ -102,7 +102,7 @@ package-name/
 └── test/python/
     └── package_name_test/  # Tests use _test suffix to avoid namespace conflicts
         ├── BUILD
-        ├── __init__.py     # Required when using conftest.py
+        ├── __init__.py     # Required for every _test package (module-name disambiguation)
         ├── conftest.py     # Pytest fixtures (optional)
         └── test_*.py
 ```
@@ -129,10 +129,9 @@ files MUST live in a `_test`-suffixed package directory (e.g.
   `{package_name}_test/`) directory with an **empty `__init__.py`**. The
   `__init__.py` makes it a package, so the module path becomes
   `{app_name}_test.test_main` and is distinct from another gear's
-  `{other_app}_test.test_main`.
-- **Note**: this `__init__.py` is required for **module-name disambiguation**,
-  not only when a `conftest.py` is present — the earlier "Required when using
-  conftest.py" guidance is too narrow. Add it for every `_test` package.
+  `{other_app}_test.test_main`. This `__init__.py` is required for every
+  `_test` package for module-name disambiguation, not only when a `conftest.py`
+  is present.
 - **Example**: `gear/push_template/test/python/template_app_test/__init__.py`
   plus `.../template_app_test/test_main.py`.
 
