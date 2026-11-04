@@ -11,10 +11,10 @@ target-version = "py312"
 select = ["A", "B", "E", "W", "F", "I", "RUF", "SIM", "C90", "PLW0406", "COM818", "SLF001", "E402"]
 
 [lint.per-file-ignores]
-# TODO: confirm that this was a yapf/ruff conflict
+# scheduling.py has a genuine I001 (unsorted stdlib imports and a relative
+# import that ruff wants regrouped); this is pre-existing disorder, unrelated to
+# the known-first-party scope fix below. TODO: sort its imports and drop this.
 "common/src/python/curator/scheduling.py" = ["I001"]
-"common/src/python/event_capture/visit_event_accumulator.py" = ["I001"]
-"common/test/python/event_capture/test_visit_event_accumulator.py" = ["I001"]
 "tests/*" = ["SLF001"]
 
 [lint.isort]

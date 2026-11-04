@@ -134,6 +134,10 @@ files MUST live in a `_test`-suffixed package directory (e.g.
   is present.
 - **Example**: `gear/push_template/test/python/template_app_test/__init__.py`
   plus `.../template_app_test/test_main.py`.
+- **Scope**: this applies to **new** test code. Some existing gears/packages
+  still have test files directly under `test/python/`; they are safe only
+  because no two of them currently share a module name. Migrating them is
+  tracked separately — do not rely on the flat layout for new tests.
 
 ### Gear Structure
 
