@@ -3,7 +3,10 @@
 import logging
 from typing import Any, List, Optional
 
+from pydantic import ValidationError
+
 from configs.ingest_configs import ModuleConfigs
+from error_logging.qc_status_log_creator import QCStatusLogManager
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor
 from nacc_common.error_models import (
@@ -15,9 +18,6 @@ from nacc_common.error_models import (
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
-from pydantic import ValidationError
-
-from error_logging.qc_status_log_creator import QCStatusLogManager
 
 log = logging.getLogger(__name__)
 

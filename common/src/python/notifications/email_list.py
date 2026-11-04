@@ -4,13 +4,14 @@ import json
 import logging
 from typing import Dict, Optional
 
-from gear_execution.gear_execution import InputFileWrapper
-from inputs.parameter_store import ParameterError, ParameterStore
 from pydantic import BaseModel, ConfigDict, Field
 from redcap_api.redcap_connection import (
     REDCapConnectionError,
     REDCapReportConnection,
 )
+
+from gear_execution.gear_execution import InputFileWrapper
+from inputs.parameter_store import ParameterError, ParameterStore
 
 from .email import (
     BaseTemplateModel,

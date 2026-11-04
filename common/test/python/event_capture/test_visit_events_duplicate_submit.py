@@ -6,6 +6,7 @@ Validates: Requirements 1.1, 1.2, 1.3
 from datetime import datetime
 
 import pytest
+
 from event_capture.visit_events import ACTION_DUPLICATE_SUBMIT, VisitEvent
 from nacc_common.data_identification import DataIdentification
 

@@ -1,6 +1,7 @@
 import re
 
 import pytest
+
 from nacc_common.qc_report import QC_FILENAME_PATTERN
 
 

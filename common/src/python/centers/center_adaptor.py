@@ -3,6 +3,7 @@
 from typing import Optional
 
 from flywheel.models.group import Group
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor, ProjectAdaptor
 
 

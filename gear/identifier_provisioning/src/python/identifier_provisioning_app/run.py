@@ -4,9 +4,10 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from fw_gear import GearContext
+
 from enrollment.enrollment_project import EnrollmentProject
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -16,6 +17,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
     get_submitter,
 )
+from identifier_provisioning_app.main import run
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
 )
@@ -24,8 +26,6 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from outputs.error_writer import ListErrorWriter
-
-from identifier_provisioning_app.main import run
 
 log = logging.getLogger(__name__)
 

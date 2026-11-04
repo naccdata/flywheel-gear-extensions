@@ -5,6 +5,7 @@ from typing import Optional
 
 from fw_client.client import FWClient
 from fw_gear import GearContext
+
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -15,7 +16,6 @@ from gear_execution.gear_execution import (
 from inputs.context_parser import get_api_key
 from inputs.parameter_store import ParameterStore
 from projects.template_project import TemplateError, TemplateProject
-
 from template_app.main import run
 
 log = logging.getLogger(__name__)

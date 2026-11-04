@@ -5,6 +5,7 @@ from io import StringIO
 from typing import Any, List
 
 import pytest
+
 from tabular_data.site_table import SiteTable
 
 

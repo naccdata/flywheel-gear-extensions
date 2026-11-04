@@ -4,10 +4,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from event_capture.models import DateRange
 from fw_gear import GearContext
-from gear_execution.gear_execution import GearExecutionError
 from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from event_capture.models import DateRange
+from gear_execution.gear_execution import GearExecutionError
 
 log = logging.getLogger(__name__)
 

@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
 from nacc_common.error_data import list_submissions
 
 # ---------------------------------------------------------------------------

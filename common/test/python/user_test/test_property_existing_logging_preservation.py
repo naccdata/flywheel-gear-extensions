@@ -10,6 +10,7 @@ from unittest.mock import Mock
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+
 from users.authorizations import Authorizations
 from users.event_models import UserEventCollector
 from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName

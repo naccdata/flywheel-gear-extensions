@@ -4,6 +4,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
+
 from users.domain_config import (
     AffiliatedDomainGroup,
     DomainRelationshipConfig,

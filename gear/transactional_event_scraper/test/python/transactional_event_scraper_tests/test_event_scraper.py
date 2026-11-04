@@ -4,9 +4,10 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
+from flywheel.models.file_entry import FileEntry
+
 from event_capture.event_capture import VisitEventCapture
 from event_capture.models import DateRange
-from flywheel.models.file_entry import FileEntry
 from test_mocks.mock_flywheel import MockFile, MockProjectAdaptor
 from transactional_event_scraper_app.event_scraper import EventScraper
 

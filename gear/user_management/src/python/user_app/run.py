@@ -4,13 +4,16 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
+from botocore.exceptions import ClientError
+from fw_gear import GearContext
+from pydantic import ValidationError
+from redcap_api.redcap_repository import REDCapParametersRepository
+
 from authorization import ConfigurationError, create_authorization_client
 from authorization_sync import AuthorizationSyncService
-from botocore.exceptions import ClientError
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.api_client import ApiClient
 from coreapi_client.configuration import Configuration
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -24,8 +27,7 @@ from inputs.parameter_store import (
 )
 from inputs.yaml import YAMLReadError, load_from_stream
 from notifications.email import EmailClient, EmailSendError, create_ses_client
-from pydantic import ValidationError
-from redcap_api.redcap_repository import REDCapParametersRepository
+from user_app.main import run
 from users.authorizations import AuthMap
 from users.csv_export import export_errors_to_csv
 from users.domain_config import (
@@ -43,8 +45,6 @@ from users.user_processes import (
     UserQueue,
 )
 from users.user_registry import RegistryError, UserRegistry
-
-from user_app.main import run
 
 log = logging.getLogger(__name__)
 

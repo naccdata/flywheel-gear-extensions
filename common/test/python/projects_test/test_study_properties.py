@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
 from projects.study import DatatypeConfig, StudyModel
 from projects.study_mapping import StudyMappingVisitor
 

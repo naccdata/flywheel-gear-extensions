@@ -5,6 +5,7 @@ from typing import Any, Optional
 from unittest.mock import Mock
 
 from flywheel.models.file_entry import FileEntry
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.error_models import QCStatus
 

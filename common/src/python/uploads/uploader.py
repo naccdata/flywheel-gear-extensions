@@ -4,12 +4,13 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, TypedDict
 
 import yaml
-from configs.ingest_configs import UploadTemplateInfo
-from dates.dates import get_visit_timestamp
-from error_logging.error_logger import update_error_log_and_qc_metadata
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
+
+from configs.ingest_configs import UploadTemplateInfo
+from dates.dates import get_visit_timestamp
+from error_logging.error_logger import update_error_log_and_qc_metadata
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import (
     HierarchyCreationClient,
@@ -27,7 +28,6 @@ from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
 from submissions.models import ParticipantVisits
-
 from uploads.acquisition import update_file_info_metadata, upload_to_acquisition
 from uploads.upload_error import UploaderError
 

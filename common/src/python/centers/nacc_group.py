@@ -5,13 +5,13 @@ from typing import List, Optional
 
 from flywheel.models.group import Group
 from flywheel.models.user import User
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
 from pydantic import BaseModel, ValidationError
 from redcap_api.redcap_repository import REDCapParametersRepository
 
 from centers.center_adaptor import CenterAdaptor
 from centers.center_group import CenterGroup, CenterMetadata
 from centers.center_info import CenterInfo, CenterMapInfo
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor, ProjectError
 
 log = logging.getLogger(__name__)
 

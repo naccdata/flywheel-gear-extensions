@@ -4,6 +4,8 @@ from io import StringIO
 from typing import Any, Generator
 
 import pytest
+from pydantic import ValidationError
+
 from error_logging.error_logger import ErrorLogTemplate
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
@@ -20,7 +22,6 @@ from nacc_common.qc_report import (
     WriterTableVisitor,
     extract_visit_keys,
 )
-from pydantic import ValidationError
 from test_mocks.mock_flywheel import MockProjectAdaptor
 
 

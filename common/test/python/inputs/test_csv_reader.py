@@ -5,6 +5,7 @@ from io import StringIO
 from typing import Any, Dict, List
 
 import pytest
+
 from form_screening_app.format import CSVFormatterVisitor
 from inputs.csv_reader import CSVVisitor, read_csv
 from outputs.error_writer import StreamErrorWriter

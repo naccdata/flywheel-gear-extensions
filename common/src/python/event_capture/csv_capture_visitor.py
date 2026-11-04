@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from configs.ingest_configs import ConfigsError, ModuleConfigs
+from event_capture.event_capture import VisitEventCapture
+from event_capture.visit_events import VisitEvent, VisitEventType
 from inputs.csv_reader import CSVVisitor
 from keys.types import DatatypeNameType
 from nacc_common.data_identification import (
@@ -11,9 +13,6 @@ from nacc_common.data_identification import (
 )
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import empty_field_error, unexpected_value_error
-
-from event_capture.event_capture import VisitEventCapture
-from event_capture.visit_events import VisitEvent, VisitEventType
 
 
 class CSVCaptureVisitor(CSVVisitor):

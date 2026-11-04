@@ -5,9 +5,9 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 from pydantic import SerializationInfo, SerializerFunctionWrapHandler, model_serializer
 
+from notifications.email import BaseTemplateModel, DestinationModel, EmailClient
 from users.event_models import EventCategory, UserEventCollector, UserProcessEvent
 
 log = logging.getLogger(__name__)

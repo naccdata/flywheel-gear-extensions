@@ -4,6 +4,7 @@ from typing import Any
 
 import yaml
 from pydantic import ValidationError
+
 from user_test.directory_test_utils import create_directory_entry
 from users.authorizations import (
     Activity,

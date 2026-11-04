@@ -10,12 +10,13 @@ from io import StringIO
 from typing import List
 from unittest.mock import Mock
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import VisitEvent
-from hypothesis import given
-from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy

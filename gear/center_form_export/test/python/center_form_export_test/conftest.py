@@ -5,6 +5,7 @@ from io import StringIO
 from unittest.mock import MagicMock
 
 import pytest
+
 from gear_execution.gear_execution import ClientWrapper
 
 

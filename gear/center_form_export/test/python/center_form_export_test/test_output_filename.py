@@ -7,10 +7,11 @@ Validates: Requirements 5.1, 5.2
 import re
 from datetime import date
 
-from center_form_export_app.run import _output_stamp
-from data_requests.data_request import formver_label
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from center_form_export_app.run import _output_stamp
+from data_requests.data_request import formver_label
 
 # Regex patterns for valid output filenames. Every name carries a
 # study_id and a source_id ahead of the module, so the default shape has

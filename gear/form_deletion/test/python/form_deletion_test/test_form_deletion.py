@@ -3,8 +3,9 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from deletions.models import DeletedItems, DeleteRequest
 from flywheel.rest import ApiException
+
+from deletions.models import DeletedItems, DeleteRequest
 from form_deletion_app.main import run, update_file_metadata
 from nacc_common.error_models import FileErrorList
 from test_mocks.mock_flywheel import MockFile

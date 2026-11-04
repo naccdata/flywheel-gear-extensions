@@ -12,6 +12,7 @@ from io import StringIO
 from typing import Any, Dict, List
 
 from hypothesis import strategies as st
+
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
 from nacc_common.error_models import FileError

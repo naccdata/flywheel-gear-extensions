@@ -10,11 +10,12 @@ and unknown-prefix rejection in build_label_for_resource_prefix.
 """
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from authorization_sync.models import DesiredGrant
 from authorization_sync.resource_ids import build_label_for_resource_prefix
 from authorization_sync.translator import ACTIVITY_RELATION_MAP, translate
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from users.authorizations import (
     Activity,
     Authorizations,

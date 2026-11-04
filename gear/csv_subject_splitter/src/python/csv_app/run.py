@@ -6,11 +6,14 @@ import sys
 from json.decoder import JSONDecodeError
 from typing import Dict, Optional, Set
 
-from configs.ingest_configs import UploadTemplateInfo
 from flywheel.rest import ApiException
+from fw_gear import GearContext
+from pydantic import ValidationError
+
+from configs.ingest_configs import UploadTemplateInfo
+from csv_app.main import run
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.hierarchy_creator import HierarchyCreationClient
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -21,12 +24,9 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterError, ParameterStore
 from outputs.error_writer import ListErrorWriter
-from pydantic import ValidationError
 from uploads.provenance import FileProvenance
 from uploads.uploader import JSONUploader
 from utils.utils import parse_string_to_list
-
-from csv_app.main import run
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)

@@ -3,15 +3,19 @@
 import logging
 from typing import Any, Optional
 
+from flywheel import Subject
+from flywheel.rest import ApiException
+from fw_gear import GearContext
+from pydantic import ValidationError
+
 from configs.ingest_configs import (
     FormProjectConfigs,
     PipelineType,
     load_form_ingest_configurations,
 )
-from flywheel import Subject
-from flywheel.rest import ApiException
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
-from fw_gear import GearContext
+from form_qc_coordinator_app.coordinator import QCGearConfigs
+from form_qc_coordinator_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -25,11 +29,7 @@ from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.field_names import FieldNames
-from pydantic import ValidationError
 from submissions.models import ParticipantVisits, VisitInfo
-
-from form_qc_coordinator_app.coordinator import QCGearConfigs
-from form_qc_coordinator_app.main import run
 
 log = logging.getLogger(__name__)
 

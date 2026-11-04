@@ -15,6 +15,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+
 from serialization.case import kebab_case
 
 logger = logging.getLogger(__name__)

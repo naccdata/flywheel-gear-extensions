@@ -13,6 +13,9 @@ Preservation Properties: 3.1, 3.2, 3.3, 3.4, 3.5
 from unittest.mock import Mock
 
 import pytest
+from redcap_api.redcap_connection import REDCapConnectionError
+from redcap_api.redcap_project import REDCapProject
+
 from centers.center_group import (
     CenterMetadata,
     CenterStudyMetadata,
@@ -22,8 +25,6 @@ from centers.center_group import (
 from centers.center_info import CenterInfo, CenterMapInfo
 from centers.nacc_group import NACCGroup
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
-from redcap_api.redcap_connection import REDCapConnectionError
-from redcap_api.redcap_project import REDCapProject
 from users.event_models import (
     EventCategory,
     EventType,

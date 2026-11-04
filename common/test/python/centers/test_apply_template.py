@@ -10,8 +10,9 @@ from typing import Optional
 from unittest.mock import MagicMock
 
 import pytest
-from centers.center_group import CenterGroup, TemplateApplicationFailure
 from fw_client.errors import TransportError
+
+from centers.center_group import CenterGroup, TemplateApplicationFailure
 
 
 def make_transport_error(message: str) -> TransportError:

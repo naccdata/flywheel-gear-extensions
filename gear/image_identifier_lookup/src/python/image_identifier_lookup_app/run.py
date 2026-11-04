@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Optional
 
 from botocore.exceptions import ClientError
-from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor
 from fw_gear import GearContext
+
+from event_capture.event_capture import VisitEventCapture
+from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -19,15 +20,6 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from identifiers.identifiers_lambda_repository import IdentifiersLambdaRepository
-from inputs.parameter_store import ParameterStore
-from keys.keys import MetadataKeys
-from lambdas.lambda_function import LambdaClient, create_lambda_client
-from nacc_common.data_identification import DataIdentification
-from nacc_common.error_models import FileErrorList, GearTags
-from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
-from outputs.error_writer import ListErrorWriter
-from s3.s3_bucket import S3BucketInterface
-
 from image_identifier_lookup_app.extraction import (
     LookupContext,
     extract_dicom_metadata,
@@ -37,6 +29,14 @@ from image_identifier_lookup_app.file_resolver import (
     resolve_dicom_file,
 )
 from image_identifier_lookup_app.main import ImageIdentifierLookup
+from inputs.parameter_store import ParameterStore
+from keys.keys import MetadataKeys
+from lambdas.lambda_function import LambdaClient, create_lambda_client
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import FileErrorList, GearTags
+from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
+from outputs.error_writer import ListErrorWriter
+from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
 

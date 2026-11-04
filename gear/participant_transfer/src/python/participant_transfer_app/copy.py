@@ -3,8 +3,9 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from centers.center_group import CenterError, CenterGroup, CenterStudyMetadata
 from flywheel import Project
+
+from centers.center_group import CenterError, CenterGroup, CenterStudyMetadata
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_trigger import trigger_gear
 from jobs.job_poll import JobPoll

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
+
 from gear_execution.gear_execution import GearExecutionError
 from nacc_common.error_models import QCStatus
 from pipeline_event_logger_app.main import PipelineEventLogger

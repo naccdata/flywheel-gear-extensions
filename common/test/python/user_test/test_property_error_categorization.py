@@ -5,6 +5,7 @@
 """
 
 from hypothesis import given, settings
+
 from test_mocks.strategies import error_event_strategy
 from users.event_models import EventCategory
 

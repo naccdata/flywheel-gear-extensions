@@ -2,8 +2,9 @@
 
 from unittest.mock import Mock
 
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from fw_utils import AttrDict
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
 TEMPLATE_APPS = [AttrDict({"_id": "viewer-1", "name": "OHIF"})]
 

@@ -5,6 +5,7 @@ from datetime import datetime
 from io import StringIO
 
 import pytest
+
 from users.csv_export import export_errors_to_csv
 from users.event_models import (
     EventCategory,

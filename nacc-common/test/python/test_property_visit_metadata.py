@@ -10,6 +10,7 @@ from typing import Any, Dict
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
 from nacc_common.error_models import DataIdentification
 
 # Constrain dates to a realistic range so dateutil can round-trip them.

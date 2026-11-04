@@ -18,10 +18,11 @@ and iterates the returned files.
 from unittest.mock import Mock, patch
 
 import pytest
-from center_form_export_app.main import run
-from data_requests.data_request import ModuleDataGatherer
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from center_form_export_app.main import run
+from data_requests.data_request import ModuleDataGatherer
 
 MODULE_NAMES = ["UDS", "FTLD", "LBD"]
 

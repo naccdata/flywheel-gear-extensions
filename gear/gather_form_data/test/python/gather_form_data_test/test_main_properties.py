@@ -9,11 +9,12 @@ Properties tested:
 from unittest.mock import Mock, patch
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from gather_form_data_app.main import run
 from gather_form_data_app.run import GatherFormDataVisitor
 from gear_execution.gear_execution import GearExecutionError
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from outputs.error_writer import ListErrorWriter
 
 from .conftest import (

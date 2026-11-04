@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Dict
 
 import pytest
+from pydantic import ValidationError
+
 from enrollment.enrollment_transfer import (
     Demographics,
     EnrollmentRecord,
@@ -15,7 +17,6 @@ from nacc_common.form_dates import (
     DateFormatException,
     parse_date,
 )
-from pydantic import ValidationError
 
 
 @pytest.fixture

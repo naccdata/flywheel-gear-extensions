@@ -6,9 +6,10 @@ from typing import Any, Callable, Dict, Optional, Tuple
 from unittest.mock import MagicMock, Mock
 
 import pytest
+from flywheel.rest import ApiException
+
 from configs.ingest_configs import ModuleConfigs
 from event_capture.event_capture import VisitEventCapture
-from flywheel.rest import ApiException
 from form_csv_app.main import CSVTransformVisitor
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ListErrorWriter

@@ -3,8 +3,9 @@
 import logging
 from typing import List, Optional
 
-from enrollment.enrollment_project import EnrollmentProject
 from fw_gear import GearContext
+
+from enrollment.enrollment_project import EnrollmentProject
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,

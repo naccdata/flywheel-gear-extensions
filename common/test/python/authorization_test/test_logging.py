@@ -10,6 +10,7 @@ import json
 import logging
 
 import pytest
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ServiceUnavailableError, UnexpectedError
 from authorization.models import HealthResult

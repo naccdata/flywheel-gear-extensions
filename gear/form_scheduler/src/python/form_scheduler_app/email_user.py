@@ -5,10 +5,12 @@ import re
 from abc import abstractmethod
 from typing import ClassVar
 
-from configs.ingest_configs import PipelineType
-from deletions.models import DeleteInfoModel
 from flywheel import Project, User
 from flywheel.models.file_entry import FileEntry
+from pydantic import ValidationError
+
+from configs.ingest_configs import PipelineType
+from deletions.models import DeleteInfoModel
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from inputs.parameter_store import URLParameter
 from notifications.email import (
@@ -17,7 +19,6 @@ from notifications.email import (
     EmailClient,
     EmailSendError,
 )
-from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 

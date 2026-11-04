@@ -10,6 +10,10 @@ from typing import Callable, List, Optional
 from unittest.mock import Mock
 
 import pytest
+from flywheel.models.role_output import RoleOutput
+from flywheel.models.user import User
+from hypothesis import strategies as st
+
 from coreapi_client.models.co_person import CoPerson
 from coreapi_client.models.co_person_message import CoPersonMessage
 from coreapi_client.models.co_person_role import CoPersonRole
@@ -17,9 +21,6 @@ from coreapi_client.models.email_address import EmailAddress
 from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
-from flywheel.models.role_output import RoleOutput
-from flywheel.models.user import User
-from hypothesis import strategies as st
 from users.authorizations import (
     ActionType,
     Activities,

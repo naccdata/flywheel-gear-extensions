@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 import pytest
 import pytz
+
 from dates.dates import get_localized_timestamp, get_visit_timestamp, normalize_date
 from nacc_common.form_dates import DATE_FORMATS, DateFormatException, parse_date
 

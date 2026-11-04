@@ -4,9 +4,10 @@ from typing import Optional
 
 import pytest
 import yaml
+from pydantic import ValidationError
+
 from centers.center_info import CenterInfo, CenterMapInfo
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
-from pydantic import ValidationError
 
 
 class DummyVisitor(StudyVisitor):

@@ -1,6 +1,7 @@
 import pytest
-from pipeline.pipeline_label import PipelineLabel
 from pydantic import ValidationError
+
+from pipeline.pipeline_label import PipelineLabel
 
 
 class TestPipelineLabel:

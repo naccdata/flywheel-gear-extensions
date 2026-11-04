@@ -4,8 +4,10 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from centers.center_group import REDCapProjectInput
 from fw_gear import GearContext
+from pydantic import ValidationError
+
+from centers.center_group import REDCapProjectInput
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -15,8 +17,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
-from pydantic import ValidationError
-
 from redcap_info_app.main import run
 
 log = logging.getLogger(__name__)

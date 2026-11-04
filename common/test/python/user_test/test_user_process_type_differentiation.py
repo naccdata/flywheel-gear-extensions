@@ -12,6 +12,7 @@ import logging
 from unittest.mock import Mock
 
 import pytest
+
 from users.authorizations import Authorizations, StudyAuthorizations
 from users.event_models import UserEventCollector
 from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName

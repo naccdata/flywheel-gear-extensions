@@ -8,6 +8,8 @@ import logging
 
 from flywheel.rest import ApiException
 from fw_gear import GearContext
+
+from dicom_qc_checker_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -18,8 +20,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from nacc_common.error_models import GearTags
-
-from dicom_qc_checker_app.main import run
 
 log = logging.getLogger(__name__)
 

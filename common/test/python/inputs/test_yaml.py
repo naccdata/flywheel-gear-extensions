@@ -5,6 +5,7 @@ from typing import Any, List
 
 import pytest
 import yaml
+
 from inputs.yaml import load_all_from_stream, load_from_stream
 
 

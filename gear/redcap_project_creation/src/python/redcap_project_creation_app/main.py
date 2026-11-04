@@ -3,6 +3,13 @@
 import logging
 from typing import Dict, Optional, Tuple
 
+from redcap_api.redcap_connection import (
+    REDCapConnection,
+    REDCapConnectionError,
+    REDCapSuperUserConnection,
+)
+from redcap_api.redcap_project import REDCapProject
+
 from centers.center_group import (
     CenterError,
     CenterGroup,
@@ -13,12 +20,6 @@ from centers.center_group import (
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, GroupAdaptor
 from inputs.parameter_store import ParameterError, ParameterStore
 from keys.keys import DefaultValues
-from redcap_api.redcap_connection import (
-    REDCapConnection,
-    REDCapConnectionError,
-    REDCapSuperUserConnection,
-)
-from redcap_api.redcap_project import REDCapProject
 
 log = logging.getLogger(__name__)
 

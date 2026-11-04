@@ -5,6 +5,13 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
+from flywheel import Project
+from flywheel.rest import ApiException
+from fw_gear import GearContext
+from pydantic import ValidationError
+from redcap_api.redcap_connection import REDCapSuperUserConnection
+from redcap_api.redcap_parameter_store import REDCapParameters
+
 from centers.center_group import (
     CenterMetadata,
     FormIngestProjectMetadata,
@@ -12,9 +19,6 @@ from centers.center_group import (
     StudyREDCapMetadata,
     StudyREDCapProjectsList,
 )
-from flywheel import Project
-from flywheel.rest import ApiException
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -26,10 +30,6 @@ from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
 from keys.keys import DefaultValues
-from pydantic import ValidationError
-from redcap_api.redcap_connection import REDCapSuperUserConnection
-from redcap_api.redcap_parameter_store import REDCapParameters
-
 from redcap_project_creation_app.main import run
 
 log = logging.getLogger(__name__)

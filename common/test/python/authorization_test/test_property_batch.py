@@ -8,10 +8,11 @@
 import json
 import math
 
-from authorization.client import AuthorizationClient
-from authorization.models import BatchOperation
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from authorization.client import AuthorizationClient
+from authorization.models import BatchOperation
 
 from .conftest import MockResponse, no_sleep
 

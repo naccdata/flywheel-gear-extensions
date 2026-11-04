@@ -6,6 +6,8 @@ import time
 from typing import List, Optional
 
 from fw_gear import GearContext
+
+from form_screening_app.main import FormSchedulerGearConfigs, run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -17,8 +19,6 @@ from gear_execution.gear_execution import (
 from gear_execution.gear_trigger import GearInfo
 from inputs.parameter_store import ParameterStore
 from utils.utils import parse_string_to_list
-
-from form_screening_app.main import FormSchedulerGearConfigs, run
 
 log = logging.getLogger(__name__)
 

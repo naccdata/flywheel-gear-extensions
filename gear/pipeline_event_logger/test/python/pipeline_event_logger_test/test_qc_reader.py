@@ -1,6 +1,7 @@
 """Tests for QC reader error extraction with discriminated field mappings."""
 
 import pytest
+
 from pipeline_event_logger_app.qc_reader import (
     GearQC,
     GearQCResult,

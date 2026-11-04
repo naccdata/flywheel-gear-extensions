@@ -3,7 +3,6 @@
 from io import StringIO
 
 from outputs.outputs import CSVWriter
-
 from users.event_models import UserEventCollector
 
 

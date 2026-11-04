@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+
 from event_capture.visit_events import VisitEvent
 from nacc_common.data_identification import DataIdentification
 

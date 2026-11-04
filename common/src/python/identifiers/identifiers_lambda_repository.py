@@ -3,7 +3,6 @@
 from datetime import date
 from typing import List, Literal, Optional, overload
 
-from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from identifiers.identifiers_repository import (
@@ -23,6 +22,7 @@ from identifiers.model import (
     IdentifiersMode,
     NACCIDField,
 )
+from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 
 
 class ListRequest(BaseRequest):

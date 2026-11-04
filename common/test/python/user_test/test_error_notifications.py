@@ -4,6 +4,7 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
+
 from notifications.email import EmailClient
 from users.event_models import (
     EventCategory,
