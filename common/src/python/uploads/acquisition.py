@@ -6,11 +6,11 @@ from flywheel.file_spec import FileSpec
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
+
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.error_models import FileQCModel
-from utils.decorators import api_retry
-
 from uploads.upload_error import UploaderError
+from utils.decorators import api_retry
 
 log = logging.getLogger(__name__)
 

@@ -6,10 +6,11 @@ Feature: pull-directory-date-range
 from datetime import datetime, timedelta
 
 import pytest
-from directory_app.config import REDCAP_SERVER_TIMEZONE, TimeWindowConfig
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
+
+from directory_app.config import REDCAP_SERVER_TIMEZONE, TimeWindowConfig
 
 
 class TestNonNegativeValidation:

@@ -10,11 +10,12 @@ from io import StringIO
 from typing import Dict, List
 from unittest.mock import Mock
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy

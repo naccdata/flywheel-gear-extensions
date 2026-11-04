@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from flywheel.models.user import User
+
 from users.authorization_visitor import GeneralAuthorizationVisitor
 from users.authorizations import Authorizations, PageResource
 from users.event_models import UserEventCollector

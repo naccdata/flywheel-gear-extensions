@@ -3,10 +3,11 @@
 import logging
 from typing import List, Optional
 
-from authorization.client import AuthorizationClient
-from centers.nacc_group import NACCGroup
 from flywheel.models.access_permission import AccessPermission
 from flywheel.models.group_role import GroupRole
+
+from authorization.client import AuthorizationClient
+from centers.nacc_group import NACCGroup
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import StudyModel

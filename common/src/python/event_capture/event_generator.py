@@ -4,9 +4,6 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from nacc_common.data_identification import DataIdentification
-from pipeline.pipeline_label import PipelineLabel
 from pydantic import ValidationError
 
 from event_capture.models import QCEventData, SubmitEventData
@@ -17,6 +14,9 @@ from event_capture.visit_events import (
     VisitEvent,
     VisitEventType,
 )
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
+from nacc_common.data_identification import DataIdentification
+from pipeline.pipeline_label import PipelineLabel
 
 log = logging.getLogger(__name__)
 

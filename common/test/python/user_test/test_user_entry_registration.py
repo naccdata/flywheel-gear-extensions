@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
+
 from users.authorizations import Authorizations
 from users.user_entry import ActiveUserEntry, CenterUserEntry, PersonName
 from users.user_registry import RegistryPerson

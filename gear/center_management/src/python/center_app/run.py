@@ -12,8 +12,11 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from centers.center_info import CenterList
 from fw_gear import GearContext
+from pydantic import ValidationError
+
+from center_app.main import run
+from centers.center_info import CenterList
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -23,9 +26,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from inputs.yaml import YAMLReadError, load_from_stream
-from pydantic import ValidationError
-
-from center_app.main import run
 
 log = logging.getLogger(__name__)
 

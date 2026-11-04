@@ -13,6 +13,7 @@ from typing import Dict, Optional
 from unittest.mock import Mock
 
 import pytest
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, User
 from users.authorizations import (
     Activities,

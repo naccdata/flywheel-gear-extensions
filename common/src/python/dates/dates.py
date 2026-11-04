@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import pytz
+
 from nacc_common.form_dates import DATE_FORMATS, DateFormatException, parse_date
 
 log = logging.getLogger(__name__)

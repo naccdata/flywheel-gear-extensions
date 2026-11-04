@@ -6,16 +6,17 @@ from pathlib import Path
 from string import Template
 from typing import Any, Dict, List, Literal, Optional
 
-from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
-from gear_execution.gear_trigger import GearInfo
-from keys.keys import DefaultValues, PreprocessingChecks
 from pydantic import (
     BaseModel,
     Field,
     RootModel,
     ValidationError,
 )
+
+from error_logging.error_logger import ErrorLogTemplate
+from gear_execution.gear_trigger import GearInfo
+from keys.keys import DefaultValues, PreprocessingChecks
 
 PipelineType = Literal["submission", "finalization", "deletion"]
 DELIM_CLEANER = re.compile(r"[ /\-_]+")

@@ -10,8 +10,9 @@ Validates: Requirements 8.1, 8.2, 8.4, 8.5
 from unittest.mock import Mock
 
 import pytest
-from authorization_sync.sync_service import AuthorizationSyncService
 from flywheel.models.user import User
+
+from authorization_sync.sync_service import AuthorizationSyncService
 from users.authorizations import (
     Activities,
     Activity,

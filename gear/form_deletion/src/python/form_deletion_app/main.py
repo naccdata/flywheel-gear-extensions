@@ -4,6 +4,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
+from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
+from fw_gear import GearContext
+
 from configs.ingest_configs import FormProjectConfigs
 from deletions.models import (
     DeletedItems,
@@ -12,16 +16,12 @@ from deletions.models import (
     DeleteResponse,
 )
 from error_logging.error_logger import update_file_info
-from flywheel.models.file_entry import FileEntry
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from fw_gear import GearContext
+from form_deletion_app.delete import FormDeletionProcessor
 from identifiers.identifiers_repository import IdentifierRepository
 from identifiers.query import find_identifier
 from nacc_common.error_models import FileErrorList
 from outputs.error_writer import ListErrorWriter
-
-from form_deletion_app.delete import FormDeletionProcessor
 
 log = logging.getLogger(__name__)
 

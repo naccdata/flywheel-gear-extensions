@@ -11,8 +11,9 @@ from typing import Any, Dict, List, Optional, Union
 
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from pydantic import BaseModel, field_validator
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 
 
 class MockFile(FileEntry):

@@ -4,6 +4,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional, Set
 
+from pydantic import BaseModel, RootModel
+
 from configs.ingest_configs import ModuleConfigs
 from keys.keys import DefaultValues, SysErrorCodes
 from nacc_common.data_identification import (
@@ -13,7 +15,6 @@ from nacc_common.field_names import FieldNames
 from nacc_common.form_dates import DEFAULT_DATE_FORMAT, convert_date
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error, unexpected_value_error
-from pydantic import BaseModel, RootModel
 
 log = logging.getLogger(__name__)
 

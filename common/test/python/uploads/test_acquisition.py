@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel.rest import ApiException
+
 from uploads.acquisition import reset_visit_qc_metadata
 
 

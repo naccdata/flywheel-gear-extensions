@@ -29,6 +29,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional
 
+from flywheel.models.access_permission import AccessPermission
+
 from authorization_sync.resource_ids import build_resource_id
 from centers.center_group import (
     CenterError,
@@ -40,14 +42,12 @@ from centers.center_group import (
     PageProjectMetadata,
     ProjectMetadata,
 )
-from flywheel.models.access_permission import AccessPermission
 from flywheel_adaptor.flywheel_proxy import (
     FlywheelProxy,
     GroupAdaptor,
     ProjectAdaptor,
 )
 from keys.types import DatatypeNameType
-
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 from projects.study import StudyCenterModel, StudyModel, StudyVisitor
 from projects.study_group import StudyGroup

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
+
 from event_capture.event_capture import VisitEventCapture
 from form_csv_app.run import initialize_event_capture
 from gear_execution.gear_execution import GearExecutionError

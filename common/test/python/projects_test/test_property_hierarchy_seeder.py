@@ -6,6 +6,9 @@ authorization resource hierarchy feature.
 
 from unittest.mock import MagicMock
 
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import (
     AuthorizationClientError,
@@ -16,8 +19,6 @@ from authorization.exceptions import (
     UnexpectedError,
     ValidationError,
 )
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from projects.hierarchy_seeder import ResourceHierarchySeeder
 
 # --- Strategies ---

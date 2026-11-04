@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, List, Literal, Mapping, Optional
 
+from flywheel.models.file_entry import FileEntry
+
 from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import (
     ErrorLogTemplate,
@@ -15,12 +17,13 @@ from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
     QCStatusLogManager,
 )
-from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
 )
+from form_qc_app.definitions import DefinitionsLoader
+from form_qc_app.validate import RecordValidator
 from gear_execution.gear_execution import GearExecutionError, InputFileWrapper
 from keys.keys import DefaultValues
 from nacc_common.data_identification import (
@@ -39,9 +42,6 @@ from outputs.errors import (
     system_error,
 )
 from submissions.models import VisitInfo
-
-from form_qc_app.definitions import DefinitionsLoader
-from form_qc_app.validate import RecordValidator
 
 log = logging.getLogger(__name__)
 

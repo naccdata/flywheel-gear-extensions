@@ -8,6 +8,7 @@ maps to a non-zero exit) when any project failed.
 from unittest.mock import MagicMock
 
 import pytest
+
 from centers.center_group import TemplateApplicationFailure
 from projects.template_project import TemplateError
 from template_app.main import run

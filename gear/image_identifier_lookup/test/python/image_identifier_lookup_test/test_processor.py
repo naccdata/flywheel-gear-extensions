@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel.rest import ApiException
+
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.identifiers_repository import (
     IdentifierRepository,

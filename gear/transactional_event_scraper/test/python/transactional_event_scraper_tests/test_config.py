@@ -3,10 +3,11 @@
 from unittest.mock import Mock
 
 import pytest
-from event_capture.models import DateRange
 from fw_gear import GearContext
-from gear_execution.gear_execution import GearExecutionError
 from pydantic import ValidationError
+
+from event_capture.models import DateRange
+from gear_execution.gear_execution import GearExecutionError
 from transactional_event_scraper_app.config import (
     TransactionalEventScraperConfig,
     parse_gear_config,

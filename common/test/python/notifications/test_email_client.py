@@ -5,6 +5,7 @@ import pytest
 from moto import mock_aws
 from moto.core.models import DEFAULT_ACCOUNT_ID
 from moto.ses.models import ses_backends
+
 from notifications.email import DestinationModel, EmailClient, TemplateDataModel
 
 

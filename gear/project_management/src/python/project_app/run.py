@@ -15,9 +15,10 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
+from fw_gear import GearContext
+
 from authorization import ConfigurationError, create_authorization_client
 from authorization.client import AuthorizationClient
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -27,9 +28,8 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterError, ParameterStore
 from inputs.yaml import YAMLReadError, load_all_from_stream
-from projects.study import StudyModel
-
 from project_app.main import run
+from projects.study import StudyModel
 
 log = logging.getLogger(__name__)
 

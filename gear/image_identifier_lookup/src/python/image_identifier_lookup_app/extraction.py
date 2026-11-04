@@ -10,13 +10,13 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
+from pydantic import BaseModel
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from identifiers.model import clean_ptid
-from nacc_common.data_identification import DataIdentification
-from pydantic import BaseModel
-
 from image_identifier_lookup_app.dicom_utils import read_dicom_tags
+from nacc_common.data_identification import DataIdentification
 
 log = logging.getLogger(__name__)
 

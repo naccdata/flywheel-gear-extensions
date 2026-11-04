@@ -5,6 +5,10 @@ import sys
 from typing import Optional
 
 from fw_gear import GearContext
+from redcap_api.redcap_connection import REDCapConnection
+from redcap_api.redcap_module_connection import REDCapModuleConnection
+from redcap_api.redcap_parameter_store import REDCapParameters
+
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -13,10 +17,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterStore
-from redcap_api.redcap_connection import REDCapConnection
-from redcap_api.redcap_module_connection import REDCapModuleConnection
-from redcap_api.redcap_parameter_store import REDCapParameters
-
 from redcap_image_form_importer_app.main import run
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)

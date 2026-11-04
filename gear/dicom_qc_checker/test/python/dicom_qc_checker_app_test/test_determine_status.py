@@ -3,9 +3,10 @@
 **Feature: dicom-qc-checker**
 """
 
-from dicom_qc_checker_app.main import determine_qc_status
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from dicom_qc_checker_app.main import determine_qc_status
 
 # --- Strategies ---
 

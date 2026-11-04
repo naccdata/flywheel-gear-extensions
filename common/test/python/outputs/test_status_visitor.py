@@ -1,6 +1,7 @@
 from typing import Callable
 
 import pytest
+
 from nacc_common.error_models import (
     DataIdentification,
     FileQCModel,

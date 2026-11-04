@@ -3,11 +3,12 @@
 import logging
 from typing import List, Optional
 
-from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, UploadTemplateInfo
-from deletions.models import DeletedItems, DeleteRequest
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel.models.session import Session
+
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, UploadTemplateInfo
+from deletions.models import DeletedItems, DeleteRequest
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor, SubjectError
 from keys.keys import MetadataKeys

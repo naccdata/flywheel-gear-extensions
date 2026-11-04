@@ -12,6 +12,7 @@ from flywheel.models.subject import Subject
 from fw_gear import GearContext
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import ScopeLiterals
+
 from utils.decorators import api_retry
 
 from .scheduling_models import FileModel

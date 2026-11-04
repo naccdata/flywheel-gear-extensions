@@ -9,10 +9,9 @@ DesiredGrant objects for a user's authorizations.
 import logging
 
 from authorization.models import AuthorizationModelMetadata
-from users.authorizations import Authorizations, StudyAuthorizations
-
 from authorization_sync.models import DesiredGrant
 from authorization_sync.resource_ids import build_label_for_resource_prefix
+from users.authorizations import Authorizations, StudyAuthorizations
 
 log = logging.getLogger(__name__)
 

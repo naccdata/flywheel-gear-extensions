@@ -3,10 +3,10 @@
 import logging
 
 from flywheel.models.file_entry import FileEntry
-from nacc_common.data_identification import DataIdentification
-from nacc_common.qc_report import extract_visit_keys
 
 from event_capture.models import SubmitEventData
+from nacc_common.data_identification import DataIdentification
+from nacc_common.qc_report import extract_visit_keys
 
 log = logging.getLogger(__name__)
 

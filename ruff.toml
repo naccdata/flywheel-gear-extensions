@@ -11,8 +11,149 @@ target-version = "py312"
 select = ["A", "B", "E", "W", "F", "I", "RUF", "SIM", "C90", "PLW0406", "COM818", "SLF001", "E402"]
 
 [lint.per-file-ignores]
-# TODO: confirm that this was a yapf/ruff conflict
+# scheduling.py has a genuine I001 (unsorted stdlib imports and a relative
+# import that ruff wants regrouped); this is pre-existing disorder, unrelated to
+# the known-first-party scope fix below. TODO: sort its imports and drop this.
 "common/src/python/curator/scheduling.py" = ["I001"]
-"common/src/python/event_capture/visit_event_accumulator.py" = ["I001"]
-"common/test/python/event_capture/test_visit_event_accumulator.py" = ["I001"]
 "tests/*" = ["SLF001"]
+
+[lint.isort]
+# Import grouping (I001) must be stable regardless of the Pants target scope
+# ruff runs under. Pants runs ruff in a sandbox that may not contain a monorepo
+# package's __init__.py (e.g. file-scoped `pants fix`), so ruff's automatic
+# first-party detection can misclassify a local package as third-party and
+# regroup its imports; CI then runs ruff at a wider scope and rejects the
+# result. Declaring the first-party set explicitly removes the ambiguity.
+#
+# This follows the canonical Pants approach (see pantsbuild/example-python,
+# .isort.cfg): pin known-first-party and let everything else fall through to
+# third-party, which is ruff's default section. No known-third-party list is
+# needed -- external packages, including the type stubs under mypy-stubs/
+# (flywheel, fw_gear), group as third-party by default because they are not
+# listed here.
+#
+# Keep this in sync when gears or packages are added (a missing entry fails
+# loud as an I001 on that package). It is the set of top-level package names
+# under the src/python and test/python source roots.
+#
+# Use this command to CHECK for entries this list is missing (not to blindly
+# rebuild it) -- diff its output against the list below:
+#   { find . -type d \( -path '*/src/python/*' -o -path '*/test/python/*' \) \
+#       -maxdepth 6 -not -path '*/.*' -not -path './mypy-stubs/*'; } \
+#     | awk -F'/python/' '{print $2}' | awk -F'/' '{print $1}' \
+#     | sort -u | grep -v cookiecutter
+# Notes on why this is a check, not a generator:
+#   - mypy-stubs/ is excluded: the stub packages flywheel and fw_gear must stay
+#     third-party (see above); without the exclude the command would emit them.
+#   - coreapi_client is generated under comanage/ (pants run comanage:build_client),
+#     so the command only finds it after codegen has run; it stays first-party
+#     either way.
+known-first-party = [
+    "attribute_curator_app",
+    "attribute_curator_app_test",
+    "authorization",
+    "authorization_sync",
+    "authorization_sync_test",
+    "authorization_test",
+    "batch_scheduler_app",
+    "center_app",
+    "center_form_export_app",
+    "center_form_export_test",
+    "centers",
+    "configs",
+    "coreapi_client",
+    "csv_app",
+    "csv_center_splitter_app",
+    "curator",
+    "data",
+    "data_requests",
+    "dataset_aggregator_app",
+    "dataset_aggregator_test",
+    "datastore",
+    "dates",
+    "dbt_runner_app",
+    "deletions",
+    "dicom_qc_checker_app",
+    "dicom_qc_checker_app_test",
+    "directory_app",
+    "enrollment",
+    "error_logging",
+    "event_capture",
+    "file_distribution_app",
+    "flywheel_adaptor",
+    "flywheel_adaptor_test",
+    "form_csv_app",
+    "form_csv_app_test",
+    "form_deletion_app",
+    "form_deletion_test",
+    "form_qc_app",
+    "form_qc_coordinator_app",
+    "form_scheduler_app",
+    "form_screening_app",
+    "gather_form_data_app",
+    "gather_form_data_test",
+    "gather_submission_status_app",
+    "gather_submission_status_test",
+    "gear_execution",
+    "identifier_app",
+    "identifier_provisioning_app",
+    "identifiers",
+    "image_identifier_lookup_app",
+    "image_identifier_lookup_test",
+    "inputs",
+    "jobs",
+    "keys",
+    "lambdas",
+    "legacy_identifier_transfer_app",
+    "legacy_sanity_check_app",
+    "loni",
+    "metadata_app",
+    "metrics",
+    "nacc_common",
+    "notifications",
+    "outputs",
+    "participant_transfer_app",
+    "phi_coordinator_app",
+    "phi_coordinator_test",
+    "phi_image_removal_app",
+    "phi_image_removal_test",
+    "pipeline",
+    "pipeline_event_logger_app",
+    "pipeline_event_logger_test",
+    "preprocess",
+    "preprocess_test",
+    "project_app",
+    "project_app_test",
+    "projects",
+    "projects_test",
+    "reader_tasks",
+    "reader_tasks_test",
+    "redcap_fw_transfer_app",
+    "redcap_image_form_creator_app",
+    "redcap_image_form_creator_test",
+    "redcap_image_form_importer_app",
+    "redcap_image_form_importer_test",
+    "redcap_imaging_forms",
+    "redcap_info_app",
+    "redcap_project_creation_app",
+    "reports",
+    "rxnav",
+    "s3",
+    "scheduling",
+    "serialization",
+    "ssm_parameter_store",
+    "storage",
+    "submissions",
+    "tabular_data",
+    "template_app",
+    "template_app_test",
+    "test_mocks",
+    "transactional_event_scraper_app",
+    "transactional_event_scraper_tests",
+    "transform",
+    "uploads",
+    "user_app",
+    "user_test",
+    "users",
+    "utils",
+]

@@ -6,11 +6,12 @@ unit tests for COmanage suspension behavior.
 
 from unittest.mock import Mock, call
 
-from centers.center_info import CenterMapInfo
 from flywheel.models.user import User
-from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from centers.center_info import CenterMapInfo
+from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from users.event_models import EventCategory, EventType, UserEventCollector
 from users.user_entry import PersonName, UserEntry
 from users.user_process_environment import UserProcessEnvironment

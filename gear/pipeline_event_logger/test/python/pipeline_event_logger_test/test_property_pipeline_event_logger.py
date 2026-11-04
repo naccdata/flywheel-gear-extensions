@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
 from nacc_common.error_models import QCStatus
 from pipeline_event_logger_app.main import (
     _QC_STATUS_TO_OUTCOME_KEY,

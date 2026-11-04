@@ -9,11 +9,12 @@ import datetime
 from typing import Dict, List
 from unittest.mock import Mock
 
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from nacc_common.error_models import FileError
 from outputs.error_writer import ListErrorWriter
 from test_mocks.mock_configs import uds_ingest_configs

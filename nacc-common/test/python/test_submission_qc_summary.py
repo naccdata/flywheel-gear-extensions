@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
 from nacc_common.error_data import get_submission_qc_summary
 from nacc_common.error_models import (
     FileError,

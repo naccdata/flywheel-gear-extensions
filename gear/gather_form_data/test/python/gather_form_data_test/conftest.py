@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel.models.subject import Subject
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gather_form_data_app.main import GatherConfig
 

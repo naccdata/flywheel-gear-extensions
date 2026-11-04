@@ -7,11 +7,12 @@ writes but performs reads**
 
 from unittest.mock import MagicMock
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.models.co_person import CoPerson
 from coreapi_client.models.co_person_message import CoPersonMessage
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from users.user_registry import UserRegistry
 
 

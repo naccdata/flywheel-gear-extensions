@@ -5,9 +5,10 @@ from typing import Dict, List, Optional
 
 import boto3
 from botocore.exceptions import ClientError
+from pydantic import BaseModel, ValidationError
+
 from identifiers.model import IdentifiersMode
 from inputs.environment import get_environment_variable
-from pydantic import BaseModel, ValidationError
 
 log = logging.getLogger(__name__)
 

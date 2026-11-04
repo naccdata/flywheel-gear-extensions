@@ -11,8 +11,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from authorization.client import AuthorizationClient
 from fw_gear import GearContext
+
+from authorization.client import AuthorizationClient
 from gear_execution.gear_execution import ClientWrapper
 from inputs.parameter_store import ParameterError, ParameterStore
 from project_app.run import ProjectCreationVisitor

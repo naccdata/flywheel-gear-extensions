@@ -6,6 +6,8 @@ import re
 from typing import Dict, Optional
 
 from fw_gear import GearContext
+
+from dbt_runner_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -16,8 +18,6 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from s3.s3_bucket import S3BucketInterface
-
-from dbt_runner_app.main import run
 
 log = logging.getLogger(__name__)
 

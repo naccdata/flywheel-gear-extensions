@@ -4,15 +4,16 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from flywheel.models.file_entry import FileEntry
+from nacc_attribute_deriver.symbol_table import SymbolTable
+from pydantic import BaseModel, Field, ValidationError, model_validator
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from identifiers.model import NACCID_PATTERN
 from inputs.csv_reader import CSVVisitor
-from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_common.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error, missing_field_error
 from outputs.outputs import StringCSVWriter
-from pydantic import BaseModel, Field, ValidationError, model_validator
 
 log = logging.getLogger(__name__)
 

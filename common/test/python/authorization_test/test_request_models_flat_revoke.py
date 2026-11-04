@@ -11,12 +11,13 @@ must always be structured.
 import json
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
+
 from authorization.models import (
     BatchOperationModel,
     RevokeRequest,
     ScopedResourceObject,
 )
-from pydantic import ValidationError as PydanticValidationError
 
 
 class TestRevokeRequestFlatForm:

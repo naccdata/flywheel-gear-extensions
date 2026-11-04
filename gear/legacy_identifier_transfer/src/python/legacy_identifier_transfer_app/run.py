@@ -3,11 +3,12 @@
 import logging
 from typing import Any, Dict, Optional, Tuple
 
+from flywheel.rest import ApiException
+from fw_gear import GearContext
+
 from datastore.forms_store import FormsStore
 from enrollment.enrollment_project import EnrollmentProject
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -26,7 +27,6 @@ from identifiers.model import IdentifierObject, IdentifiersMode
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
-
 from legacy_identifier_transfer_app.main import run
 
 log = logging.getLogger(__name__)

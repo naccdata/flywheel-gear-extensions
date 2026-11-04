@@ -5,6 +5,7 @@ import time
 from typing import List, Optional
 
 from flywheel.models.job import Job
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 

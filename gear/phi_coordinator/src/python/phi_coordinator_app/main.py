@@ -7,9 +7,8 @@ protocol and applies the per-task processor to each.
 import logging
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from reader_tasks.reader_task_client import ReaderTaskClient
-
 from phi_coordinator_app.processor import Outcome, PHITaskProcessor
+from reader_tasks.reader_task_client import ReaderTaskClient
 
 log = logging.getLogger(__name__)
 

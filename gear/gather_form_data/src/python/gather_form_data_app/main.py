@@ -5,6 +5,8 @@ from csv import DictReader
 from dataclasses import dataclass, field
 from typing import TextIO
 
+from pydantic import ValidationError
+
 from data_requests.data_request import (
     DataRequest,
     ModuleDataGatherer,
@@ -14,7 +16,6 @@ from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from nacc_common.error_models import CSVLocation, FileError
 from outputs.error_writer import ErrorWriter
 from outputs.errors import malformed_file_error
-from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 

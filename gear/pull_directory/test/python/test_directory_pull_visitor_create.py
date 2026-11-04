@@ -15,11 +15,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 from conftest import MockGearContext, MockParameterStore
+from redcap_api.redcap_connection import REDCapConnectionError
+from redcap_api.redcap_parameter_store import REDCapParameters
+
 from directory_app.run import DirectoryPullVisitor
 from gear_execution.gear_execution import GearExecutionError
 from inputs.parameter_store import ParameterError
-from redcap_api.redcap_connection import REDCapConnectionError
-from redcap_api.redcap_parameter_store import REDCapParameters
 from users.nacc_directory import get_directory_field_names
 
 

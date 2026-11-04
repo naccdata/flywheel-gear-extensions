@@ -1,6 +1,7 @@
 """Tests for GatherIngestDatatypesVisitor."""
 
 import pytest
+
 from centers.center_group import (
     GatherIngestDatatypesVisitor,
     PageProjectMetadata,

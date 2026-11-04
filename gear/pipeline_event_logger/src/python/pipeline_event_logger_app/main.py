@@ -4,19 +4,20 @@ import logging
 from datetime import datetime
 from typing import Optional, cast
 
+from flywheel.models.file_entry import FileEntry
+from pydantic import ValidationError
+
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from event_capture.event_capture import VisitEventCapture
 from event_capture.event_generator import create_visit_event
 from event_capture.visit_events import VisitEventType
-from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 from keys.keys import MetadataKeys
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import FileErrorList, QCStatus
 from nacc_common.form_dates import parse_timestamp
-from pydantic import ValidationError
 
 from .qc_reader import GearQC, QCErrorConfig
 

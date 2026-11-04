@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 
 import pytest
+
 from users.authorizations import Authorizations
 from users.event_models import EventCategory, EventType, UserContext, UserProcessEvent
 from users.user_entry import CenterUserEntry, PersonName

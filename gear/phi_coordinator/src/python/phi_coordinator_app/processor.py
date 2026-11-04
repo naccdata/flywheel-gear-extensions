@@ -9,6 +9,7 @@ import logging
 from enum import Enum
 
 from flywheel import FileEntry
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from reader_tasks.reader_task_client import (
     FormResponseModel,

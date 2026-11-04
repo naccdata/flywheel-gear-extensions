@@ -6,6 +6,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, DefaultDict, Dict, List, MutableMapping, Optional, TextIO
 
+from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
+from pydantic import ValidationError
+
 from configs.ingest_configs import ModuleConfigs
 from error_logging.error_logger import (
     ErrorLogTemplate,
@@ -16,8 +20,6 @@ from error_logging.qc_status_log_creator import (
 )
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import ACTION_DUPLICATE_SUBMIT, VisitEvent
-from flywheel.models.file_entry import FileEntry
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from inputs.csv_reader import CSVVisitor, read_csv
 from keys.keys import PreprocessingChecks, SysErrorCodes
@@ -39,7 +41,6 @@ from outputs.errors import (
     unexpected_value_error,
 )
 from preprocess.preprocessor import FormPreprocessor
-from pydantic import ValidationError
 from transform.transformer import BaseRecordTransformer, TransformerFactory
 from uploads.acquisition import reset_visit_qc_metadata
 from uploads.uploader import FormJSONUploader

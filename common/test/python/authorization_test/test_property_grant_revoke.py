@@ -7,6 +7,9 @@ Properties tested: 1, 3, 4, 6
 import json
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import UnexpectedError, ValidationError
 from authorization.models import (
@@ -18,8 +21,6 @@ from authorization.models import (
     RevokeResult,
     ScopedResourceObject,
 )
-from hypothesis import given, settings
-from hypothesis import strategies as st
 
 from .conftest import CapturingTransport, MockResponse, no_sleep
 

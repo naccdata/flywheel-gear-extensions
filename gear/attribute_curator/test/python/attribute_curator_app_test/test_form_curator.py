@@ -4,9 +4,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from attribute_curator_app.form_curator import FormCurator
 from nacc_attribute_deriver.symbol_table import SymbolTable
 from nacc_attribute_deriver.utils.scope import FormScope
+
+from attribute_curator_app.form_curator import FormCurator
 
 
 @pytest.fixture

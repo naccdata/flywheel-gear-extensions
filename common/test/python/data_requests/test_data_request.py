@@ -4,6 +4,7 @@ import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from data_requests.data_request import (
     DataRequest,
     ModuleDataGatherer,

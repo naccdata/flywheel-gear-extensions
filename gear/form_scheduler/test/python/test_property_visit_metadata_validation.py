@@ -12,11 +12,12 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel.models.file_entry import FileEntry
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from form_scheduler_app.event_accumulator import (
     EventAccumulator,
 )
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from nacc_common.data_identification import DataIdentification
 from test_mocks.strategies import (
     invalid_visit_metadata_strategy,

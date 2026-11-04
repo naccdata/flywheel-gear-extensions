@@ -4,8 +4,9 @@ from typing import Any, ClassVar, Final, Optional
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.container_output import ContainerOutput
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from pydantic import BaseModel, ConfigDict
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
 log = logging.getLogger(__name__)
 

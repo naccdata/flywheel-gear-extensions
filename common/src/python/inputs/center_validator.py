@@ -5,6 +5,7 @@ import re
 from typing import Any, Dict
 
 from identifiers.model import PTID_PATTERN
+from inputs.csv_reader import RowValidator
 from keys.keys import SysErrorCodes
 from nacc_common.data_identification import (
     DataIdentification,
@@ -12,8 +13,6 @@ from nacc_common.data_identification import (
 from nacc_common.field_names import FieldNames
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocessing_error
-
-from inputs.csv_reader import RowValidator
 
 log = logging.getLogger(__name__)
 

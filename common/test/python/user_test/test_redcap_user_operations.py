@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pytest
 from redcap_api.redcap_connection import REDCapConnectionError
 from redcap_api.redcap_project import REDCapProject
+
 from users.redcap_user_operations import unassign_user_role, user_has_role_assignment
 
 

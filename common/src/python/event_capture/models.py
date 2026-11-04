@@ -20,10 +20,10 @@ of submit events with packet information and other metadata.
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from nacc_common.error_models import DataIdentification, QCStatus
 from pydantic import BaseModel, Field, field_validator
 
 from event_capture.visit_events import VisitEvent
+from nacc_common.error_models import DataIdentification, QCStatus
 
 
 class EventMatchKey(BaseModel):
