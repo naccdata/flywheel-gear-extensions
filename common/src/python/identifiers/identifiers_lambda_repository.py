@@ -117,7 +117,6 @@ class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
     """Request model for adding/updating Identifier with known NACCID."""
 
     active: bool
-    naccadc: Optional[int]
 
     @classmethod
     def create_from(
@@ -130,7 +129,6 @@ class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
             ptid=identifier.ptid,
             guid=identifier.guid,
             active=identifier.active,
-            naccadc=identifier.naccadc,
         )
 
 

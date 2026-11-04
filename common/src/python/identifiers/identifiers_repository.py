@@ -17,7 +17,6 @@ from identifiers.model import (
     IdentifierList,
     IdentifierObject,
     NACCIDField,
-    OptionalNACCADCField,
 )
 
 log = logging.getLogger(__name__)
@@ -27,12 +26,10 @@ class IdentifierQueryObject(CenterIdentifiers, GUIDField):
     """Query model creating objects."""
 
 
-class IdentifierUpdateObject(
-    CenterIdentifiers, GUIDField, OptionalNACCADCField, NACCIDField
-):
+class IdentifierUpdateObject(CenterIdentifiers, GUIDField, NACCIDField):
     """Request model for identifier updates.
 
-    Has NACCID as string. NACCADC is optional
+    Has NACCID as string.
     """
 
     active: bool
@@ -46,7 +43,6 @@ class IdentifierUpdateObject(
             adcid=identifier.adcid,
             ptid=identifier.ptid,
             guid=identifier.guid,
-            naccadc=identifier.naccadc,
             active=active,
         )
 
