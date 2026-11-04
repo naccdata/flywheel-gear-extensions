@@ -9,6 +9,10 @@
         "MLST",
         "NP"
     ],
+    "errorlog_template": {
+        "suffix": "qc-status",
+        "extension": "log"
+    },
     "legacy_project_label": "retrospective-form",
     "module_configs": {
         "UDS": {
@@ -24,12 +28,6 @@
                 "filename": {
                     "template": "${subject}_${session}_${acquisition}.json"
                 }
-            },
-            "errorlog_template": {
-                "id_field": "ptid",
-                "date_field": "visitdate",
-                "suffix": "qc-status",
-                "extension": "log"
             },
             "required_fields": [
                 "ptid",
@@ -132,12 +130,6 @@
                     "template": "${subject}_${session}_${acquisition}.json"
                 }
             },
-            "errorlog_template": {
-                "id_field": "ptid",
-                "date_field": "visitdate",
-                "suffix": "qc-status",
-                "extension": "log"
-            },
             "required_fields": [
                 "ptid",
                 "adcid",
@@ -199,12 +191,6 @@
                 "filename": {
                     "template": "${subject}_${session}_${acquisition}.json"
                 }
-            },
-            "errorlog_template": {
-                "id_field": "ptid",
-                "date_field": "visitdate",
-                "suffix": "qc-status",
-                "extension": "log"
             },
             "required_fields": [
                 "ptid",
@@ -318,12 +304,6 @@
                 "ptid",
                 "npformdate"
             ],
-            "errorlog_template": {
-                "id_field": "ptid",
-                "date_field": "npformdate",
-                "suffix": "qc-status",
-                "extension": "log"
-            },
             "initial_packets": [
                 "NP"
             ],

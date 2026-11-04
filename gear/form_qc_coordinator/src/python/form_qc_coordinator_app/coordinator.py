@@ -13,7 +13,6 @@ from fw_gear.metadata import Metadata, create_qc_result_dict
 from pydantic import ValidationError
 
 from configs.ingest_configs import (
-    ErrorLogTemplate,
     FormProjectConfigs,
     SupplementModuleConfigs,
 )
@@ -331,7 +330,7 @@ class QCCoordinator:
             )
 
         qc_manager = QCStatusLogManager(
-            error_log_template=ErrorLogTemplate(),
+            error_log_template=self.__form_project_configs.errorlog_template,
             visit_annotator=FileVisitAnnotator(project_adaptor),
         )
 

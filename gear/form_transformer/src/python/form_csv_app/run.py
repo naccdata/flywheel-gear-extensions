@@ -221,6 +221,7 @@ class FormCSVtoJSONTransformer(GearExecutionEnvironment):
                 downstream_gears=downstream_gears,
                 event_capture=event_capture,
                 timestamp=timestamp,
+                errorlog_template=form_configs.errorlog_template,
             )
 
             context.metadata.add_qc_result(
