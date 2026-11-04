@@ -181,7 +181,6 @@ def test_visit_keys_consistent_across_visitors(num_visits: int):
             adcid=visit["adcid"],  # type: ignore[arg-type]
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
 
     # Create shared error writer

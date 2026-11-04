@@ -112,7 +112,6 @@ def test_property_event_metadata_correctness(csv_row, metadata):
             naccid=f"NACC{hash(csv_row['ptid']) % 1000000:06d}",
             adcid=int(csv_row["adcid"]),
             guid=None,
-            naccadc=int(csv_row["adcid"]) * 1000,
         )
     }
 
@@ -239,7 +238,6 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
             naccid=f"NACC{hash(row['ptid']) % 1000000:06d}",
             adcid=int(row["adcid"]),
             guid=None,
-            naccadc=int(row["adcid"]) * 1000,
         )
 
     # Mock dependencies

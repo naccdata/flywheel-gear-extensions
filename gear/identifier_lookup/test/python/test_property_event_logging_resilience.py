@@ -59,7 +59,6 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, start=1)
     }
@@ -228,7 +227,6 @@ def test_event_logging_resilience_multiple_failures():
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, start=1)
     }

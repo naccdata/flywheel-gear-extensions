@@ -57,7 +57,6 @@ def test_nacc_direction_with_qc_creates_events(num_ptids: int, visit_num: int):
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, start=1)
     }
@@ -189,7 +188,6 @@ def test_center_direction_no_events(num_naccids: int):
             adcid=1,
             ptid=f"P{str(idx).zfill(3)}",
             guid=None,
-            naccadc=1000 + idx,
         )
 
     mock_identifiers_repo.get = Mock(side_effect=mock_get)
@@ -273,7 +271,6 @@ def test_nacc_direction_without_qc_no_events(num_ptids: int, visit_num: int):
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, start=1)
     }

@@ -37,15 +37,9 @@ def test_naccid_lookup_visitor_separation_of_concerns():
     # Arrange - Use fixed test data to avoid PTID validation issues
     ptids = ["P001", "P002", "P003"]
     identifiers = {
-        "P001": IdentifierObject(
-            naccid="NACC000001", adcid=1, ptid="P001", guid=None, naccadc=1001
-        ),
-        "P002": IdentifierObject(
-            naccid="NACC000002", adcid=1, ptid="P002", guid=None, naccadc=1002
-        ),
-        "P003": IdentifierObject(
-            naccid="NACC000003", adcid=1, ptid="P003", guid=None, naccadc=1003
-        ),
+        "P001": IdentifierObject(naccid="NACC000001", adcid=1, ptid="P001", guid=None),
+        "P002": IdentifierObject(naccid="NACC000002", adcid=1, ptid="P002", guid=None),
+        "P003": IdentifierObject(naccid="NACC000003", adcid=1, ptid="P003", guid=None),
     }
 
     output_stream = StringIO()
