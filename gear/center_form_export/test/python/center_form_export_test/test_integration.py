@@ -529,6 +529,14 @@ class TestCreateValidation:
         with pytest.raises(GearExecutionError, match="not in modules: LBD"):
             self._create(modules="UDS,FTLD", unsplit_modules="UDS, LBD")
 
+    def test_unsplit_module_outside_modules_rejected_when_split_is_off(self):
+        with pytest.raises(GearExecutionError, match="not in modules: LBD"):
+            self._create(modules="UDS", unsplit_modules="LBD", formver_split=False)
+
+    def test_unsplit_module_name_is_case_sensitive(self):
+        with pytest.raises(GearExecutionError, match="not in modules: uds"):
+            self._create(modules="UDS", unsplit_modules="uds")
+
     def test_unsplit_modules_accepted(self):
         self._create(modules="UDS,FTLD", unsplit_modules=" UDS ,")
 
@@ -593,16 +601,18 @@ class TestUnsplitModules:
         mock_client: MagicMock,
         mock_proxy: MagicMock,
         mock_context: MagicMock,
+        caplog: pytest.LogCaptureFixture,
     ):
-        split = self._run(
-            mock_client,
-            mock_proxy,
-            mock_context,
-            modules={"UDS", "FTLD"},
-            source_id="legacy",
-            formver_split=True,
-            unsplit_modules=frozenset({"UDS"}),
-        )
+        with caplog.at_level(logging.INFO):
+            split = self._run(
+                mock_client,
+                mock_proxy,
+                mock_context,
+                modules={"UDS", "FTLD"},
+                source_id="legacy",
+                formver_split=True,
+                unsplit_modules=frozenset({"UDS"}),
+            )
 
         assert split == {"UDS": False, "FTLD": True}
         assert sorted(mock_context.output_files) == [
@@ -610,6 +620,12 @@ class TestUnsplitModules:
             "adrc-legacy-FTLD-v3-2026-07-24.csv",
             "adrc-legacy-UDS-2026-07-24.csv",
         ]
+        assert mock_context.output_files["adrc-legacy-UDS-2026-07-24.csv"] == (
+            "a\n1\n2\n"
+        )
+        assert "module UDS: one file" in caplog.text
+        assert "module FTLD: split by form version" in caplog.text
+        assert "wrote adrc-legacy-UDS-2026-07-24.csv with 1 columns" in caplog.text
 
     def test_no_effect_when_formver_split_is_off(
         self,
@@ -627,6 +643,10 @@ class TestUnsplitModules:
         )
 
         assert split == {"UDS": False, "FTLD": False}
+        assert sorted(mock_context.output_files) == [
+            "adrc-ingest-FTLD-2026-07-24.csv",
+            "adrc-ingest-UDS-2026-07-24.csv",
+        ]
 
 
 class TestRunIdStamp:

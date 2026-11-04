@@ -57,7 +57,7 @@
       "default": false
     },
     "unsplit_modules": {
-      "description": "Comma-separated modules to write as one file each even when formver_split is enabled, with the columns of every form version. Each must also be in modules. Ignored when formver_split is disabled.",
+      "description": "Comma-separated modules to write as one file each even when formver_split is enabled, with the columns of every form version. Each must also be in modules, even when formver_split is disabled, where the option has no effect.",
       "type": "string",
       "default": ""
     },
