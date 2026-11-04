@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Literal, Optional, TextIO
 
 from botocore.exceptions import ClientError
+from flywheel.models.file_entry import FileEntry
 from fw_gear import GearContext
 from pydantic import ValidationError
 
@@ -23,7 +24,6 @@ from error_logging.qc_status_log_creator import (
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
-from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from gear_execution.gear_execution import (
     ClientWrapper,

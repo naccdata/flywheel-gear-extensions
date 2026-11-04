@@ -2,9 +2,10 @@
 
 from unittest.mock import Mock
 
+from flywheel.models.file_entry import FileEntry
+
 from configs.ingest_configs import FormProjectConfigs
 from error_logging.error_logger import ErrorLogTemplate
-from flywheel.models.file_entry import FileEntry
 from form_scheduler_app.event_accumulator import EventAccumulator
 
 FORM_CONFIGS = FormProjectConfigs(

@@ -8,6 +8,7 @@ from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
 from identifier_app.run import IdentifierLookupVisitor
 from keys.keys import MetadataKeys
 

@@ -4,9 +4,10 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import pytest
+from flywheel.models.file_entry import FileEntry
+
 from error_logging.error_logger import ErrorLogTemplate, get_submission_timestamp
 from error_logging.qc_status_log_creator import QCStatusLogManager
-from flywheel.models.file_entry import FileEntry
 from keys.keys import MetadataKeys
 from nacc_common.data_identification import (
     DataIdentification,
