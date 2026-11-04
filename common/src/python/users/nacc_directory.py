@@ -72,6 +72,10 @@ def get_directory_field_names() -> list[str]:
 
 AuthorizationAccessLevel = Literal["NoAccess", "ViewAccess", "SubmitAudit"]
 
+# REDCap choice code for NACC in the directory's ad_community_partner_or_ngo
+# field. Must match the choice list in the directory project.
+NACC_STAFF_CHOICE = "14"
+
 
 def get_activity_prefix(
     access_level: AuthorizationAccessLevel,
@@ -170,7 +174,8 @@ class DirectoryAuthorizations(BaseModel):
             "web_report_access___repdash", "web_report_access___RepDash"
         )
     )
-    # NACC staff are records with code 14 in the community partner/NGO choice.
+    # NACC staff are records with NACC_STAFF_CHOICE in the community partner/NGO
+    # choice.
     general_page_staff_tools_access_level: AuthorizationAccessLevel = Field(
         default="NoAccess", alias="ad_community_partner_or_ngo"
     )
@@ -400,14 +405,14 @@ class DirectoryAuthorizations(BaseModel):
     def convert_staff_access_level(cls, value: Any) -> AuthorizationAccessLevel:
         """Converts the community partner/NGO choice to staff tools access.
 
-        Code 14 marks NACC staff, so those records get ViewAccess. Any
-        other choice, or a blank value, is NoAccess.
+        NACC_STAFF_CHOICE marks NACC staff, so those records get
+        ViewAccess. Any other choice, or a blank value, is NoAccess.
         """
         if isinstance(value, bool):
             return "NoAccess"
-        if isinstance(value, int) and value == 14:
-            return "ViewAccess"
-        if isinstance(value, str) and value.strip() == "14":
+        if isinstance(value, int):
+            value = str(value)
+        if isinstance(value, str) and value.strip() == NACC_STAFF_CHOICE:
             return "ViewAccess"
         return "NoAccess"
 
