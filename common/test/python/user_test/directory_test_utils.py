@@ -18,7 +18,6 @@ def create_directory_entry(**overrides) -> dict:
         "adcid": "999",
         "web_report_access___web": "0",
         "web_report_access___repdash": "0",
-        "ad_community_partner_or_ngo": "",
         "scan_dashboard_access_level": "",
         "p30_naccid_enroll_access_level": "",
         "p30_clin_forms_access_level": "",

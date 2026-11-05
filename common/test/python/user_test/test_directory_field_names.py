@@ -17,7 +17,6 @@ EXPECTED_REDCAP_FIELDS = [
     "contact_company_name",
     "adcid",
     "web_report_access",
-    "ad_community_partner_or_ngo",
     "p30_naccid_enroll_access_level",
     "p30_clin_forms_access_level",
     "p30_imaging_access_level",
