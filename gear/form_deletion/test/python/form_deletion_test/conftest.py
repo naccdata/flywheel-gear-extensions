@@ -56,7 +56,6 @@ def active_identifier():
     return IdentifierObject(
         ptid="adrc1010",
         adcid=42,
-        naccadc=42,
         naccid="NACC123456",
         guid=None,
         active=True,
@@ -68,7 +67,6 @@ def inactive_identifier():
     return IdentifierObject(
         ptid="adrc1010",
         adcid=42,
-        naccadc=42,
         naccid="NACC123456",
         guid=None,
         active=False,

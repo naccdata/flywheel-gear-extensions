@@ -80,7 +80,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -128,7 +127,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -223,7 +221,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -260,7 +257,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -305,7 +301,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -348,7 +343,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -386,7 +380,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -422,7 +415,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -457,7 +449,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier
@@ -491,7 +482,6 @@ class TestImageIdentifierLookupProcessor:
             ptid=ptid,
             naccid=expected_naccid,
             guid="test_guid",
-            naccadc=1,
             active=True,
         )
         mock_repository.get.return_value = identifier

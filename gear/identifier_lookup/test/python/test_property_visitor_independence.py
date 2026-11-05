@@ -57,7 +57,6 @@ def test_visitor_independence(num_ptids: int, failing_visitor: str):  # noqa: C9
                 adcid=1,
                 ptid=ptid,
                 guid=None,
-                naccadc=1000 + i,
             )
             for i, ptid in enumerate(ptids, start=1)
         }
@@ -274,7 +273,6 @@ def test_visitor_independence_partial_failures():
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids[: num_ptids // 2], start=1)
     }

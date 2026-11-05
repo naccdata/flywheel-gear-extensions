@@ -42,12 +42,8 @@ def test_visitor_coordination_success_case():
     # Arrange - Create test data with valid identifiers
     ptids = ["P001", "P002"]
     identifiers = {
-        "P001": IdentifierObject(
-            naccid="NACC000001", adcid=1, ptid="P001", guid=None, naccadc=1001
-        ),
-        "P002": IdentifierObject(
-            naccid="NACC000002", adcid=1, ptid="P002", guid=None, naccadc=1002
-        ),
+        "P001": IdentifierObject(naccid="NACC000001", adcid=1, ptid="P001", guid=None),
+        "P002": IdentifierObject(naccid="NACC000002", adcid=1, ptid="P002", guid=None),
     }
 
     # Create shared error writer for coordination
