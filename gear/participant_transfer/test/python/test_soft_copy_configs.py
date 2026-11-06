@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo, substitute_gear_configs
 from participant_transfer_app.copy import SoftCopyGearConfigs

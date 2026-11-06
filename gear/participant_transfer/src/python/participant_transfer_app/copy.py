@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from flywheel import Project
+from pydantic import Field, model_validator
 
 from centers.center_group import CenterError, CenterGroup, CenterStudyMetadata
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
@@ -14,7 +15,6 @@ from gear_execution.gear_trigger import (
     trigger_gear,
 )
 from jobs.job_poll import JobPoll
-from pydantic import Field, model_validator
 
 log = logging.getLogger(__name__)
 
