@@ -1,0 +1,9 @@
+{
+    "gear_name": "soft-copy",
+    "configs": {
+        "duplicate-strategy": "skip",
+        "include-filter": "subject.label={{subject}}",
+        "target-project": "{{target}}",
+        "exclude-filter": "acquisition.label=scratch"
+    }
+}

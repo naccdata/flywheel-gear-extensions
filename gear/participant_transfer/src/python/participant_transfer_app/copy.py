@@ -4,13 +4,58 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from flywheel import Project
+from pydantic import Field, model_validator
 
 from centers.center_group import CenterError, CenterGroup, CenterStudyMetadata
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from gear_execution.gear_trigger import trigger_gear
+from gear_execution.gear_trigger import (
+    GearConfigs,
+    GearInfo,
+    substitute_gear_configs,
+    trigger_gear,
+)
 from jobs.job_poll import JobPoll
 
 log = logging.getLogger(__name__)
+
+SUBJECT_PLACEHOLDER = "{{subject}}"
+TARGET_PLACEHOLDER = "{{target}}"
+
+
+class SoftCopyGearConfigs(GearConfigs):
+    """Class to represent soft-copy gear configs.
+
+    The include-filter and target-project configs depend on the
+    participant and the destination project, so they are specified in
+    the configs file using the {{subject}} and {{target}} placeholders.
+    """
+
+    include_filter: str = Field(alias="include-filter")
+    target_project: str = Field(alias="target-project")
+    duplicate_strategy: str = Field(default="move", alias="duplicate-strategy")
+    debug: bool = False
+
+    @model_validator(mode="after")
+    def validate_placeholders(self) -> "SoftCopyGearConfigs":
+        """Validates that the required placeholders are specified.
+
+        Without them the soft-copy gear would copy every subject, or
+        copy to a non-existent project.
+        """
+
+        if SUBJECT_PLACEHOLDER not in self.include_filter:
+            raise ValueError(
+                "Soft-copy gear config include-filter must contain "
+                f"the {SUBJECT_PLACEHOLDER} placeholder"
+            )
+
+        if TARGET_PLACEHOLDER not in self.target_project:
+            raise ValueError(
+                "Soft-copy gear config target-project must contain "
+                f"the {TARGET_PLACEHOLDER} placeholder"
+            )
+
+        return self
 
 
 class CopyHelper:
@@ -27,9 +72,11 @@ class CopyHelper:
         datatypes: List[str],
         studies: Optional[List[str]],
         warnings: List[str],
+        soft_copy_gear: GearInfo,
     ) -> None:
         self.__subject_label = subject_label
         self.__proxy = proxy
+        self.__soft_copy_gear = soft_copy_gear
         self.__new_center = new_center
         self.__prev_center = prev_center
         self.__datatypes = datatypes
@@ -69,12 +116,11 @@ class CopyHelper:
             log.error(f"Failed to find destination project by ID {target_project_id}")
             return False
 
-        gear_configs = {
-            "debug": False,
-            "duplicate-strategy": "replace",
-            "include-filter": f"subject.label={self.__subject_label}",
-            "target-project": f"{target_project_id}",
-        }
+        gear_configs = substitute_gear_configs(
+            self.__soft_copy_gear.configs,
+            subject=self.__subject_label,
+            target=target_project_id,
+        )
 
         return self.__trigger_soft_copy_gear(
             gear_configs=gear_configs, destination=source_project.project
@@ -92,22 +138,24 @@ class CopyHelper:
         Returns:
             bool: True if soft-copy job successfully queued
         """
+        gear_name = self.__soft_copy_gear.gear_name
         job_id = trigger_gear(
             proxy=self.__proxy,
-            gear_name="soft-copy",
+            gear_name=gear_name,
             config=gear_configs,
             destination=destination,
         )
 
         if not job_id:
             log.error(
-                f"Failed to trigger soft-copy gear for subject {self.__subject_label} "
-                f"in project {destination.group}/{destination.label}"
+                f"Failed to trigger {gear_name} gear for subject "
+                f"{self.__subject_label} in project "
+                f"{destination.group}/{destination.label}"
             )
             return False
 
         log.info(
-            f"Queued soft-copy gear for subject {self.__subject_label} "
+            f"Queued {gear_name} gear for subject {self.__subject_label} "
             f"in project {destination.group}/{destination.label}: Job ID {job_id}"
         )
         self.__jobs_list.append(job_id)

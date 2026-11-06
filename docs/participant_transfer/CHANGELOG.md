@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.2.0 - 1.2.1
+* Loads soft-copy gear configs from an input config file
+
 ## 1.1.2
 * Rebuilt for identifier model update: `naccadc` removed from the identifier response/request models (#533). The deactivation write no longer sends `naccadc`; the add/update lambda is an upsert, so the stored value is unaffected.
 

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from string import Template
@@ -24,6 +25,9 @@ log = logging.getLogger(__name__)
 
 BatchMode = Literal["projects", "files"]
 LocatorType = Literal["matched", "module", "fixed"]
+
+# matches a {{key}} placeholder in a gear config value
+PLACEHOLDER_PATTERN = re.compile(r"\{\{(\w+)\}\}")
 
 
 class GearInput(BaseModel):
@@ -299,6 +303,49 @@ class BatchRunInfo(BaseModel):
             results[input_file] = file
 
         return results
+
+
+def substitute_gear_configs(configs: GearConfigs, **kwargs: Any) -> Dict[str, Any]:
+    """Dumps the gear configs, substituting {{key}} placeholders in string
+    values.
+
+    Placeholders may be embedded in a larger string,
+    e.g. "subject.label={{subject}}" with subject="NACC000000" becomes
+    "subject.label=NACC000000".
+
+    Args:
+      configs: the gear configs to dump
+      kwargs: substitution value for each placeholder key
+
+    Returns:
+      the configs dict with placeholders replaced
+
+    Raises:
+      GearExecutionError if a placeholder has no substitution value
+    """
+
+    config_dict = configs.model_dump(by_alias=True)
+    missing: List[str] = []
+
+    def substitute(match: re.Match) -> str:
+        key = match.group(1)
+        if key not in kwargs:
+            missing.append(key)
+            return match.group(0)
+
+        return str(kwargs[key])
+
+    for field, value in config_dict.items():
+        if isinstance(value, str):
+            config_dict[field] = PLACEHOLDER_PATTERN.sub(substitute, value)
+
+    if missing:
+        raise GearExecutionError(
+            "No substitution value provided for gear config "
+            f"placeholder(s): {sorted(set(missing))}"
+        )
+
+    return config_dict
 
 
 def trigger_gear(
