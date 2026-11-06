@@ -4,6 +4,10 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
+from pydantic import BaseModel, ValidationError
+from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
+from redcap_api.redcap_project import REDCapProject
+
 from keys.keys import RuleLabels
 from nacc_common.data_identification import (
     DataIdentification,
@@ -14,9 +18,6 @@ from outputs.error_writer import ErrorWriter
 from outputs.errors import (
     system_error,
 )
-from pydantic import BaseModel, ValidationError
-from redcap_api.redcap_connection import REDCapConnectionError, REDCapReportConnection
-from redcap_api.redcap_project import REDCapProject
 
 log = logging.getLogger(__name__)
 

@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import pytest
+
 from event_capture.models import DateRange
 from transactional_event_scraper_app.config import TransactionalEventScraperConfig
 

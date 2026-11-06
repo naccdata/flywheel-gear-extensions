@@ -3,10 +3,11 @@
 import logging
 from typing import List
 
+from flywheel.models.group_role import GroupRole
+
 from centers.center_group import CenterGroup
 from centers.center_info import CenterList
 from centers.nacc_group import NACCGroup
-from flywheel.models.group_role import GroupRole
 from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 
 log = logging.getLogger(__name__)

@@ -11,12 +11,13 @@ from io import StringIO
 from typing import Dict, List
 from unittest.mock import Mock
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from hypothesis import given
-from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
@@ -53,7 +54,6 @@ def test_output_format_preservation_property(
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, 1)
     }

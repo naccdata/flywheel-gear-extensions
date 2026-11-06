@@ -3,11 +3,12 @@
 import logging
 from typing import List, Optional
 
+from fw_gear import GearContext
+
 from centers.center_group import CenterGroup
 from curator.scheduling import ProjectCurationError, ProjectCurationScheduler
 from curator.scheduling_models import FileModel
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,

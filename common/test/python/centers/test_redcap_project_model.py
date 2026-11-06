@@ -1,7 +1,8 @@
 """Tests the redcap project input object for updating center info."""
 
-from centers.center_group import REDCapFormProjectMetadata, REDCapProjectInput
 from pydantic import ValidationError
+
+from centers.center_group import REDCapFormProjectMetadata, REDCapProjectInput
 
 
 # pylint: disable=too-few-public-methods

@@ -59,6 +59,36 @@ pants_fix with target="::"
 pants_test with target="common/test/python::"
 ```
 
+### Pants `fix` scope caveat (import sorting / ruff I001)
+
+**`pants fix` applies a different set of fixers depending on the target scope,
+and the directory/recursive form can silently skip ruff's import-sort rule
+(`I001`).** This is Pants behavior, not a bug in the power — the power faithfully
+passes whatever target it is given.
+
+- A **single-file** target (`pants fix path/to/file.py`, i.e. `scope="file"`)
+  runs `ruff check --fix`, which **does** apply the `I001` import sort.
+- A **directory/recursive** target (`pants fix path/to/dir::` or `pants fix ::`,
+  i.e. `scope="directory"`/`scope="all"`) runs an additional "Format with Ruff"
+  step *before* `ruff check --fix`. That step claims the file first, so
+  `ruff check --fix` then reports "made no changes" and the `I001` sort is never
+  applied.
+
+Consequence: `pants fix ::` can report success while leaving an import block
+unsorted. CI runs only `pants lint` (`ruff check` in check mode, no `--fix`), so
+it will flag the `I001` the directory-scoped fix missed. Running `pants fix ::`
+can even *re-introduce* an `I001` violation that a prior file-scoped fix
+corrected.
+
+**Guidance:**
+- To fix import ordering reliably, run `pants fix` at **file scope**
+  (`scope="file"`), or run `pants lint` (not just `fix` + `check`) before
+  pushing so disagreements surface locally.
+- The repo ships a pre-commit hook (`./bin/install-git-hooks.sh`) that runs
+  `pants lint` on staged Python files — the same check CI runs — and corrects
+  `I001` with a file-scoped `pants fix` when it fails. Install it once per clone
+  so a `pants fix ::` habit never surprises you at CI. See `bin/README.md`.
+
 ## Manual Scripts (Fallback)
 
 If the power is unavailable, use the devcontainer scripts in the `bin/` directory.

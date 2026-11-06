@@ -4,8 +4,6 @@ import logging
 import typing as typing
 from typing import Any, Dict, List, MutableMapping, Optional, Set
 
-from curator.curator import Curator, ProjectCurationError
-from curator.scheduling_models import FileModel
 from flywheel import DataView
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.subject import Subject
@@ -29,6 +27,9 @@ from nacc_attribute_deriver.utils.scope import (
     SCANPETScope,
     ScopeLiterals,
 )
+
+from curator.curator import Curator, ProjectCurationError
+from curator.scheduling_models import FileModel
 from rxnav.rxnav_connection import RxClassConnection
 from utils.decorators import api_retry
 

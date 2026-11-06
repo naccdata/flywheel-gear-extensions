@@ -10,12 +10,13 @@ is_claimed(), is_incomplete_claim(), is_unclaimed() is True for any active
 RegistryPerson.
 """
 
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+
 from coreapi_client.models.co_person import CoPerson
 from coreapi_client.models.co_person_message import CoPersonMessage
 from coreapi_client.models.email_address import EmailAddress
 from coreapi_client.models.identifier import Identifier
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from users.user_registry import RegistryPerson
 
 # Fast email strategy: avoids the slow st.emails() for property tests

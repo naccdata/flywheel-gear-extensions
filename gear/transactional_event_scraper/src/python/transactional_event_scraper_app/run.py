@@ -3,13 +3,15 @@
 import logging
 from typing import Optional
 
+from fw_gear import GearContext
+from pydantic import ValidationError
+
 from configs.ingest_configs import (
     FormProjectConfigs,
     load_form_ingest_configurations,
 )
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -19,9 +21,7 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-from pydantic import ValidationError
 from s3.s3_bucket import S3BucketInterface
-
 from transactional_event_scraper_app.config import (
     TransactionalEventScraperConfig,
     parse_gear_config,

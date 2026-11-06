@@ -14,9 +14,10 @@ tested in test_study_mapping_mixed_mode.py.
 from unittest.mock import Mock
 
 import pytest
-from centers.center_group import CenterStudyMetadata
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from centers.center_group import CenterStudyMetadata
 from projects.study import StudyCenterModel, StudyModel
 from projects.study_mapping import AggregationMapper
 

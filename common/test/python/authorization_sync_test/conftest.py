@@ -5,6 +5,8 @@ from typing import get_args
 from unittest.mock import MagicMock
 
 import pytest
+from hypothesis import strategies as st
+
 from authorization.exceptions import (
     AuthorizationClientError,
     ServiceUnavailableError,
@@ -24,7 +26,6 @@ from authorization.models import (
     UserProfileRequest,
 )
 from authorization_sync.models import DesiredGrant
-from hypothesis import strategies as st
 from keys.types import DatatypeNameType
 from users.authorizations import (
     ActionType,

@@ -4,6 +4,8 @@ import logging
 from typing import Optional
 
 from fw_gear import GearContext
+
+from batch_scheduler_app.main import run
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -14,8 +16,6 @@ from gear_execution.gear_execution import (
 )
 from gear_execution.gear_trigger import BatchRunInfo
 from inputs.parameter_store import ParameterStore
-
-from batch_scheduler_app.main import run
 
 log = logging.getLogger(__name__)
 

@@ -18,6 +18,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from conftest import MockGearContext, MockParameterStore
+
 from gear_execution.gear_execution import ClientWrapper, GearExecutionError
 from inputs.parameter_store import ParameterError
 from users.event_models import EventCategory, EventType, UserContext, UserProcessEvent
@@ -538,8 +539,9 @@ class TestDirectoryErrorHandlingIntegration:
         - Gear raises error when REDCap connection fails
         - Error message includes original error details
         """
-        from directory_app.run import DirectoryPullVisitor
         from redcap_api.redcap_connection import REDCapConnectionError
+
+        from directory_app.run import DirectoryPullVisitor
 
         # Mock REDCap connection to raise error
         with (
@@ -781,6 +783,7 @@ class TestArchivedContactIntegration:
         Requirements: 2.1, 2.2, 2.3, 4.1, 5.1, 5.2, 5.3
         """
         import yaml
+
         from directory_app.main import run
         from users.event_models import UserEventCollector
 
@@ -833,6 +836,7 @@ class TestArchivedContactIntegration:
         Requirements: 4.3
         """
         import yaml
+
         from directory_app.main import run
 
         yaml_output = run(user_report=[valid_user_record])
@@ -862,6 +866,7 @@ class TestArchivedContactIntegration:
         Requirements: 2.1, 2.2, 5.1, 5.3
         """
         import yaml
+
         from directory_app.main import run
         from users.event_models import UserEventCollector
 

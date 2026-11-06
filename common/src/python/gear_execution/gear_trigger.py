@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -19,6 +18,7 @@ from pydantic import (
     model_validator,
 )
 
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from gear_execution.gear_execution import GearExecutionError
 
 log = logging.getLogger(__name__)

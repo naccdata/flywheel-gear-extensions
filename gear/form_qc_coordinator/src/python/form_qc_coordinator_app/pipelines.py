@@ -2,21 +2,21 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineType
 from flywheel.models.file_entry import FileEntry
+from fw_gear import GearContext
+
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs, PipelineType
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from flywheel_adaptor.subject_adaptor import (
     SubjectAdaptor,
     SubjectError,
 )
-from fw_gear import GearContext
+from form_qc_coordinator_app.coordinator import QCCoordinator
+from form_qc_coordinator_app.visits import VisitsLookupHelper
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import GearInfo
 from keys.keys import DefaultValues, MetadataKeys
 from submissions.models import ParticipantVisits
-
-from form_qc_coordinator_app.coordinator import QCCoordinator
-from form_qc_coordinator_app.visits import VisitsLookupHelper
 
 log = logging.getLogger(__name__)
 

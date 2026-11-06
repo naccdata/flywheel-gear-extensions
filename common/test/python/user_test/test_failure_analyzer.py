@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
+
 from flywheel_adaptor.flywheel_proxy import FlywheelError
 from users.authorizations import Authorizations
 from users.user_entry import CenterUserEntry, PersonName

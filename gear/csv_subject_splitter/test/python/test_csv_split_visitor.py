@@ -4,8 +4,9 @@ from io import StringIO
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple
 
 import pytest
-from csv_app.main import CSVSplitVisitor
 from flywheel.models.file_entry import FileEntry
+
+from csv_app.main import CSVSplitVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from inputs.csv_reader import read_csv

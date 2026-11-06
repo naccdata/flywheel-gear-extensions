@@ -8,12 +8,13 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from event_capture.event_capture import VisitEventCapture
 from flywheel.models.file_entry import FileEntry
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
 from hypothesis import given
 from hypothesis import strategies as st
+
+from event_capture.event_capture import VisitEventCapture
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from form_scheduler_app.form_scheduler_queue import FormSchedulerQueue
 
 
 class TestMissingConfigurationHandling:

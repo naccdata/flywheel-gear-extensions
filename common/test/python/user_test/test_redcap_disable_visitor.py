@@ -1,6 +1,7 @@
 """Tests for REDCapDisableVisitor."""
 
 import pytest
+
 from centers.center_group import (
     CenterMetadata,
     CenterStudyMetadata,

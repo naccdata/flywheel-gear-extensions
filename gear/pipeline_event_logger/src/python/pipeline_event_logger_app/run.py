@@ -4,10 +4,12 @@ import json
 import logging
 from typing import Optional
 
-from event_capture.event_capture import VisitEventCapture
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from fw_gear import GearContext
+from pydantic import ValidationError
+
+from event_capture.event_capture import VisitEventCapture
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -18,11 +20,9 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from jobs.job_poll import JobPoll
-from pydantic import ValidationError
-from s3.s3_bucket import S3BucketInterface
-
 from pipeline_event_logger_app.main import PipelineEventLogger
 from pipeline_event_logger_app.qc_reader import QCErrorConfig
+from s3.s3_bucket import S3BucketInterface
 
 log = logging.getLogger(__name__)
 

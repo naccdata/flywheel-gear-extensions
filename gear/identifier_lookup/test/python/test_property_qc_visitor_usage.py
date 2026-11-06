@@ -10,11 +10,12 @@ from io import StringIO
 from typing import Dict, List
 from unittest.mock import Mock
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
@@ -83,7 +84,6 @@ def test_qc_visitor_creates_visit_specific_logs(csv_data: List[Dict[str, str]]):
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
 
     # Create shared error writer
@@ -214,12 +214,8 @@ def test_qc_visitor_usage_with_identifier_lookup():
 
     # Create identifiers only for valid PTIDs
     identifiers = {
-        "P001": IdentifierObject(
-            naccid="NACC000001", adcid=1, ptid="P001", guid=None, naccadc=1001
-        ),
-        "P003": IdentifierObject(
-            naccid="NACC000003", adcid=1, ptid="P003", guid=None, naccadc=1003
-        ),
+        "P001": IdentifierObject(naccid="NACC000001", adcid=1, ptid="P001", guid=None),
+        "P003": IdentifierObject(naccid="NACC000003", adcid=1, ptid="P003", guid=None),
     }
 
     # Create shared error writer

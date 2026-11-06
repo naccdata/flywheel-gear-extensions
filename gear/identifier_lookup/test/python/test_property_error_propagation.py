@@ -10,11 +10,12 @@ from io import StringIO
 from typing import Dict, List
 from unittest.mock import Mock
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import (
@@ -57,7 +58,6 @@ def test_error_propagation_with_failures(num_valid: int, num_invalid: int):
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(valid_ptids)
     }
@@ -185,10 +185,10 @@ def test_error_propagation_maintains_processing_order():
     ptids = ["VALID001", "INVALID", "VALID002"]
     identifiers = {
         "VALID001": IdentifierObject(
-            naccid="NACC000001", adcid=1, ptid="VALID001", guid=None, naccadc=1001
+            naccid="NACC000001", adcid=1, ptid="VALID001", guid=None
         ),
         "VALID002": IdentifierObject(
-            naccid="NACC000002", adcid=1, ptid="VALID002", guid=None, naccadc=1002
+            naccid="NACC000002", adcid=1, ptid="VALID002", guid=None
         ),
     }
 

@@ -5,9 +5,6 @@ from typing import Any, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.data_identification import DataIdentification
-from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
 from pydantic import ValidationError
 
 from error_logging.error_logger import (
@@ -17,6 +14,9 @@ from error_logging.error_logger import (
     update_error_log_and_qc_metadata,
     update_file_info,
 )
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
 
 log = logging.getLogger(__name__)
 

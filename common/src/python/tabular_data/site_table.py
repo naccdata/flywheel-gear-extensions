@@ -6,6 +6,7 @@ from io import StringIO
 from typing import Dict, Optional, Set
 
 import pandas as pd
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 
 log = logging.getLogger(__name__)

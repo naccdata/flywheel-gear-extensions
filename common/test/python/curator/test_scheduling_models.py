@@ -4,8 +4,9 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 import pytest
-from curator.scheduling_models import FileModel, ViewResponseModel
 from nacc_attribute_deriver.utils.scope import FormScope
+
+from curator.scheduling_models import FileModel, ViewResponseModel
 
 
 def fm(

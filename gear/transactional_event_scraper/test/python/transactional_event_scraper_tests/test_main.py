@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
+
 from transactional_event_scraper_app.event_scraper import EventScraper
 from transactional_event_scraper_app.main import run
 

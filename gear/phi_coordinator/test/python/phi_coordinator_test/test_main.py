@@ -3,6 +3,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
+
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from phi_coordinator_app.main import run
 from phi_coordinator_app.processor import Outcome

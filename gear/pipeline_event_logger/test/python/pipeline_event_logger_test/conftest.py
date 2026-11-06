@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
+
 from event_capture.event_capture import VisitEventCapture
 from pipeline_event_logger_test.test_factories import (
     build_data_identification_dict,

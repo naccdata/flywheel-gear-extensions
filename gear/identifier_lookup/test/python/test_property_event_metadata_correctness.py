@@ -10,12 +10,13 @@ from io import StringIO
 from typing import List
 from unittest.mock import Mock
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
 from event_capture.visit_events import VisitEvent
-from hypothesis import given
-from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
@@ -111,7 +112,6 @@ def test_property_event_metadata_correctness(csv_row, metadata):
             naccid=f"NACC{hash(csv_row['ptid']) % 1000000:06d}",
             adcid=int(csv_row["adcid"]),
             guid=None,
-            naccadc=int(csv_row["adcid"]) * 1000,
         )
     }
 
@@ -238,7 +238,6 @@ def test_property_multiple_events_metadata_correctness(csv_rows, metadata):
             naccid=f"NACC{hash(row['ptid']) % 1000000:06d}",
             adcid=int(row["adcid"]),
             guid=None,
-            naccadc=int(row["adcid"]) * 1000,
         )
 
     # Mock dependencies

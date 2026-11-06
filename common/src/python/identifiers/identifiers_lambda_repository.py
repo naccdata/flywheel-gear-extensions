@@ -3,7 +3,6 @@
 from datetime import date
 from typing import List, Literal, Optional, overload
 
-from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from identifiers.identifiers_repository import (
@@ -23,6 +22,7 @@ from identifiers.model import (
     IdentifiersMode,
     NACCIDField,
 )
+from lambdas.lambda_function import BaseRequest, LambdaClient, LambdaInvocationError
 
 
 class ListRequest(BaseRequest):
@@ -117,7 +117,6 @@ class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
     """Request model for adding/updating Identifier with known NACCID."""
 
     active: bool
-    naccadc: Optional[int]
 
     @classmethod
     def create_from(
@@ -130,7 +129,6 @@ class KnownIdentifierRequest(NACCIDRequest, CenterIdentifiers, GUIDField):
             ptid=identifier.ptid,
             guid=identifier.guid,
             active=identifier.active,
-            naccadc=identifier.naccadc,
         )
 
 

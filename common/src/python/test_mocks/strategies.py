@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from hypothesis import strategies as st
+
 from nacc_common.error_models import DataIdentification, QCStatus
 
 

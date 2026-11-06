@@ -12,15 +12,16 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel.models.file_entry import FileEntry
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+from pydantic import ValidationError
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from form_scheduler_app.event_accumulator import (
     DataIdentificationExtractor,
     EventAccumulator,
 )
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from nacc_common.data_identification import DataIdentification
-from pydantic import ValidationError
 from test_mocks.strategies import (
     valid_visit_metadata_strategy as visit_metadata_strategy,
 )

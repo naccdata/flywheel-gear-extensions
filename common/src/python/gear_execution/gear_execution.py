@@ -8,21 +8,22 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
 import flywheel
-from centers.nacc_group import NACCGroup
 from flywheel.client import Client
 from flywheel.models.acquisition import Acquisition
 from flywheel.models.file_entry import FileEntry
 from flywheel.models.project import Project
 from flywheel.models.subject import Subject
 from flywheel.rest import ApiException
+from fw_client.client import FWClient
+from fw_gear import GearContext
+from fw_gear.utils.sdk_helpers import get_container_from_ref
+
+from centers.nacc_group import NACCGroup
 from flywheel_adaptor.flywheel_proxy import (
     FlywheelError,
     FlywheelProxy,
     ProjectAdaptor,
 )
-from fw_client.client import FWClient
-from fw_gear import GearContext
-from fw_gear.utils.sdk_helpers import get_container_from_ref
 from inputs.parameter_store import ParameterError, ParameterStore
 from keys.keys import DefaultValues
 from utils.utils import parse_string_to_list

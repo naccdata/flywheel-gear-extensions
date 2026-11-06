@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional, cast
 
 from botocore.exceptions import ClientError
+
 from error_logging.error_logger import ErrorLogTemplate
 from error_logging.qc_status_log_creator import FileVisitAnnotator, QCStatusLogManager
 from event_capture.event_capture import VisitEventCapture
@@ -16,6 +17,8 @@ from identifiers.identifiers_repository import (
     IdentifierRepository,
     IdentifierRepositoryError,
 )
+from image_identifier_lookup_app.extraction import LookupContext
+from image_identifier_lookup_app.processor import ImageIdentifierLookupProcessor
 from nacc_common.data_identification import DataIdentification
 from nacc_common.error_models import (
     QC_STATUS_FAIL,
@@ -25,9 +28,6 @@ from nacc_common.error_models import (
 from outputs.error_writer import ListErrorWriter
 from outputs.errors import system_error
 from s3.s3_bucket import S3InterfaceError
-
-from image_identifier_lookup_app.extraction import LookupContext
-from image_identifier_lookup_app.processor import ImageIdentifierLookupProcessor
 
 log = logging.getLogger(__name__)
 

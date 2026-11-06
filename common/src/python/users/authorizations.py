@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Literal, Self, Union, get_args
 
 from flywheel.models.role_output import RoleOutput
-from keys.types import DatatypeNameType
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -15,6 +14,8 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+
+from keys.types import DatatypeNameType
 
 log = logging.getLogger(__name__)
 

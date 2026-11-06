@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Union
 
+from pydantic import ValidationError
+
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.exceptions import ApiException
 from coreapi_client.models.co_person import CoPerson
@@ -18,8 +20,6 @@ from coreapi_client.models.get_co_person200_response import (
 from coreapi_client.models.identifier import Identifier
 from coreapi_client.models.name import Name
 from coreapi_client.models.org_identity import OrgIdentity
-from pydantic import ValidationError
-
 from users.domain_config import (
     DomainRelationshipConfig,
     canonicalize_domain,

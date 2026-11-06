@@ -6,9 +6,10 @@ Validates: Requirements 6.3 / Property 1: Filter Equivalence
 import datetime
 import re
 
-from gather_submission_status_app.main import _should_process_file
 from hypothesis import given
 from hypothesis import strategies as st
+
+from gather_submission_status_app.main import _should_process_file
 from nacc_common.qc_report import QC_FILENAME_PATTERN
 
 

@@ -12,18 +12,19 @@ Note: processes do not support issuing an explicit QC failure event.
 from datetime import datetime
 from typing import Any, ClassVar, Literal, Self
 
-from keys.types import DatatypeNameType
-from nacc_common.data_identification import (
-    DataIdentification,
-    FormIdentification,
-    ImageIdentification,
-)
 from pydantic import (
     BaseModel,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     model_serializer,
     model_validator,
+)
+
+from keys.types import DatatypeNameType
+from nacc_common.data_identification import (
+    DataIdentification,
+    FormIdentification,
+    ImageIdentification,
 )
 
 VisitEventType = Literal[

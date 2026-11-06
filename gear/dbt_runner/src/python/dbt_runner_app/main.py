@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict
 
 from fw_gear import GearContext
+
 from gear_execution.gear_execution import (
     InputFileWrapper,
 )

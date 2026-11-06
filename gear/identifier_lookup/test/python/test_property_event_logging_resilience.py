@@ -11,13 +11,14 @@ from io import StringIO
 from typing import List
 from unittest.mock import Mock
 
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from event_capture.csv_capture_visitor import CSVCaptureVisitor
 from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from hypothesis import given, settings
-from hypothesis import strategies as st
 from identifier_app.main import NACCIDLookupVisitor
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import AggregateCSVVisitor, visit_all_strategy
@@ -58,7 +59,6 @@ def test_event_logging_resilience(num_ptids: int, failure_row: int):
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, start=1)
     }
@@ -227,7 +227,6 @@ def test_event_logging_resilience_multiple_failures():
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, start=1)
     }

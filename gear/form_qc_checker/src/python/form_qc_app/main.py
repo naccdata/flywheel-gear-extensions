@@ -11,12 +11,24 @@ from datetime import datetime, timezone
 from json.decoder import JSONDecodeError
 from typing import Any, Dict, Optional
 
-from centers.nacc_group import NACCGroup
-from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
 from flywheel import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
 from fw_gear import GearContext
+from nacc_form_validator.quality_check import (
+    QualityCheck,
+    QualityCheckException,
+)
+from redcap_api.redcap_connection import REDCapReportConnection
+
+from centers.nacc_group import NACCGroup
+from configs.ingest_configs import FormProjectConfigs, ModuleConfigs
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
+from form_qc_app.datastore import DatastoreHelper
+from form_qc_app.definitions import DefinitionException, DefinitionsLoader
+from form_qc_app.enrollment import CSVFileProcessor
+from form_qc_app.error_info import REDCapErrorStore
+from form_qc_app.processor import FileProcessor, JSONFileProcessor
+from form_qc_app.validate import RecordValidator
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearExecutionError,
@@ -25,20 +37,8 @@ from gear_execution.gear_execution import (
 from keys.keys import DefaultValues, MetadataKeys
 from nacc_common.error_models import FileErrorList, GearTags
 from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
-from nacc_form_validator.quality_check import (
-    QualityCheck,
-    QualityCheckException,
-)
 from outputs.error_writer import ListErrorWriter
-from redcap_api.redcap_connection import REDCapReportConnection
 from s3.s3_bucket import S3BucketInterface
-
-from form_qc_app.datastore import DatastoreHelper
-from form_qc_app.definitions import DefinitionException, DefinitionsLoader
-from form_qc_app.enrollment import CSVFileProcessor
-from form_qc_app.error_info import REDCapErrorStore
-from form_qc_app.processor import FileProcessor, JSONFileProcessor
-from form_qc_app.validate import RecordValidator
 
 log = logging.getLogger(__name__)
 

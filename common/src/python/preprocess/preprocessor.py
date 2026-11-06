@@ -21,8 +21,6 @@ from nacc_common.field_names import FieldNames
 from nacc_common.form_dates import DEFAULT_DATE_FORMAT, build_date, parse_date
 from outputs.error_writer import ErrorWriter
 from outputs.errors import preprocess_errors
-from uploads.acquisition import is_duplicate_dict
-
 from preprocess.preprocessor_helpers import (
     FormPreprocessorErrorHandler,
     PreprocessingContext,
@@ -30,6 +28,7 @@ from preprocess.preprocessor_helpers import (
     validate_age_at_death,
     validate_sex_reported_on_np,
 )
+from uploads.acquisition import is_duplicate_dict
 
 log = logging.getLogger(__name__)
 

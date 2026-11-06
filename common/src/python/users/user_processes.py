@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, Dict, Generic, List, Optional, TypeVar
 if TYPE_CHECKING:
     from authorization_sync.sync_service import AuthorizationSyncService
 
-from centers.center_group import CenterError, CenterGroup
-from coreapi_client.models.identifier import Identifier
 from flywheel.models.user import User
-from flywheel_adaptor.flywheel_proxy import FlywheelError
 from redcap_api.redcap_connection import REDCapConnectionError
 
+from centers.center_group import CenterError, CenterGroup
+from coreapi_client.models.identifier import Identifier
+from flywheel_adaptor.flywheel_proxy import FlywheelError
 from users.authorization_visitor import (
     CenterAuthorizationVisitor,
     GeneralAuthorizationVisitor,

@@ -12,8 +12,9 @@ from flywheel.models.session import Session
 from flywheel.models.subject import Subject
 from flywheel.models.subject_parents import SubjectParents
 from flywheel.rest import ApiException
-from keys.keys import MetadataKeys
 from pydantic import ValidationError
+
+from keys.keys import MetadataKeys
 from submissions.models import VisitInfo
 from uploads.acquisition import upload_to_acquisition
 from utils.decorators import api_retry

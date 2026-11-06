@@ -6,9 +6,9 @@ from typing import Dict, List, Mapping, Optional, Type, TypedDict, TypeVar
 from botocore.exceptions import ClientError, ParamValidationError  # type: ignore
 from pydantic import TypeAdapter, ValidationError
 from redcap_api.redcap_parameter_store import REDCapParameters, REDCapReportParameters
-from ssm_parameter_store import EC2ParameterStore
 
 from inputs.environment import get_environment_variable
+from ssm_parameter_store import EC2ParameterStore
 
 log = logging.getLogger(__name__)
 

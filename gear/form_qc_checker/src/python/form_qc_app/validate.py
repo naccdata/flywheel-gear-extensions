@@ -3,9 +3,9 @@
 from typing import Any, Dict, List, Mapping, Optional
 
 from nacc_form_validator.quality_check import QualityCheck
-from outputs.error_writer import ErrorWriter
 
 from form_qc_app.error_info import ErrorComposer, ErrorStore
+from outputs.error_writer import ErrorWriter
 
 
 class RecordValidator:

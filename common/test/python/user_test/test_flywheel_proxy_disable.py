@@ -9,9 +9,10 @@ from unittest.mock import Mock
 import pytest
 from flywheel.models.user import User
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from flywheel_adaptor.flywheel_proxy import FlywheelError, FlywheelProxy
 
 # Fast email strategy: avoids the slow st.emails() for property tests
 # where the actual email content doesn't matter, only its presence.

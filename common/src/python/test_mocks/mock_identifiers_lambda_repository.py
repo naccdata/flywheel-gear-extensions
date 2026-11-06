@@ -38,7 +38,6 @@ class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
             adcid=adcid,
             ptid=ptid,
             guid=guid,
-            naccadc=999,
             active=True,
             created_on=datetime.now(),
         )
@@ -137,7 +136,6 @@ class MockIdentifiersLambdaRepository(IdentifiersLambdaRepository):
             adcid=identifier.adcid,
             ptid=identifier.ptid,
             guid=identifier.guid,
-            naccadc=identifier.naccadc,
             active=identifier.active,
         )
         return True

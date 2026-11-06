@@ -27,16 +27,11 @@ and packet information, which are stored in different source files.
 import logging
 from typing import List, Optional
 
-from configs.ingest_configs import FormProjectConfigs
-from error_logging.error_logger import ErrorLogTemplate
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
-from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
-from nacc_common.data_identification import DataIdentification
-from nacc_common.error_models import (
-    FileQCModel,
-)
 
+from configs.ingest_configs import FormProjectConfigs
+from error_logging.error_logger import ErrorLogTemplate
 from event_capture.event_capture import VisitEventCapture
 from event_capture.event_generator import EventGenerator
 from event_capture.log_file_processor import extract_event_from_log
@@ -48,6 +43,11 @@ from event_capture.models import (
 )
 from event_capture.visit_events import VisitEvent
 from event_capture.visit_extractor import DataIdentificationExtractor
+from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from nacc_common.data_identification import DataIdentification
+from nacc_common.error_models import (
+    FileQCModel,
+)
 
 log = logging.getLogger(__name__)
 

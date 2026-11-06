@@ -11,9 +11,10 @@ import math
 from unittest.mock import Mock
 
 from flywheel.models.subject import Subject
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 
 
 def create_proxy_with_mock_fw(find_results=None):

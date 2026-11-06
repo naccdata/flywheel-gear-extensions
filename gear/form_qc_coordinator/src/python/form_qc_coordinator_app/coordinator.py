@@ -5,6 +5,13 @@ from collections import deque
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
+from flywheel.models.acquisition import Acquisition
+from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
+from fw_gear import GearContext
+from fw_gear.metadata import Metadata, create_qc_result_dict
+from pydantic import ValidationError
+
 from configs.ingest_configs import (
     ErrorLogTemplate,
     FormProjectConfigs,
@@ -17,13 +24,9 @@ from error_logging.qc_status_log_creator import (
     FileVisitAnnotator,
     QCStatusLogManager,
 )
-from flywheel.models.acquisition import Acquisition
-from flywheel.models.file_entry import FileEntry
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
-from fw_gear import GearContext
-from fw_gear.metadata import Metadata, create_qc_result_dict
+from form_qc_coordinator_app.visits import VisitsLookupHelper
 from gear_execution.gear_execution import GearExecutionError
 from gear_execution.gear_trigger import CredentialGearConfigs, GearInfo, trigger_gear
 from jobs.job_poll import JobPoll
@@ -44,10 +47,7 @@ from outputs.errors import (
     preprocessing_error,
     system_error,
 )
-from pydantic import ValidationError
 from submissions.models import VisitInfo
-
-from form_qc_coordinator_app.visits import VisitsLookupHelper
 
 log = logging.getLogger(__name__)
 

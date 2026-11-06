@@ -3,6 +3,9 @@
 import logging
 from typing import Optional
 
+from flywheel.models.file_entry import FileEntry
+from pydantic import ValidationError
+
 from configs.ingest_configs import FormProjectConfigs
 from deletions.models import DeleteInfoModel
 from error_logging.error_logger import ErrorLogTemplate
@@ -13,7 +16,6 @@ from event_capture.visit_events import (
     ACTION_PASS_QC,
 )
 from event_capture.visit_extractor import DataIdentificationExtractor
-from flywheel.models.file_entry import FileEntry
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from keys.keys import MetadataKeys
 from nacc_common.error_models import (
@@ -22,7 +24,6 @@ from nacc_common.error_models import (
     FileQCModel,
 )
 from nacc_common.form_dates import parse_timestamp
-from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 

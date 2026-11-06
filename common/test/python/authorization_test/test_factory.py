@@ -7,6 +7,7 @@ Requirements: 1.1, 1.3
 """
 
 import pytest
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ConfigurationError, ServiceUnavailableError
 from authorization.factory import create_authorization_client

@@ -5,8 +5,9 @@ from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 from botocore.exceptions import ClientError
-from event_capture.event_capture import VisitEventCapture
 from flywheel import FileEntry
+
+from event_capture.event_capture import VisitEventCapture
 from flywheel_adaptor.flywheel_proxy import FlywheelError, ProjectAdaptor
 from flywheel_adaptor.subject_adaptor import SubjectAdaptor
 from gear_execution.gear_execution import (

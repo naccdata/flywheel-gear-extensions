@@ -3,9 +3,10 @@
 **Feature: study-page-resources**
 """
 
-from centers.center_group import CenterStudyMetadata, PageProjectMetadata
 from hypothesis import given, settings
 from hypothesis import strategies as st
+
+from centers.center_group import CenterStudyMetadata, PageProjectMetadata
 
 
 @st.composite

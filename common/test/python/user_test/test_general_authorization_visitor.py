@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from flywheel.models.user import User
+
 from flywheel_adaptor.flywheel_proxy import ProjectError
 from users.authorization_visitor import GeneralAuthorizationVisitor
 from users.authorizations import (

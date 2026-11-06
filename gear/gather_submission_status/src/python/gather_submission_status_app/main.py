@@ -8,8 +8,10 @@ from csv import DictWriter
 from dataclasses import dataclass, field
 from typing import Any, TextIO
 
-from data_requests.status_request import StatusRequestClusteringVisitor
 from flywheel.models.file_entry import FileEntry
+from pydantic import ValidationError
+
+from data_requests.status_request import StatusRequestClusteringVisitor
 from inputs.csv_reader import read_csv
 from nacc_common.error_models import FileQCModel
 from nacc_common.qc_report import (
@@ -22,7 +24,6 @@ from nacc_common.qc_report import (
     WriterTableVisitor,
 )
 from outputs.error_writer import ErrorWriter
-from pydantic import ValidationError
 
 log = logging.getLogger(__name__)
 

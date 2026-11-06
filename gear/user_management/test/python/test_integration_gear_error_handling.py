@@ -15,6 +15,7 @@ from typing import Dict, Optional
 from unittest.mock import Mock, patch
 
 import pytest
+
 from gear_execution.gear_execution import ClientWrapper, GearExecutionError
 from inputs.parameter_store import ParameterError
 from user_app.run import UserManagementVisitor

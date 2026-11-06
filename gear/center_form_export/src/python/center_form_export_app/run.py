@@ -5,9 +5,11 @@ import re
 from datetime import date
 from typing import Optional
 
+from fw_gear import GearContext
+
+from center_form_export_app.main import run
 from data_requests.data_request import ModuleDataGatherer
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -16,8 +18,6 @@ from gear_execution.gear_execution import (
     GearExecutionError,
 )
 from inputs.parameter_store import ParameterStore
-
-from center_form_export_app.main import run
 
 log = logging.getLogger(__name__)
 

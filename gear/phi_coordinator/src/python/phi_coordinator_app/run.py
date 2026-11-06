@@ -8,6 +8,7 @@ import logging
 
 from fw_client.client import FWClient
 from fw_gear import GearContext
+
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -17,9 +18,8 @@ from gear_execution.gear_execution import (
 )
 from inputs.context_parser import get_api_key
 from inputs.parameter_store import ParameterStore
-from reader_tasks.reader_task_client import ReaderTaskClient
-
 from phi_coordinator_app.main import run
+from reader_tasks.reader_task_client import ReaderTaskClient
 
 log = logging.getLogger(__name__)
 

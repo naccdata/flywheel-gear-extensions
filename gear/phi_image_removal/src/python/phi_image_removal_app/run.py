@@ -8,6 +8,7 @@ import logging
 
 from flywheel.rest import ApiException
 from fw_gear import GearContext
+
 from gear_execution.gear_execution import (
     ClientWrapper,
     ContextClient,
@@ -17,7 +18,6 @@ from gear_execution.gear_execution import (
     InputFileWrapper,
 )
 from inputs.parameter_store import ParameterStore
-
 from phi_image_removal_app.main import run
 
 log = logging.getLogger(__name__)

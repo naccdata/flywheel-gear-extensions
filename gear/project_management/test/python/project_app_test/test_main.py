@@ -10,6 +10,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from authorization.client import AuthorizationClient
 from centers.nacc_group import NACCGroup
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy

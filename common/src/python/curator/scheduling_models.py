@@ -5,7 +5,6 @@ import re
 from datetime import date, datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from data.dataview import ColumnModel, make_builder
 from flywheel import DataView
 from nacc_attribute_deriver.utils.scope import (
     FormScope,
@@ -17,6 +16,8 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+
+from data.dataview import ColumnModel, make_builder
 
 ALL_FORM_SCOPES = frozenset(e.value for e in FormScope)
 VISIT_PASS_LITERALS = Literal["pass0", "pass1", "pass2", "pass3"]

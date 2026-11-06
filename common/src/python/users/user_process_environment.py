@@ -3,16 +3,16 @@
 from datetime import datetime
 from typing import Literal, Optional
 
+from flywheel import User
+
 from authorization_sync.sync_service import AuthorizationSyncService
 from centers.nacc_group import NACCGroup
-from flywheel import User
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from notifications.email import (
     DestinationModel,
     EmailClient,
     TemplateDataModel,
 )
-
 from users.authorizations import AuthMap
 from users.domain_config import DomainRelationshipConfig, IdPDomainConfig
 from users.user_entry import ActiveUserEntry

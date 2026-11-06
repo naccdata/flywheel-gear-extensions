@@ -25,12 +25,13 @@ A final drift guard pins the client's own
 import itertools
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ValidationError
 from authorization.models import _ORGANIZATION_TYPES, ScopedResourceObject
 from authorization_sync.sync_service import AuthorizationSyncService
 from authorization_sync.translator import NACC_COMMUNITY_ID
-from pydantic import ValidationError as PydanticValidationError
 from users.authorizations import (
     Activities,
     Activity,

@@ -6,6 +6,8 @@ from typing import Mapping
 from unittest.mock import MagicMock, Mock, PropertyMock, create_autospec
 
 import pytest
+from pydantic import ValidationError
+
 from enrollment.enrollment_project import EnrollmentProject
 from identifiers.model import IdentifierObject
 from legacy_identifier_transfer_app.main import (
@@ -13,7 +15,6 @@ from legacy_identifier_transfer_app.main import (
     process_legacy_identifiers,
 )
 from nacc_common.field_names import FieldNames
-from pydantic import ValidationError
 from test_mocks.mock_forms_store import MockFormsStore
 
 # global date field
@@ -100,7 +101,7 @@ def test_process_success(mock_enrollment_project, mock_form_store):
 
     identifiers = {
         "NACC100001": IdentifierObject(
-            naccid="NACC100001", adcid=123, ptid="PTID1", guid="GUID1", naccadc=123
+            naccid="NACC100001", adcid=123, ptid="PTID1", guid="GUID1"
         )
     }
 

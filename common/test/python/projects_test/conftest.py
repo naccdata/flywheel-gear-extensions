@@ -8,6 +8,7 @@ from typing import Callable, List, Optional
 from unittest.mock import Mock
 
 import pytest
+
 from centers.center_group import PageProjectMetadata
 from projects.study import StudyCenterModel, StudyModel
 

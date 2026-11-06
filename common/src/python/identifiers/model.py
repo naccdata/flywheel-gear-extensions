@@ -38,18 +38,6 @@ class CenterFields(ADCIDField):
         return clean_ptid(value)
 
 
-class NACCADCField(BaseModel):
-    """Base model for models with naccadc."""
-
-    naccadc: int = Field(ge=0)
-
-
-class OptionalNACCADCField(BaseModel):
-    """Base model for models with optional naccadc."""
-
-    naccadc: Optional[int] = Field(None, ge=0)
-
-
 class NACCIDField(BaseModel):
     """Base model for models with naccid."""
 
@@ -62,7 +50,7 @@ class OptionalNACCIDField(BaseModel):
     naccid: Optional[str] = Field(None, max_length=10, pattern=NACCID_PATTERN)
 
 
-class IdentifierObject(CenterFields, GUIDField, NACCADCField, NACCIDField):
+class IdentifierObject(CenterFields, GUIDField, NACCIDField):
     """Response model for identifiers.
 
     Hides unconventional naming of fields and has NACCID as string.

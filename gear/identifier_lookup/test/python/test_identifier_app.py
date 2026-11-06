@@ -5,6 +5,7 @@ from io import StringIO
 from typing import Any, List
 
 import pytest
+
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
 from outputs.error_writer import ListErrorWriter
@@ -80,12 +81,8 @@ def data_stream():
 def identifiers_map():
     """Create identifiers map with IDs matching data stream."""
     id_map = {}
-    id_map["1"] = IdentifierObject(
-        naccid="NACC000001", adcid=1, ptid="1", guid=None, naccadc=1111
-    )
-    id_map["2"] = IdentifierObject(
-        naccid="NACC000002", adcid=1, ptid="2", guid=None, naccadc=2222
-    )
+    id_map["1"] = IdentifierObject(naccid="NACC000001", adcid=1, ptid="1", guid=None)
+    id_map["2"] = IdentifierObject(naccid="NACC000002", adcid=1, ptid="2", guid=None)
     yield id_map
 
 
@@ -93,12 +90,8 @@ def identifiers_map():
 def mismatched_identifiers_map():
     """Create identifiers map with IDs that don't match data stream."""
     id_map = {}
-    id_map["3"] = IdentifierObject(
-        naccid="NACC000001", adcid=1, ptid="3", guid=None, naccadc=3333
-    )
-    id_map["4"] = IdentifierObject(
-        naccid="NACC000002", adcid=1, ptid="4", guid=None, naccadc=4444
-    )
+    id_map["3"] = IdentifierObject(naccid="NACC000001", adcid=1, ptid="3", guid=None)
+    id_map["4"] = IdentifierObject(naccid="NACC000002", adcid=1, ptid="4", guid=None)
     yield id_map
 
 

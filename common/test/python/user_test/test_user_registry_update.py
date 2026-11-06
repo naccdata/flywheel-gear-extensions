@@ -14,6 +14,7 @@ import logging
 from unittest.mock import MagicMock
 
 import pytest
+
 from coreapi_client.api.default_api import DefaultApi
 from coreapi_client.exceptions import ApiException
 from coreapi_client.models.co_person import CoPerson

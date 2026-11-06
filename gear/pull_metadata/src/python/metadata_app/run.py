@@ -5,14 +5,14 @@ import sys
 from typing import List, Optional
 
 from flywheel import Client
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from fw_gear import GearContext
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from inputs.context_parser import ConfigParseError, get_config
 from inputs.parameter_store import ParameterError, ParameterStore, S3Parameters
+from metadata_app.main import run
 from projects.project_mapper import build_project_map
 from s3.s3_bucket import S3BucketInterface
-
-from metadata_app.main import run
 
 log = logging.getLogger(__name__)
 

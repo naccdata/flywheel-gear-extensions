@@ -10,8 +10,9 @@ import json
 from unittest.mock import patch
 from urllib.parse import urlparse
 
-from authorization.sigv4_transport import SigV4Transport
 from moto import mock_aws
+
+from authorization.sigv4_transport import SigV4Transport
 
 
 @mock_aws

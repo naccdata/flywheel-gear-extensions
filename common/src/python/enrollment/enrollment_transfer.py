@@ -5,6 +5,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional
 
+from pydantic import BaseModel, Field, field_validator
+
 from identifiers.identifiers_repository import (
     IdentifierQueryObject,
     IdentifierRepository,
@@ -26,7 +28,6 @@ from outputs.errors import (
     existing_participant_error,
     identifier_error,
 )
-from pydantic import BaseModel, Field, field_validator
 
 log = logging.getLogger(__name__)
 
@@ -149,7 +150,6 @@ class TransferRecord(BaseModel):
             ptid=self.center_identifiers.ptid,
             guid=self.guid,
             active=active,
-            naccadc=None,
         )
 
 

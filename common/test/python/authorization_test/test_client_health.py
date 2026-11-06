@@ -1,6 +1,7 @@
 """Tests for AuthorizationClient.health_check method."""
 
 import pytest
+
 from authorization.client import AuthorizationClient
 from authorization.exceptions import ParseError, UnexpectedError
 from authorization.models import HealthResult

@@ -12,6 +12,7 @@ from io import StringIO
 from typing import Any, Dict, List
 
 from hypothesis import strategies as st
+
 from identifier_app.main import NACCIDLookupVisitor, run
 from identifiers.model import IdentifierObject
 from nacc_common.error_models import FileError
@@ -90,7 +91,6 @@ def identifiers_strategy(draw, ptids: List[str]):
                 adcid=1,
                 ptid=ptid,
                 guid=None,
-                naccadc=draw(st.integers(min_value=1000, max_value=9999)),
             )
 
     return identifiers
@@ -185,10 +185,10 @@ class TestPropertyBackwardCompatibility:
         # Create identifiers for first two PTIDs only
         identifiers_map = {
             "PTID001": IdentifierObject(
-                naccid="NACC000001", adcid=1, ptid="PTID001", guid=None, naccadc=1111
+                naccid="NACC000001", adcid=1, ptid="PTID001", guid=None
             ),
             "PTID002": IdentifierObject(
-                naccid="NACC000002", adcid=1, ptid="PTID002", guid=None, naccadc=2222
+                naccid="NACC000002", adcid=1, ptid="PTID002", guid=None
             ),
         }
 

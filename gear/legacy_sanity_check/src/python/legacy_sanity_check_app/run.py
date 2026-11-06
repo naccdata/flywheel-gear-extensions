@@ -3,11 +3,13 @@
 import logging
 from typing import List, Optional
 
+from flywheel.rest import ApiException
+from fw_gear import GearContext
+from pydantic import ValidationError
+
 from configs.ingest_configs import FormProjectConfigs
 from datastore.forms_store import FormsStore
-from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor, ProjectError
-from fw_gear import GearContext
 from gear_execution.gear_execution import (
     ClientWrapper,
     GearBotClient,
@@ -18,10 +20,8 @@ from gear_execution.gear_execution import (
 )
 from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
-from outputs.error_writer import ListErrorWriter
-from pydantic import ValidationError
-
 from legacy_sanity_check_app.main import LegacySanityChecker
+from outputs.error_writer import ListErrorWriter
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.ERROR)

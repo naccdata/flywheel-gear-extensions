@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from flywheel.models.file_entry import FileEntry
 from flywheel.rest import ApiException
+from pydantic import BaseModel, ValidationError
+
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
 from nacc_common.data_identification import (
     AbstractIdentificationVisitor,
@@ -15,7 +17,6 @@ from nacc_common.data_identification import (
 )
 from nacc_common.error_models import FileErrorList, FileQCModel, QCStatus
 from nacc_common.form_dates import DEFAULT_DATE_TIME_FORMAT
-from pydantic import BaseModel, ValidationError
 from utils.decorators import api_retry, retry_with_backoff
 
 log = logging.getLogger(__name__)

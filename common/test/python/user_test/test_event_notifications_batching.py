@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+
 from notifications.email import EmailClient
 from users.event_models import (
     EventCategory,
