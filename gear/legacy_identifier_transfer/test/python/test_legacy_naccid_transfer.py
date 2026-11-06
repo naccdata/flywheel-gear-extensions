@@ -101,7 +101,7 @@ def test_process_success(mock_enrollment_project, mock_form_store):
 
     identifiers = {
         "NACC100001": IdentifierObject(
-            naccid="NACC100001", adcid=123, ptid="PTID1", guid="GUID1", naccadc=123
+            naccid="NACC100001", adcid=123, ptid="PTID1", guid="GUID1"
         )
     }
 

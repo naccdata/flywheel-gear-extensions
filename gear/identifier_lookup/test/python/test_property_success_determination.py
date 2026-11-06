@@ -58,7 +58,6 @@ def test_success_determination_with_valid_identifiers(
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, start=1)
     }
@@ -365,7 +364,6 @@ def test_success_determination_mixed_results():
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids[: num_ptids // 2], start=1)
     }

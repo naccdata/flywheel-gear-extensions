@@ -150,7 +150,6 @@ class TransferRecord(BaseModel):
             ptid=self.center_identifiers.ptid,
             guid=self.guid,
             active=active,
-            naccadc=None,
         )
 
 

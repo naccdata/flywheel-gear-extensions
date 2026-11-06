@@ -67,14 +67,12 @@ def test_csv_without_visitnum_column():
             adcid=1,
             ptid="P001",
             guid=None,
-            naccadc=1001,
         ),
         "P002": IdentifierObject(
             naccid="NACC000002",
             adcid=1,
             ptid="P002",
             guid=None,
-            naccadc=1002,
         ),
     }
 
@@ -234,7 +232,6 @@ def test_csv_with_visitnum_none_value():
             adcid=1,
             ptid="P001",
             guid=None,
-            naccadc=1001,
         ),
     }
 

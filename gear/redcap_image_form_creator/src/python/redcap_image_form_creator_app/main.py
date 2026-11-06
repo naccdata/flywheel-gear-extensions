@@ -7,9 +7,11 @@ from time import sleep
 from typing import NoReturn, Optional
 
 from flywheel.models.container_output import ContainerOutput
-from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from redcap_api.redcap_connection import REDCapConnection
 from redcap_api.redcap_project import REDCapProject
+
+from flywheel_adaptor.flywheel_proxy import FlywheelProxy
+from gear_execution.gear_execution import GearExecutionError
 from redcap_imaging_forms.image_submission_form import ImageSubmissionForm
 
 log = logging.getLogger(__name__)

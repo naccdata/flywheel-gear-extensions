@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.1.2
+* Rebuilt for identifier model update: `naccadc` removed from the identifier response/request models (#533). The deactivation write no longer sends `naccadc`; the add/update lambda is an upsert, so the stored value is unaffected.
+
 ## 1.1.1
 * Adds support for affiliated studies that doesn't have a separate group in Flywheel
 * Adds support for handling PTIDs with period

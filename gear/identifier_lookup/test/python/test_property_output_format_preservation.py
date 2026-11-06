@@ -54,7 +54,6 @@ def test_output_format_preservation_property(
             adcid=1,
             ptid=ptid,
             guid=None,
-            naccadc=1000 + i,
         )
         for i, ptid in enumerate(ptids, 1)
     }
