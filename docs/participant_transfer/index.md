@@ -11,7 +11,9 @@ This gear uses the AWS SSM parameter store, and expects that AWS credentials are
 This is a NACC Admin gear, should only be triggered in NACC group by an Admin.
 
 ### Inputs
-N/A
+* `soft_copy_configs`: JSON file with the configuration for the gear that copies participant data between centers. Must be uploaded as a project file. See [participant-transfer-soft-copy-configs.json](../../gear/participant_transfer/src/data/participant-transfer-soft-copy-configs.json) for an example.
+
+The `include-filter` and `target-project` configs depend on the participant and the destination project, so they must contain the `{{subject}}` and `{{target}}` placeholders respectively. These are substituted at runtime with the NACCID being transferred and the Flywheel ID of each destination project.
 
 ### Configs
 Gear configs are defined in [manifest.json](../../gear/participant_transfer/src/docker/manifest.json).

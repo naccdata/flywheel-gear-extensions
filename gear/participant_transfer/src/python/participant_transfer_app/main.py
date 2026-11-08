@@ -8,6 +8,7 @@ from enrollment.enrollment_project import EnrollmentProject
 from enrollment.enrollment_transfer import EnrollmentError, TransferRecord
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectError
 from gear_execution.gear_execution import GearExecutionError
+from gear_execution.gear_trigger import GearInfo
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
 )
@@ -96,6 +97,7 @@ def run(  # noqa: C901
     identifiers_repo: IdentifiersLambdaRepository,
     datatypes: List[str],
     studies: Optional[List[str]],
+    soft_copy_gear: GearInfo,
     copy_only: bool,
     dry_run: bool,
 ) -> bool:
@@ -110,6 +112,7 @@ def run(  # noqa: C901
         datatypes: List of datatypes to be transferred
         studies: List of studies to include in the transfer (optional).
                  If not provided, all studies in center metadata are included
+        soft_copy_gear: Gear info for the gear that copies participant data
         copy_only: No database update, only copy participant data.
                    Used when handling copy failure
         dry_run: Whether to do a dry run
@@ -196,6 +199,7 @@ def run(  # noqa: C901
         datatypes=datatypes,
         studies=studies,
         warnings=warnings,
+        soft_copy_gear=soft_copy_gear,
     )
 
     if not copy_helper.copy_participant():

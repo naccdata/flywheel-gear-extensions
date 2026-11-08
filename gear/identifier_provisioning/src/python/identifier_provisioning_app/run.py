@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from flywheel.models.file_entry import FileEntry
 from fw_gear import GearContext
 
 from enrollment.enrollment_project import EnrollmentProject
@@ -28,6 +29,36 @@ from lambdas.lambda_function import LambdaClient, create_lambda_client
 from outputs.error_writer import ListErrorWriter
 
 log = logging.getLogger(__name__)
+
+
+def get_original_input_file(
+    *, filename: str, project: ProjectAdaptor
+) -> Optional[FileEntry]:
+    """Finds the CSV file that the gear input was derived from.
+
+    The gear input is the <filename>_provisioning.csv file created by
+    form-qc-checker from the originally submitted CSV.
+
+    Args:
+      filename: the gear input file name
+      project: the project containing the files
+    Returns:
+      the FileEntry for the original CSV, or None if it is not found
+    """
+    input_path = Path(filename)
+    original_stem = input_path.stem.removesuffix(f"_{DefaultValues.PROV_SUFFIX}")
+    original_filename = f"{original_stem}{input_path.suffix}"
+
+    original_file = project.get_file(original_filename)
+    if not original_file:
+        log.warning(
+            "Could not find original CSV file %s in %s/%s",
+            original_filename,
+            project.group,
+            project.label,
+        )
+
+    return original_file
 
 
 class IdentifierProvisioningVisitor(GearExecutionEnvironment):
@@ -103,7 +134,12 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
             )
 
         file = self.__file_input.file_entry(context)
-        submitter = get_submitter(file=file, proxy=self.proxy)
+        original_file = get_original_input_file(
+            filename=self.__file_input.filename, project=project
+        )
+        # the gear input is the provisioning CSV uploaded by a gear job,
+        # so the submitter has to come from the original submission
+        submitter = get_submitter(file=original_file or file, proxy=self.proxy)
 
         input_path = Path(self.__file_input.filepath)
         gear_name = self.get_gear_name(context, "identifier-provisioning")
@@ -140,7 +176,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
 
         self.__update_csv_file_metadata(
             context=context,
-            project=project,
+            original_file=original_file,
             success=success,
             error_writer=error_writer,
             gear_name=gear_name,
@@ -150,7 +186,7 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         self,
         *,
         context: GearContext,
-        project: ProjectAdaptor,
+        original_file: Optional[FileEntry],
         success: bool,
         error_writer: ListErrorWriter,
         gear_name: str,
@@ -158,27 +194,17 @@ class IdentifierProvisioningVisitor(GearExecutionEnvironment):
         """Adds QC metadata to the original CSV file. The gear's input is the.
 
         <filename>_provisioning.csv file created by form-qc-checker. This
-        method finds the original CSV and writes the file-level QC metadata there
-        instead.
+        method writes the file-level QC metadata to the original CSV instead,
+        falling back to the gear input when the original cannot be found.
 
         Args:
             context: Flywheel gear context
-            project: Flywheel project adaptor
+            original_file: Flywheel file entry for the original CSV (optional)
             success: Gear success or failure
             error_writer: Error writer object that stored processing errors
             gear_name: Provisioning gear name
         """
-        filename = Path(self.__file_input.filename)
-        original_stem = filename.stem.removesuffix(f"_{DefaultValues.PROV_SUFFIX}")
-        original_filename = f"{original_stem}{filename.suffix}"
-
-        input_file = project.get_file(original_filename)
-        if not input_file:
-            log.warning(
-                f"Could not find original CSV file {original_filename} to ",
-                f"update QC metadata, updating {self.__file_input.filename} instead",
-            )
-            input_file = self.__file_input.file_input  # type: ignore
+        input_file = original_file if original_file else self.__file_input.file_input
 
         context.metadata.add_qc_result(
             input_file,

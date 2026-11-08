@@ -1,0 +1,7 @@
+{
+    "gear_name": "soft-copy",
+    "configs": {
+        "include-filter": "subject.label={{subject}}",
+        "target-project": "fw://group/project"
+    }
+}

@@ -13,6 +13,7 @@ from gear_execution.gear_execution import (
     GearExecutionEnvironment,
     GearExecutionError,
 )
+from gear_execution.gear_trigger import GearInfo
 from identifiers.identifiers_lambda_repository import (
     IdentifiersLambdaRepository,
 )
@@ -21,6 +22,7 @@ from inputs.parameter_store import ParameterStore
 from keys.keys import DefaultValues
 from lambdas.lambda_function import LambdaClient, create_lambda_client
 from notifications.email import EmailClient, create_ses_client
+from participant_transfer_app.copy import SoftCopyGearConfigs
 from participant_transfer_app.main import run
 from utils.utils import parse_string_to_list
 
@@ -38,6 +40,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         ptid: str,
         identifiers_mode: IdentifiersMode,
         copy_only: bool,
+        soft_copy_gear: GearInfo,
     ):
         super().__init__(client=client)
         self.__admin_id = admin_id
@@ -45,6 +48,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         self.__ptid = ptid
         self.__identifiers_mode: IdentifiersMode = identifiers_mode
         self.__copy_only = copy_only
+        self.__soft_copy_gear = soft_copy_gear
 
     @classmethod
     def create(
@@ -80,6 +84,18 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
         admin_id = options.get("admin_group", DefaultValues.NACC_GROUP_ID)
         copy_only = options.get("copy_only", False)
 
+        config_file_path = context.config.get_input_path("soft_copy_configs")
+        if not config_file_path:
+            raise GearExecutionError("No soft-copy gear config file specified")
+
+        soft_copy_gear = GearInfo.load_from_file(
+            config_file_path, configs_class=SoftCopyGearConfigs
+        )
+        if not soft_copy_gear:
+            raise GearExecutionError(
+                f"Error(s) in reading soft-copy gear configs file - {config_file_path}"
+            )
+
         return ParticipantTransferVisitor(
             client=client,
             admin_id=admin_id,
@@ -87,6 +103,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
             ptid=ptid,
             identifiers_mode=mode,
             copy_only=copy_only,
+            soft_copy_gear=soft_copy_gear,
         )
 
     def run(self, context: GearContext) -> None:
@@ -123,6 +140,7 @@ class ParticipantTransferVisitor(GearExecutionEnvironment):
                 identifiers_repo=identifiers_repo,
                 datatypes=datatypes,
                 studies=studies,
+                soft_copy_gear=self.__soft_copy_gear,
                 copy_only=self.__copy_only,
                 dry_run=self.client.dry_run,
             )
