@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.2.6
+* Resolves the transfer submitter from the original CSV rather than the provisioning file
+
 ## 2.2.5
 * Rebuilt for identifier model update: `naccadc` removed from the identifier response/request models (#533)
 
