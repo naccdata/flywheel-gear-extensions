@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 0.3.2
+
+* Rebuilt for identifier model update: `naccadc` removed from the identifier response/request models (#533)
+  
 ## 0.3.1
 
 * Add `freeze_date` and `etl_date` to provenance info

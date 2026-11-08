@@ -2,6 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.0.8
+* Rebuilt for identifier model update: `naccadc` removed from the identifier response/request models (#533)
+  
 ## 1.0.7
 * Handles Flywheel project reload 404s gracefully so a transient project fetch failure no longer aborts the gear (#502)
 
