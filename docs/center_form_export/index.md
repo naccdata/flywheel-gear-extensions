@@ -25,6 +25,7 @@ The only input is `api-key` (a Flywheel API key). No file input is required.
 | `source_id` | string | — | yes | Identifier of the project being read, used in output filenames (see Source Identifiers) |
 | `include_derived` | boolean | `false` | no | Whether to include derived variables |
 | `formver_split` | boolean | `false` | no | Split output CSVs by form version |
+| `unsplit_modules` | string | `""` | no | Comma-separated modules to keep in one file when `formver_split` is enabled. Each must also be in `modules` |
 | `batch_size` | integer | `100` | no | Number of subject ids per query batch (see Performance) |
 | `reload_workers` | integer | `10` | no | Concurrent workers used to reload each batch's files (see Performance) |
 | `run_id` | string | `""` | no | Caller-supplied identifier appended to output filenames (see Run Identifiers) |
@@ -56,6 +57,10 @@ When `formver_split` is **enabled**, one file is produced per (module, form vers
 ```
 
 Example: `adrc-ingest-UDS-v4-2025-06-15.csv`
+
+A module listed in `unsplit_modules` is not split: it gets the single-file name above, with the columns of every form version it holds. Use it for a module whose versions share most of their columns, such as UDS v1–v3 in a `retrospective-form` project. A module name in `unsplit_modules` that is not in `modules` fails the job, even when `formver_split` is off.
+
+An unsplit file has no form version in its name. Each row's version is in its `formver` column, as the raw source value (for example `3.0` or `3`), which may be empty. Unlike split mode, these values are not normalized to `v3`, and rows whose version split mode would label `unknown` stay in the file. The gear still logs the same warning for an unusable non-empty value.
 
 `{stamp}` is the run date (`YYYY-MM-DD`), followed by `-{run_id}` when a `run_id` was supplied.
 
@@ -103,6 +108,8 @@ Passing `run_id` adds a caller-chosen segment after the date. Two exports on the
 The run date and the `run_id` are both fixed once per gear run, not per output file. Output is written as each module finishes gathering, which on a large export can be minutes apart and can cross midnight — so a value read from the clock at write time would differ between modules and split one run's files across several apparent runs.
 
 Omitting `run_id` reproduces the date-only filenames exactly, with no trailing separator.
+
+Changing a module's split mode (`formver_split`, or adding or removing it from `unsplit_modules`) changes the shape of its filenames, so the destination can hold both the split and the unsplit files for the same visits. Use a new `run_id`, or clear the earlier outputs, so a consumer that selects files by prefix does not read the same visits twice.
 
 ## Cross-Group Guard
 

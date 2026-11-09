@@ -152,6 +152,44 @@ class TestModuleDataGathererSingleWriter:
         )
         assert gatherer.split_by_formver is False
 
+    def test_versions_share_one_file_with_union_of_columns(self):
+        """Rows of different form versions land in one CSV whose header is the
+        sorted union of their columns, with blanks where a row lacks a
+        column."""
+        gatherer = ModuleDataGatherer(
+            proxy=MagicMock(),
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+        gatherer.gather_file_info(
+            _make_file_mock({"naccid": "NACC0001", "formver": "2.0", "v2_field": "a"})
+        )
+        gatherer.gather_file_info(
+            _make_file_mock({"naccid": "NACC0002", "formver": "3.0", "v3_field": "b"})
+        )
+
+        assert gatherer.content.splitlines() == [
+            "formver,naccid,v2_field,v3_field",
+            "2.0,NACC0001,a,",
+            "3.0,NACC0002,,b",
+        ]
+
+    def test_unusable_formver_is_logged(self, caplog: pytest.LogCaptureFixture):
+        """An unusable form version is logged even though the rows are not
+        bucketed by version."""
+        gatherer = ModuleDataGatherer(
+            proxy=MagicMock(),
+            module_name="UDS",
+            info_paths=["forms.json"],
+        )
+        with caplog.at_level(logging.WARNING):
+            gatherer.gather_file_info(
+                _make_file_mock({"naccid": "NACC0001", "formver": "3.0-draft"})
+            )
+
+        assert "unusable form version" in caplog.text
+        assert "NACC0001" in gatherer.content
+
 
 class TestModuleDataGathererFormverSplit:
     """split_by_formver=True groups rows by formver into separate writers, each
