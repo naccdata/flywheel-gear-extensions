@@ -239,7 +239,7 @@ class TestCLARiTIRoleDeserialization:
         assert user_entry.adcid == 999
 
     def test_all_organizational_roles(self):
-        """Test all 14 organizational role fields."""
+        """Test all 15 organizational role fields."""
         auths = DirectoryAuthorizations.model_validate(
             create_directory_entry(
                 **{
@@ -257,11 +257,12 @@ class TestCLARiTIRoleDeserialization:
                     "loc_clariti_role___physicist": "1",
                     "loc_clariti_role___addlimaging": "1",
                     "loc_clariti_role___reg": "1",
+                    "loc_clariti_role___addlcont": "1",
                 }
             ),
             by_alias=True,
         )
-        # Verify all 14 organizational roles
+        # Verify all 15 organizational roles
         assert auths.loc_clariti_role___u01copi is True
         assert auths.loc_clariti_role___pi is True
         assert auths.loc_clariti_role___piadmin is True
@@ -276,6 +277,7 @@ class TestCLARiTIRoleDeserialization:
         assert auths.loc_clariti_role___physicist is True
         assert auths.loc_clariti_role___addlimaging is True
         assert auths.loc_clariti_role___reg is True
+        assert auths.loc_clariti_role___addlcont is True
 
 
 class TestCLARiTIStudyAccessMapIntegration:
