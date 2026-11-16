@@ -32,8 +32,8 @@ VISIT_PATTERN = re.compile(
     r"SCAN-PET-QC.+|SCAN-AMYLOID-PET-GAAIN.+|SCAN-AMYLOID-PET-NPDKA.+|"
     r"SCAN-FDG-PET-NPDKA.+|SCAN-TAU-PET-NPDKA.+"
     r")\.json)|"
-    r"(?P<pass1>.+((_BDS|_UDS))\.json)|"
-    r"(?P<pass0>.+((_CLS|_COVID|MRI-SUMMARY-DATA.+)\.json|"
+    r"(?P<pass1>.+_UDS\.json)|"
+    r"(?P<pass0>.+((_BDS|_CLS|_COVID|MRI-SUMMARY-DATA.+)\.json|"
     r"\.dicom\.zip|\.nii\.gz))"
     r"$"
 )
@@ -237,8 +237,10 @@ class FileModel(BaseModel):
         pass3: Historic APOE data (which mainly just needs to be done before
                NCRAD APOE data)
         pass2: All other data
-        pass1: BDS/UDS data
-        pass0: Data that relies on fully curated UDS data
+        pass1: UDS data
+        pass0: Data that relies on fully curated UDS data (e.g. BDS, whose
+               derived demographics are only written when the subject has
+               no UDS visits)
         """
         # need to handle historic apoe separately as it does not work well with regex
         if "historic_apoe_genotype" in self.filename:
