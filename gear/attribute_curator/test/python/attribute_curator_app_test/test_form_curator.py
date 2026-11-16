@@ -147,3 +147,44 @@ def test_missing_formver_keeps_subject_level_value(
 
     assert no_formver.file_info["derived"]["naccnihr"] == 7
     assert unreadable.file_info["derived"]["naccnihr"] == 7
+
+
+def _form(filename: str, formver: Any = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        filename=filename,
+        file_info={"forms": {"json": {"formver": formver}}, "derived": {}},
+    )
+
+
+def test_bds_and_ds_backprop() -> None:
+    """BDS demographics land on BDS files and NACCDS lands on UDS files."""
+    instance = object.__new__(FormCurator)
+    instance._FormCurator__scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: {"naccsex", "naccds"},
+        FormScope.BDS: {"naccsex", "nacclang", "nacchisp"},
+    }
+    instance._FormCurator__era_scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: set(),
+        FormScope.BDS: set(),
+    }
+
+    uds = _form("sub_UDS.json", 4.0)
+    bds = _form("sub_BDS.json", 1.0)
+    ds = _form("sub_DS.json")
+
+    instance.back_propagate_scopes(
+        SimpleNamespace(label="NACC000005"),  # type: ignore[arg-type]
+        {
+            FormScope.UDS: [uds],  # type: ignore[list-item]
+            FormScope.BDS: [bds],  # type: ignore[list-item]
+            FormScope.DS: [ds],  # type: ignore[list-item]
+        },
+        "derived",
+        {"naccsex": 2, "nacclang": 1, "nacchisp": 0, "naccds": 1},
+        None,
+    )
+
+    assert uds.file_info["derived"] == {"naccsex": 2, "naccds": 1}
+    assert bds.file_info["derived"] == {"naccsex": 2, "nacclang": 1, "nacchisp": 0}
+    # DS is not a back-propagation target itself
+    assert ds.file_info["derived"] == {}
