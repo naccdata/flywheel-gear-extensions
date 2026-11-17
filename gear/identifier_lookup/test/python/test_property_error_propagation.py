@@ -397,3 +397,24 @@ def test_repository_failure_stops_visit_all_run():
             visitor=visitor,
         )
     identifiers_repo.list.assert_called_once_with(adcid=1)
+
+
+def test_failed_center_lookup_is_not_refetched():
+    """A center whose identifiers failed to load is not fetched again for later
+    rows, even when the caller keeps visiting rows."""
+    identifiers_repo = Mock(spec=IdentifierRepository)
+    identifiers_repo.list.side_effect = IdentifierRepositoryError("lookup failed")
+    visitor = NACCIDLookupVisitor(
+        identifiers_repo=identifiers_repo,
+        output_file=StringIO(),
+        module_name=None,
+        required_fields=["adcid", "ptid"],
+        error_writer=ListErrorWriter(container_id="test", fw_path="test-path"),
+    )
+    assert visitor.visit_header(["adcid", "ptid"])
+
+    for line_num, ptid in enumerate(["P001", "P002"], start=2):
+        with pytest.raises(GearExecutionError, match="lookup failed"):
+            visitor.visit_row({"adcid": "1", "ptid": ptid}, line_num=line_num)
+
+    identifiers_repo.list.assert_called_once_with(adcid=1)
