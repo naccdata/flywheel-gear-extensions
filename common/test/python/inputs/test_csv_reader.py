@@ -7,7 +7,8 @@ from typing import Any, Dict, List
 import pytest
 
 from form_screening_app.format import CSVFormatterVisitor
-from inputs.csv_reader import CSVVisitor, read_csv
+from gear_execution.gear_execution import GearExecutionError
+from inputs.csv_reader import CSVVisitor, read_csv, visit_all_strategy
 from outputs.error_writer import StreamErrorWriter
 from outputs.errors import invalid_header_error
 
@@ -318,3 +319,37 @@ class TestCSVReader:
             "Malformed input file: "
             "Duplicate column names ['ptid', 'mode'] detected in the file header"
         )
+
+
+class RaisingVisitor(DummyVisitor):
+    """Dummy CSV Visitor class for testing, which raises on every row."""
+
+    def __init__(self, error: Exception):
+        super().__init__()
+        self.error = error
+
+    def visit_row(self, row: Dict[str, Any], line_num: int) -> bool:
+        raise self.error
+
+
+class TestVisitAllStrategy:
+    """Test class for the visit-all strategy."""
+
+    def test_row_error_does_not_stop_other_visitors(self):
+        """Test that a failing visitor is recorded and the rest still run."""
+        after = DummyVisitor()
+        strategy = visit_all_strategy([RaisingVisitor(RuntimeError("boom")), after])
+
+        assert not strategy({"ptid": "1"}, 1)
+        assert after.rows == [{"ptid": "1"}]
+
+    def test_gear_execution_error_propagates(self):
+        """Test that a GearExecutionError stops the run."""
+        after = DummyVisitor()
+        strategy = visit_all_strategy(
+            [RaisingVisitor(GearExecutionError("lookup failed")), after]
+        )
+
+        with pytest.raises(GearExecutionError, match="lookup failed"):
+            strategy({"ptid": "1"}, 1)
+        assert not after.rows
