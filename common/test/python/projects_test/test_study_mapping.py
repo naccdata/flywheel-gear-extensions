@@ -1372,3 +1372,64 @@ class TestMapperDatatypeFiltering:
         assert "distribution-form-test-study" in project_labels
         assert "distribution-dicom-test-study" in project_labels
         assert "distribution-csv-test-study" not in project_labels
+
+
+class TestMapperKeepsIngestMetadata:
+    """Tests that re-mapping a center updates stored ingest metadata without
+    dropping fields set by other gears."""
+
+    @pytest.mark.parametrize("label", ["ingest-form", "retrospective-form"])
+    def test_map_center_pipelines_keeps_redcap_projects(self, label):
+        """Test that REDCap projects on a stored form ingest entry are kept,
+        and the project ID and pipeline ADCID are updated."""
+        from centers.center_group import (
+            CenterStudyMetadata,
+            FormIngestProjectMetadata,
+            REDCapFormProjectMetadata,
+        )
+
+        study = StudyModel(
+            name="Test Study",  # pyright: ignore[reportCallIssue]
+            study_id="test-study",
+            centers=[],
+            datatypes=[{"name": "form", "mode": "aggregation"}],
+            mode=None,
+            study_type="primary",
+            legacy=True,
+        )
+        redcap_projects = {
+            "udsv4": REDCapFormProjectMetadata(redcap_pid=123, label="udsv4")
+        }
+        study_info = CenterStudyMetadata(study_id="test-study", study_name="Test")
+        study_info.add_ingest(
+            FormIngestProjectMetadata(
+                study_id="test-study",
+                pipeline_adcid=0,
+                project_id="old-id",
+                project_label=label,
+                datatype="form",
+                redcap_projects=redcap_projects,
+            )
+        )
+        stored = CenterStudyMetadata.model_validate(
+            study_info.model_dump(by_alias=True, exclude_none=True)
+        )
+
+        mock_center = Mock()
+        mock_center.is_active.return_value = True
+        mock_center.add_project.side_effect = lambda project_label: Mock(
+            id=f"{project_label}-id", label=project_label
+        )
+        mapper = AggregationMapper(
+            study=study, pipelines=["ingest"], proxy=Mock(), admin_access=[]
+        )
+
+        mapper.map_center_pipelines(
+            center=mock_center, study_info=stored, pipeline_adcid=7
+        )
+
+        ingest_project = stored.get_ingest(label)
+        assert isinstance(ingest_project, FormIngestProjectMetadata)
+        assert ingest_project.project_id == f"{label}-id"
+        assert ingest_project.pipeline_adcid == 7
+        assert ingest_project.redcap_projects == redcap_projects

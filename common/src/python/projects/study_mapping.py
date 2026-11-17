@@ -330,11 +330,10 @@ class AggregationMapper(StudyMapper):
 
         def update_ingest(project: ProjectAdaptor) -> None:
             study_info.add_ingest(
-                IngestProjectMetadata(
-                    study_id=self.study.study_id,
+                self.__ingest_metadata(
+                    study_info=study_info,
+                    project=project,
                     pipeline_adcid=pipeline_adcid,
-                    project_id=project.id,
-                    project_label=project.label,
                     datatype=datatype,
                 )
             )
@@ -345,6 +344,40 @@ class AggregationMapper(StudyMapper):
             pipeline_label=pipeline_label,
             update_study=update_ingest,
         )
+
+    def __ingest_metadata(
+        self,
+        *,
+        study_info: CenterStudyMetadata,
+        project: ProjectAdaptor,
+        pipeline_adcid: int,
+        datatype: DatatypeNameType,
+    ) -> IngestProjectMetadata:
+        """Returns the ingest metadata for the project.
+
+        Updates the existing entry instead of replacing it, so that fields
+        set by other gears, such as REDCap projects, are kept.
+
+        Args:
+          study_info: the center study metadata
+          project: the ingest project
+          pipeline_adcid: ADCID for the pipeline
+          datatype: the name of the datatype
+        Returns:
+          the ingest project metadata
+        """
+        metadata = IngestProjectMetadata(
+            study_id=self.study.study_id,
+            pipeline_adcid=pipeline_adcid,
+            project_id=project.id,
+            project_label=project.label,
+            datatype=datatype,
+        )
+        existing = study_info.get_ingest(project.label)
+        if existing is None:
+            return metadata
+
+        return existing.model_copy(update=metadata.model_dump())
 
     def __add_retrospective(
         self,
@@ -365,11 +398,10 @@ class AggregationMapper(StudyMapper):
         def update_retrospective(project: ProjectAdaptor):
             if datatype == "form":
                 study_info.add_ingest(
-                    IngestProjectMetadata(
-                        study_id=self.study.study_id,
+                    self.__ingest_metadata(
+                        study_info=study_info,
+                        project=project,
                         pipeline_adcid=pipeline_adcid,
-                        project_id=project.id,
-                        project_label=project.label,
                         datatype=datatype,
                     )
                 )
