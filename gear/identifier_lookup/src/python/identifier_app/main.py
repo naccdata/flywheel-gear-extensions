@@ -62,6 +62,7 @@ class NACCIDLookupVisitor(CSVVisitor):
         self.__reset_errors_per_row = reset_errors_per_row
 
         self.__identifiers_cache: Dict[int, Dict[str, IdentifierObject]] = {}
+        self.__failed_lookups: Dict[int, IdentifierRepositoryError] = {}
 
     def __get_identifiers(self, adcid: int) -> Dict[str, IdentifierObject]:
         """Gets all of the Identifier objects from the identifier database for
@@ -151,6 +152,9 @@ class NACCIDLookupVisitor(CSVVisitor):
 
         try:
             adcid = int(row[FieldNames.ADCID])
+            # don't refetch a center whose identifiers failed to load
+            if adcid in self.__failed_lookups:
+                raise self.__failed_lookups[adcid]
             if adcid not in self.__identifiers_cache:
                 self.__identifiers_cache[adcid] = self.__get_identifiers(adcid)
         except (ValueError, TypeError):
@@ -165,6 +169,7 @@ class NACCIDLookupVisitor(CSVVisitor):
             )
             return False
         except IdentifierRepositoryError as e:
+            self.__failed_lookups[adcid] = e
             raise GearExecutionError(
                 f"Unable to load center participant IDs for {adcid}: {e}"
             ) from e

@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from csv import DictReader
 from typing import Any, Callable, Dict, List, Optional, Sequence, TextIO
 
+from gear_execution.gear_execution import GearExecutionError
 from outputs.error_writer import ErrorWriter, ListErrorWriter
 from outputs.errors import (
     empty_file_error,
@@ -92,13 +93,18 @@ def visit_all_strategy(visitors: Sequence[CSVVisitor]) -> VisitorStrategyType:
     """
 
     def strategy(row: dict[str, Any], line_num: int) -> bool:
-        """Execution strategy that calls all visitors regardless of
-        failures."""
+        """Execution strategy that calls all visitors regardless of failures.
+
+        A GearExecutionError is not a row failure, so it propagates and
+        stops the gear.
+        """
         results = []
         for visitor in visitors:
             try:
                 result = visitor.visit_row(row, line_num)
                 results.append(result)
+            except GearExecutionError:
+                raise
             except Exception as error:
                 log.error(
                     f"Error in visitor {visitor.__class__.__name__} "
