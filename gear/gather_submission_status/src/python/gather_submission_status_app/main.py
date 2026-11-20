@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from data_requests.status_request import StatusRequestClusteringVisitor
 from inputs.csv_reader import read_csv
-from nacc_common.error_models import FileQCModel
+from nacc_common.error_models import FileError, FileQCModel
 from nacc_common.qc_report import (
     QC_FILENAME_PATTERN,
     DictReportWriter,
@@ -156,6 +156,60 @@ def consolidate_status_rows(
     return result
 
 
+def _report_unmatched_ptids(
+    *,
+    adcid: int,
+    requests: list[Any],
+    matched_ptids: set[str],
+    modules: set[str],
+    projects: list[Any],
+    error_writer: ErrorWriter,
+) -> None:
+    """Reports requested participants that matched no QC status log file.
+
+    Requested PTIDs are compared in the same normalized form used to filter
+    files (stripped, without leading zeros). Each unmatched PTID is written
+    once as a non-fatal error so the cause of an empty result can be diagnosed
+    from the QC result of the input file.
+
+    Args:
+        adcid: the ADCID of the center
+        requests: the status requests for the center
+        matched_ptids: normalized PTIDs of the files that passed the filters
+        modules: set of module names included
+        projects: the projects that were searched
+        error_writer: collects per-request errors
+    """
+    unmatched = {
+        request.ptid.strip(): None
+        for request in requests
+        if request.ptid.strip().lstrip("0") not in matched_ptids
+    }
+    if not unmatched:
+        return
+
+    log.warning(
+        "%d of %d requested participants for ADCID %s had no QC status logs",
+        len(unmatched),
+        len({request.ptid.strip() for request in requests}),
+        adcid,
+    )
+    project_labels = [project.label for project in projects]
+    for ptid in unmatched:
+        error_writer.write(
+            FileError(
+                error_code="no-qc-logs",  # pyright: ignore[reportCallIssue]
+                error_type="error",  # pyright: ignore[reportCallIssue]
+                ptid=ptid,
+                message=(
+                    f"No QC status log found for participant {ptid} in "
+                    f"ADCID {adcid} projects {project_labels} "
+                    f"for modules {sorted(modules)}"
+                ),
+            )
+        )
+
+
 def _gather_status_rows(
     *,
     input_file: TextIO,
@@ -216,6 +270,7 @@ def _gather_status_rows(
                 continue
 
             ptid_set = {request.ptid.strip().lstrip("0") for request in request_list}
+            matched_ptids: set[str] = set()
             for project in project_list:
                 log.info("visiting project %s/%s", pipeline_adcid, project.label)
 
@@ -230,6 +285,11 @@ def _gather_status_rows(
                     )
                 ]
 
+                matched_ptids.update(
+                    match.group("ptid")
+                    for f in candidate_files
+                    if (match := matcher.match(f.name))
+                )
                 futures = {pool.submit(f.reload): f for f in candidate_files}
 
                 for future in as_completed(futures):
@@ -250,6 +310,14 @@ def _gather_status_rows(
                         file_visitor_builder=file_visitor_builder,
                         table_visitor=table_visitor,
                     )
+            _report_unmatched_ptids(
+                adcid=request_adcid,
+                requests=request_list,
+                matched_ptids=matched_ptids,
+                modules=modules,
+                projects=project_list,
+                error_writer=error_writer,
+            )
 
     return True, collected_rows
 
@@ -315,6 +383,7 @@ def run(
                 continue
 
             ptid_set = {request.ptid.strip().lstrip("0") for request in request_list}
+            matched_ptids: set[str] = set()
             for project in project_list:
                 log.info("visiting project %s/%s", pipeline_adcid, project.label)
 
@@ -329,6 +398,11 @@ def run(
                     )
                 ]
 
+                matched_ptids.update(
+                    match.group("ptid")
+                    for f in candidate_files
+                    if (match := matcher.match(f.name))
+                )
                 futures = {pool.submit(f.reload): f for f in candidate_files}
 
                 for future in as_completed(futures):
@@ -349,6 +423,14 @@ def run(
                         file_visitor_builder=file_visitor_builder,
                         table_visitor=table_visitor,
                     )
+            _report_unmatched_ptids(
+                adcid=request_adcid,
+                requests=request_list,
+                matched_ptids=matched_ptids,
+                modules=modules,
+                projects=project_list,
+                error_writer=error_writer,
+            )
 
     return True
 
