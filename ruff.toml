@@ -109,6 +109,8 @@ known-first-party = [
     "loni",
     "metadata_app",
     "metrics",
+    "mri_reface_app",
+    "mri_reface_test",
     "nacc_common",
     "notifications",
     "outputs",
