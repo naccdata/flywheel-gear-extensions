@@ -62,6 +62,25 @@ After processing, the gear updates the input CSV file with the following metadat
 
 2. **File Tag**: The gear name (e.g., `"gather-submission-status"`) is added as a simple tag to the input file, indicating the file has been processed by this gear.
 
+## Requests that produce no output
+
+A participant in the input file produces no output rows if the gear finds nothing to report for them.
+The gear records these cases as errors in the QC result of the input file (`file.info.qc`), and they do not change the `PASS`/`FAIL` state.
+If a run produces an empty or incomplete output file, check the QC result for these errors.
+
+- `no-projects`: no project for the ADCID matches the `project_names` and `study_id` configuration.
+  The message gives the ADCID and the project names that were tried.
+  The `adcid` column of the input file is the location.
+- `no-qc-logs`: no QC status log file was found for the participant in the projects that were searched.
+  The `ptid` field gives the participant, and the message gives the ADCID, the projects searched and the modules searched.
+  This occurs when
+  - the PTID has no submissions in the matched projects,
+  - the PTID does not match the PTID in the QC log file names (leading zeros in the input PTID are ignored), or
+  - the participant has submissions only for modules that are not in the `module` configuration parameter.
+  Module names are compared to the module in the QC log file name, ignoring case in the file name only, so the configured values must be upper case.
+
+The gear also logs a warning for each ADCID with the number of requested participants that had no QC status logs.
+
 ## Error Report Output
 
 The error report output file contains the columns
