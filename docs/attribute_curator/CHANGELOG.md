@@ -2,6 +2,14 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.0 (unreleased)
+
+* Updates `nacc-attribute-deriver` to `2.6.0` - adds BDS derived demographics (`NACCSEX`, `NACCLANG`, `NACCLANGX`, `NACCHISP`, `NACCNIHR`, written only for subjects with no UDS visits), DS A1D/B1D informative missingness, and `NACCDS`
+* Curates BDS files after UDS (moved from `pass1` to `pass0`), since the BDS demographics depend on whether the subject has UDS visits
+* Back-propagates the subject-level BDS demographics onto BDS files
+* Back-propagates `NACCDS` onto UDS files, alongside `NACCFTD` and `NACCLBDM`
+* BDS needs to be recurated for all subjects, and every subject with DS forms needs to be recurated so the A1D carry-forward chains through all of their visits
+
 ## 1.4.4
 
 * Updates `nacc-attribute-deriver` to `2.5.1` - fixes UDSv4 `FTLD`, `CDOMMEM`, `CDOMATTN` and `OTHCILLIF` falling back to -4 (DED matrix key mismatches), UDSv4 `NACCALZP` and `NACCETPR` values, follow-up `GEN*`/`SEXORN*` checkboxes inheriting boxes from the previous visit, and V1-3 `TOBAC30` being overwritten by the V4 `TOBAC100` gate

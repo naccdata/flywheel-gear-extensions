@@ -15,6 +15,8 @@ CROSS_SECTIONAL_V1V3_LOCATION = "subject.info.derived.cross-sectional-v1v3."
 # variables are applied to all files in the scope (e.g. pushed back longitudinally)
 # In the case of UDS/NP/MLST, they share the cross-module variables, and need those
 #   variables to also be added to the scope
+# In the case of BDS, its derived demographics (written only for subjects without
+#   UDS visits) are subject-level and need to be pushed back onto the BDS files
 # In the case of UDS, it has multiple other scopes pushed into it, since it is
 #   generally the source/holder of all derived variables particularly in regards
 #   to the RDD/QAF
@@ -27,6 +29,7 @@ BACKPROP_SCOPES = {
         FormScope.CROSS_MODULE,
         FormScope.FTLD,
         FormScope.LBD,
+        FormScope.DS,
         FormScope.CSF,
         GeneticsScope.APOE,
         GeneticsScope.NCRAD_BIOSAMPLES,
@@ -36,6 +39,7 @@ BACKPROP_SCOPES = {
     ],
     FormScope.NP: [FormScope.CROSS_MODULE],
     FormScope.MLST: [FormScope.CROSS_MODULE],
+    FormScope.BDS: [],
     MixedProtocolScope.MRI_DICOM: [],
     MixedProtocolScope.PET_DICOM: [],
 }
