@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 1.5.1
+* Report each requested PTID that matches no QC status log file as a `no-qc-logs` error in the QC result of the input file, and log a per-ADCID warning with the count. The errors do not change the PASS/FAIL state.
+* Fix `modules` parameter name in documentation
+
 ## 1.5.0
 
 * Consolidate per-stage status rows into per-submission (ptid, visit, module) pass/fail
