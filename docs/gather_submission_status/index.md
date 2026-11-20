@@ -31,7 +31,7 @@ The gear manifest config includes the following parameters:
   These prefixes are used with the study to create the pattern used to match the label of the projects from which data is gathered.
   By default, this string is set to `"ingest-form"`.
 
-- `module` - a string that is a comma-separated list of form modules.
+- `modules` - a string that is a comma-separated list of form modules.
   The default includes UDS, FTLD and LBD.
 
 - `query_type` - a string that is either `"error"` or `"status"` indicating whether to generate an error or status report.
@@ -76,7 +76,7 @@ If a run produces an empty or incomplete output file, check the QC result for th
   This occurs when
   - the PTID has no submissions in the matched projects,
   - the PTID does not match the PTID in the QC log file names (leading zeros in the input PTID are ignored), or
-  - the participant has submissions only for modules that are not in the `module` configuration parameter.
+  - the participant has submissions only for modules that are not in the `modules` configuration parameter.
   Module names are compared to the module in the QC log file name, ignoring case in the file name only, so the configured values must be upper case.
 
 The gear also logs a warning for each ADCID with the number of requested participants that had no QC status logs.
