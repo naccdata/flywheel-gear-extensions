@@ -2,6 +2,10 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.7.3
+
+* Fixes project mapping to update each center's stored ingest project metadata instead of replacing it, so `redcap-projects` set by other gears are kept while `project-id` and `pipeline-adcid` are still updated
+
 ## 2.7.2
 
 * Fixes `get_url` to fetch single SSM parameter by name instead of using path-based lookup (resolves authorization client creation failure)
