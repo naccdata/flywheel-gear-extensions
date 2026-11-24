@@ -149,6 +149,37 @@ def test_missing_formver_keeps_subject_level_value(
     assert unreadable.file_info["derived"]["naccnihr"] == 7
 
 
+def test_v1v3_values_not_applied_to_non_uds_files() -> None:
+    """Non-UDS files with FORMVER < 4 (e.g. BDS 1.0) are not UDS V1-3, so they
+    keep the subject-level value even if their scope has era variables."""
+    instance = object.__new__(FormCurator)
+    instance._FormCurator__scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: {"naccnihr"},
+        FormScope.BDS: {"naccnihr"},
+    }
+    instance._FormCurator__era_scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: {"naccnihr"},
+        FormScope.BDS: {"naccnihr"},
+    }
+
+    uds_v3 = _uds_form("3.0", "v3_UDS.json")
+    bds = _uds_form("1.0", "sub_BDS.json")
+
+    instance.back_propagate_scopes(
+        SimpleNamespace(label="NACC000006"),  # type: ignore[arg-type]
+        {
+            FormScope.UDS: [uds_v3],  # type: ignore[list-item]
+            FormScope.BDS: [bds],  # type: ignore[list-item]
+        },
+        "derived",
+        {"naccnihr": 7},
+        {"naccnihr": 1},
+    )
+
+    assert uds_v3.file_info["derived"]["naccnihr"] == 1
+    assert bds.file_info["derived"]["naccnihr"] == 7
+
+
 def _form(filename: str, formver: Any = None) -> SimpleNamespace:
     return SimpleNamespace(
         filename=filename,

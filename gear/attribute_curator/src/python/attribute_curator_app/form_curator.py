@@ -612,15 +612,18 @@ class FormCurator(Curator):
 
                 values = result[scope]
                 era_values = era_result.get(scope)
-                if era_values and self.is_pre_v4(file):
+                # V1-3 only has meaning for UDS; other modules (e.g. BDS, MLST,
+                # NP) have their own FORMVER numbering
+                if era_values and scope == FormScope.UDS and self.is_pre_v4(file):
                     values = {**values, **era_values}
 
                 file_info[category].update(values)
 
     @staticmethod
     def is_pre_v4(file: FileModel) -> bool:
-        """Whether the file is a UDS V1-3 form.
+        """Whether the file's FORMVER is below 4 (UDS V1-3).
 
+        Only checks FORMVER, so callers must only apply it to UDS files.
         Files with no or unreadable formver are treated as not V1-3, so
         they keep the subject-level cross-sectional value.
         """
