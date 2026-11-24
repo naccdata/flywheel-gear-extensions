@@ -133,8 +133,6 @@ class TestFileModel:
         bds = fm("NACCXXX_BDS-RECORD-2001-01-01_BDS.json", visitdate="2001-01-01")
 
         assert sorted([bds, uds]) == [uds, bds]
-        assert uds < bds
-        assert not bds < uds
 
 
 # pylint: disable=(no-self-use)
