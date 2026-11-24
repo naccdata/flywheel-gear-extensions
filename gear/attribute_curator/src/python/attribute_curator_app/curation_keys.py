@@ -11,12 +11,23 @@ from nacc_attribute_deriver.utils.scope import (
 CROSS_SECTIONAL_LOCATION = "subject.info.derived.cross-sectional."
 CROSS_SECTIONAL_V1V3_LOCATION = "subject.info.derived.cross-sectional-v1v3."
 
+# Subject-level (relative to subject.info) location of the UDS visitdates; the
+# deriver records these while curating UDS, so it is set once UDS (pass1) has
+# been curated if the subject has UDS visits. Same marker the deriver's BDS
+# rules use to decide that UDS wins.
+UDS_VISITDATES_LOCATION = "working.cross-sectional.uds-visitdates"
+
+# Logged for skipped BDS files
+BDS_SKIPPED_REASON = "BDS not curated for participants with UDS visits"
+
 # Scopes that need back-propagation applied to it. This ensures cross-sectional
 # variables are applied to all files in the scope (e.g. pushed back longitudinally)
 # In the case of UDS/NP/MLST, they share the cross-module variables, and need those
 #   variables to also be added to the scope
-# In the case of BDS, its derived demographics (written only for subjects without
-#   UDS visits) are subject-level and need to be pushed back onto the BDS files
+# In the case of BDS, its derived demographics are subject-level and need to be
+#   pushed back onto the BDS files. BDS files are only curated for subjects
+#   without UDS visits (see UDS_VISITDATES_LOCATION); for subjects with UDS
+#   visits they are skipped entirely, so UDS demographics never land on them
 # In the case of UDS, it has multiple other scopes pushed into it, since it is
 #   generally the source/holder of all derived variables particularly in regards
 #   to the RDD/QAF

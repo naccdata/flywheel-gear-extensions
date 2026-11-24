@@ -35,9 +35,11 @@ from utils.decorators import api_retry
 
 from .curation_keys import (
     BACKPROP_SCOPES,
+    BDS_SKIPPED_REASON,
     CROSS_SECTIONAL_LOCATION,
     CROSS_SECTIONAL_V1V3_LOCATION,
     RESOLVED_SCOPES,
+    UDS_VISITDATES_LOCATION,
     FormCurationTags,
 )
 
@@ -260,6 +262,26 @@ class FormCurator(Curator):
                 "file.info.resolved",
                 copy.deepcopy(table["file.info.forms.json"]),
             )
+
+    def curate_file(
+        self, subject: Subject, subject_table: SymbolTable, file_model: FileModel
+    ) -> bool:
+        """Curates a file, unless it is deliberately not curated.
+
+        BDS files are not curated for participants with UDS visits (UDS
+        wins). BDS is curated after UDS (pass0), so the UDS visitdates
+        are final by then. This is checked before the curation tag, so
+        BDS files curated in an earlier run are cleaned up too.
+
+        Returns:
+            False if the file was skipped, i.e. not processed (this is
+            not a failure); otherwise see Curator.curate_file
+        """
+        if file_model.scope == FormScope.BDS and self.subject_has_uds(subject_table):
+            self.apply_curation_skip(file_model, BDS_SKIPPED_REASON)
+            return False
+
+        return super().curate_file(subject, subject_table, file_model)
 
     def execute(
         self,
@@ -618,6 +640,33 @@ class FormCurator(Curator):
                     values = {**values, **era_values}
 
                 file_info[category].update(values)
+
+    @staticmethod
+    def subject_has_uds(subject_table: SymbolTable) -> bool:
+        """Whether the subject has (curated) UDS visits.
+
+        Uses the UDS visitdates the deriver records while curating UDS,
+        the same marker its BDS rules use.
+        """
+        return bool(subject_table.get(UDS_VISITDATES_LOCATION))
+
+    @api_retry
+    def apply_curation_skip(self, file: FileModel, reason: str) -> None:
+        """Handles a file that is deliberately not curated.
+
+        Removes any curated metadata left over from an earlier run, so
+        it is not passed on downstream, then clears the curation tag and
+        logs the file as skipped.
+        """
+        stale_keys = [
+            key for key in ["derived", "resolved", "affiliate"] if key in file.old_info
+        ]
+        if stale_keys:
+            log.debug(f"Removing curated metadata {stale_keys} from {file.filename}")
+            file_entry = self.sdk_client.get_file(file.file_id)
+            file_entry.delete_info(*stale_keys)
+
+        self.handle_curation_skipped(file, reason)
 
     @staticmethod
     def is_pre_v4(file: FileModel) -> bool:

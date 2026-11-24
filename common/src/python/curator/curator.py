@@ -39,6 +39,7 @@ class Curator(ABC):
         self.__sdk_client: Client | None = None
 
         self.__failed_files = Manager().list()
+        self.__skipped_files = Manager().list()
 
     @property
     def sdk_client(self) -> Client:
@@ -58,6 +59,11 @@ class Curator(ABC):
     @property
     def failed_files(self) -> ListProxy:
         return self.__failed_files
+
+    @property
+    def skipped_files(self) -> ListProxy:
+        """Names of files deliberately not curated (not failures)."""
+        return self.__skipped_files
 
     def set_client(self, context: GearContext) -> None:
         """Set the SDK client. For multiprocessing, this client must be
@@ -88,6 +94,17 @@ class Curator(ABC):
             error = {"name": container.label, "id": container.id, "reason": reason}  # type: ignore
 
         self.__failed_files.append(error)
+
+    def handle_curation_skipped(self, file_model: FileModel, reason: str) -> None:
+        """Handles a file that is deliberately not curated. This is not a
+        failure: it is logged as a warning and counted, but not written to the
+        failure report.
+
+        Clears the curation tag so the file is not treated as curated.
+        """
+        log.warning(f"Skipping {file_model.filename}: {reason}")
+        self.clear_curation_tag(file_model)
+        self.__skipped_files.append(file_model.filename)
 
     @api_retry
     def clear_curation_tag(self, file_model: FileModel) -> None:
@@ -149,8 +166,11 @@ class Curator(ABC):
             file_model: the file model to curate
 
         Returns:
-            True if successfully curated (or skipped), False if there was some
-                failure while curating
+            True if the file should be post-curated (curated, or skipped
+                because it is already curated); False if it should not be,
+                either because curation failed or because the file was
+                deliberately not curated. Failures are recorded separately
+                by handle_curation_failure.
         """
         if (
             self.curation_tag
