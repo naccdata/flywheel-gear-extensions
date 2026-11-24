@@ -355,8 +355,10 @@ class AggregationMapper(StudyMapper):
     ) -> IngestProjectMetadata:
         """Returns the ingest metadata for the project.
 
-        Updates the existing entry instead of replacing it, so that fields
-        set by other gears, such as REDCap projects, are kept.
+        If an entry exists for the project label, returns a copy of it with the
+        mapped fields updated, so that fields set by other gears, such as REDCap
+        projects, are kept. The stored entry is not modified; the caller
+        replaces it with the returned metadata.
 
         Args:
           study_info: the center study metadata

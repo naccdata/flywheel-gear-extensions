@@ -13,6 +13,12 @@ from unittest.mock import Mock
 
 import pytest
 
+from centers.center_group import (
+    CenterStudyMetadata,
+    FormIngestProjectMetadata,
+    IngestProjectMetadata,
+    REDCapFormProjectMetadata,
+)
 from projects.study import StudyModel
 from projects.study_mapping import AggregationMapper, DistributionMapper
 
@@ -1382,12 +1388,6 @@ class TestMapperKeepsIngestMetadata:
     def test_map_center_pipelines_keeps_redcap_projects(self, label):
         """Test that REDCap projects on a stored form ingest entry are kept,
         and the project ID and pipeline ADCID are updated."""
-        from centers.center_group import (
-            CenterStudyMetadata,
-            FormIngestProjectMetadata,
-            REDCapFormProjectMetadata,
-        )
-
         study = StudyModel(
             name="Test Study",  # pyright: ignore[reportCallIssue]
             study_id="test-study",
@@ -1433,3 +1433,38 @@ class TestMapperKeepsIngestMetadata:
         assert ingest_project.project_id == f"{label}-id"
         assert ingest_project.pipeline_adcid == 7
         assert ingest_project.redcap_projects == redcap_projects
+
+    def test_map_center_pipelines_updates_non_form_ingest(self):
+        """Test that a non-form ingest entry, with or without a stored entry,
+        gets the current project ID and pipeline ADCID."""
+        study = StudyModel(
+            name="Test Study",  # pyright: ignore[reportCallIssue]
+            study_id="test-study",
+            centers=[],
+            datatypes=[{"name": "dicom", "mode": "aggregation"}],
+            mode=None,
+            study_type="primary",
+            legacy=False,
+        )
+        study_info = CenterStudyMetadata(study_id="test-study", study_name="Test")
+        mock_center = Mock()
+        mock_center.is_active.return_value = True
+        mock_center.add_project.side_effect = lambda project_label: Mock(
+            id=f"{project_label}-id", label=project_label
+        )
+        mapper = AggregationMapper(
+            study=study, pipelines=["ingest"], proxy=Mock(), admin_access=[]
+        )
+
+        mapper.map_center_pipelines(
+            center=mock_center, study_info=study_info, pipeline_adcid=3
+        )
+        mapper.map_center_pipelines(
+            center=mock_center, study_info=study_info, pipeline_adcid=7
+        )
+
+        ingest_project = study_info.get_ingest("ingest-dicom")
+        assert isinstance(ingest_project, IngestProjectMetadata)
+        assert not isinstance(ingest_project, FormIngestProjectMetadata)
+        assert ingest_project.project_id == "ingest-dicom-id"
+        assert ingest_project.pipeline_adcid == 7
