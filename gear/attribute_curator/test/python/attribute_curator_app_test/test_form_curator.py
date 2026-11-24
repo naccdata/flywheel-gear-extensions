@@ -188,7 +188,12 @@ def _form(filename: str, formver: Any = None) -> SimpleNamespace:
 
 
 def test_bds_and_ds_backprop() -> None:
-    """BDS demographics land on BDS files and NACCDS lands on UDS files."""
+    """Back-propagation applies each scope's reference variables to its files.
+
+    The scope references are set by hand here; see
+    test_backprop_scope_reference for the real references built from
+    BACKPROP_SCOPES.
+    """
     instance = object.__new__(FormCurator)
     instance._FormCurator__scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
         FormScope.UDS: {"naccsex", "naccds"},
@@ -219,3 +224,29 @@ def test_bds_and_ds_backprop() -> None:
     assert bds.file_info["derived"] == {"naccsex": 2, "nacclang": 1, "nacchisp": 0}
     # DS is not a back-propagation target itself
     assert ds.file_info["derived"] == {}
+
+
+def test_backprop_scope_reference() -> None:
+    """The real scope references, built from BACKPROP_SCOPES and the deriver's
+    curation rules, put the BDS demographics on BDS files and NACCDS on UDS
+    files.
+
+    Builds a FormCurator through __init__, so this also fails if any
+    BACKPROP_SCOPES scope has no curation rules in the pinned deriver.
+    """
+    curator = FormCurator(
+        dataview=None,  # type: ignore[arg-type]
+        curation_tag="test",
+        active_center=True,
+        rxclass_concepts={},
+    )
+    scope_reference = curator._FormCurator__scope_reference  # type: ignore[attr-defined]  # noqa: SLF001
+
+    assert scope_reference[FormScope.BDS] >= {
+        "naccsex",
+        "nacclang",
+        "nacclangx",
+        "nacchisp",
+        "naccnihr",
+    }
+    assert "naccds" in scope_reference[FormScope.UDS]
