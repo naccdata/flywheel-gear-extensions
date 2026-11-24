@@ -2,6 +2,12 @@
 
 All notable changes to this gear are documented in this file.
 
+## 2.4.7
+* Fails the job when a center's identifiers cannot be loaded (for example, an identifier response that does not match the model) instead of logging an error for every row and ending as complete (#544)
+* Remembers a failed identifier fetch for each ADCID so later rows do not call the identifiers lambda again (#544)
+* Treats an ADCID with no identifiers as an empty center, so its rows get "No matching NACCID found" errors instead of failing the job (#544)
+* In multi-center mode, the whole file now fails if any center's identifiers cannot be loaded because of a lambda or response error; previously rows for the other centers were still written (#544)
+
 ## 2.4.6
 * Rebuilt for identifier model update: `naccadc` removed from the identifier response/request models (#533)
 
