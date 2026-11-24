@@ -414,6 +414,10 @@ class IdentifiersLambdaRepository(IdentifierRepository):
             except (LambdaInvocationError, ValidationError) as error:
                 raise IdentifierRepositoryError(error) from error
 
+            # the lambda returns 404 when the ADCID has no identifiers
+            if response.statusCode == 404 and index == 0:
+                return []
+
             if response.statusCode != 200:
                 raise IdentifierRepositoryError(response.body)
 
