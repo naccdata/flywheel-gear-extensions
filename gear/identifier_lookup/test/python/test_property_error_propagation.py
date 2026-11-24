@@ -10,16 +10,23 @@ from io import StringIO
 from typing import Dict, List
 from unittest.mock import Mock
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from error_logging.qc_status_log_creator import QCStatusLogManager
 from error_logging.qc_status_log_csv_visitor import QCStatusLogCSVVisitor
 from flywheel_adaptor.flywheel_proxy import ProjectAdaptor
+from gear_execution.gear_execution import GearExecutionError
 from identifier_app.main import NACCIDLookupVisitor
+from identifiers.identifiers_repository import (
+    IdentifierRepository,
+    IdentifierRepositoryError,
+)
 from identifiers.model import IdentifierObject
 from inputs.csv_reader import (
     AggregateCSVVisitor,
+    read_csv,
     short_circuit_strategy,
     visit_all_strategy,
 )
@@ -356,3 +363,58 @@ def test_short_circuit_strategy_stops_on_first_failure():
         "QC visitor should not be called when short-circuit strategy "
         "stops on first failure"
     )
+
+
+def test_repository_failure_stops_visit_all_run():
+    """A failure loading identifiers fails the run instead of being logged once
+    per row.
+
+    Regression for #542: an identifier response the model could not
+    parse left identifier-lookup with no output and a completed job.
+    """
+    identifiers_repo = Mock(spec=IdentifierRepository)
+    identifiers_repo.list.side_effect = IdentifierRepositoryError(
+        "data.0.naccadc Field required"
+    )
+    error_writer = ListErrorWriter(container_id="test", fw_path="test-path")
+    visitor = AggregateCSVVisitor(
+        visitors=[
+            NACCIDLookupVisitor(
+                identifiers_repo=identifiers_repo,
+                output_file=StringIO(),
+                module_name=None,
+                required_fields=["adcid", "ptid"],
+                error_writer=error_writer,
+            )
+        ],
+        strategy_builder=visit_all_strategy,
+    )
+
+    with pytest.raises(GearExecutionError, match="naccadc"):
+        read_csv(
+            input_file=StringIO("adcid,ptid\n1,P001\n1,P002\n"),
+            error_writer=error_writer,
+            visitor=visitor,
+        )
+    identifiers_repo.list.assert_called_once_with(adcid=1)
+
+
+def test_failed_center_lookup_is_not_refetched():
+    """A center whose identifiers failed to load is not fetched again for later
+    rows, even when the caller keeps visiting rows."""
+    identifiers_repo = Mock(spec=IdentifierRepository)
+    identifiers_repo.list.side_effect = IdentifierRepositoryError("lookup failed")
+    visitor = NACCIDLookupVisitor(
+        identifiers_repo=identifiers_repo,
+        output_file=StringIO(),
+        module_name=None,
+        required_fields=["adcid", "ptid"],
+        error_writer=ListErrorWriter(container_id="test", fw_path="test-path"),
+    )
+    assert visitor.visit_header(["adcid", "ptid"])
+
+    for line_num, ptid in enumerate(["P001", "P002"], start=2):
+        with pytest.raises(GearExecutionError, match="lookup failed"):
+            visitor.visit_row({"adcid": "1", "ptid": ptid}, line_num=line_num)
+
+    identifiers_repo.list.assert_called_once_with(adcid=1)
