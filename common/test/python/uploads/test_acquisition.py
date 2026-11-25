@@ -4,9 +4,15 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import Mock
 
 import pytest
+from flywheel.file_spec import FileSpec
 from flywheel.rest import ApiException
 
-from uploads.acquisition import reset_visit_qc_metadata
+from test_mocks.mock_flywheel import (
+    MockAcquisition,
+    MockParents,
+    create_mock_acquisition_file,
+)
+from uploads.acquisition import replace_in_acquisition, reset_visit_qc_metadata
 
 
 def _visit_file(
@@ -87,3 +93,81 @@ class TestResetVisitQCMetadata:
         )
 
         assert not reset_visit_qc_metadata(visit_file)
+
+
+def _file_spec() -> FileSpec:
+    return FileSpec(name="receipt.csv", contents="a,b", content_type="text/csv")
+
+
+def _acquisition(*, existing: bool = False, conflict: bool = False):
+    files = (
+        [create_mock_acquisition_file("receipt.csv", "a" * 24, "acq-1")]
+        if existing
+        else []
+    )
+    return MockAcquisition(
+        id="acq-1",
+        label="acq",
+        parents=MockParents(),
+        files=files,
+        conflict_on_upload=conflict,
+    )
+
+
+class TestReplaceInAcquisition:
+    """Tests replace_in_acquisition."""
+
+    def test_no_conflict_uploads_once(self):
+        """Without an existing file there is one upload and no delete."""
+        acquisition = _acquisition()
+        spec = _file_spec()
+
+        replace_in_acquisition(acquisition, spec)
+
+        assert acquisition.uploads == [spec]
+        assert acquisition.deleted == []
+
+    def test_conflict_deletes_then_uploads(self):
+        """A 409 deletes the existing file and uploads again."""
+        acquisition = _acquisition(existing=True, conflict=True)
+        spec = _file_spec()
+
+        replace_in_acquisition(acquisition, spec)
+
+        assert acquisition.deleted == ["receipt.csv"]
+        assert acquisition.uploads == [spec]
+
+    def test_other_error_propagates_without_delete(self):
+        """A non-409 error is raised and nothing is deleted."""
+        acquisition = Mock()
+        acquisition.upload_file.side_effect = ApiException(status=500, reason="boom")
+
+        with pytest.raises(ApiException) as info:
+            replace_in_acquisition(acquisition, _file_spec())
+
+        assert info.value.status == 500
+        acquisition.delete_file.assert_not_called()
+
+    def test_delete_failure_propagates(self):
+        """A failing delete is raised unchanged."""
+        acquisition = Mock()
+        acquisition.upload_file.side_effect = ApiException(status=409, reason="dup")
+        acquisition.delete_file.side_effect = ApiException(status=500, reason="boom")
+
+        with pytest.raises(ApiException) as info:
+            replace_in_acquisition(acquisition, _file_spec())
+
+        assert info.value.status == 500
+
+    def test_second_upload_failure_propagates(self):
+        """A failing second upload is raised after the delete."""
+        acquisition = Mock()
+        acquisition.upload_file.side_effect = [
+            ApiException(status=409, reason="dup")
+        ] * 4 + [ApiException(status=500, reason="boom")] * 4
+
+        with pytest.raises(ApiException) as info:
+            replace_in_acquisition(acquisition, _file_spec())
+
+        assert info.value.status == 500
+        acquisition.delete_file.assert_called_once_with("receipt.csv")
