@@ -209,11 +209,11 @@ class ModuleDataGatherer:
 
             merged_data.update(form_data)
 
-        label = (
-            formver_label(merged_data.get("formver"))
-            if self.__split_by_formver
-            else "default"
-        )
+        # Labelled in both modes so an unusable form version is logged even
+        # when the rows share one file.
+        label = formver_label(merged_data.get("formver"))
+        if not self.__split_by_formver:
+            label = "default"
         writer = self.__writers.setdefault(label, StringCSVWriter())
         writer.write(merged_data)
 

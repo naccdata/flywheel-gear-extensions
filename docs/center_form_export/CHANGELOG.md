@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.5
+
+- Adds an optional `unsplit_modules` config field: modules to write as one file each even when `formver_split` is enabled, with the columns of every form version they hold. The portal uses it to give UDS v1–v3 from a `retrospective-form` project as one file, while FTLD and LBD stay split, since their versions differ too much to share a file
+- An unsplit module's file uses the existing single-file name, with no form version segment
+- A module in `unsplit_modules` that is not in `modules` fails the job at startup, so a typo can't leave the module split without an error
+
 ## v0.0.4
 
 - Adds a **required** `source_id` config field, placed in output filenames after the study id: `{study_id}-{source_id}-{module}[-{formver}]-{YYYY-MM-DD}[-{run_id}].csv` (e.g. `adrc-ingest-UDS-v4-2026-07-24-20260724T210431.csv`). **Breaking:** every output filename changes shape, and a job with an empty or omitted `source_id` fails at startup instead of falling back to the previous names
