@@ -107,6 +107,8 @@ known-first-party = [
     "legacy_identifier_transfer_app",
     "legacy_sanity_check_app",
     "loni",
+    "loni_receipt_metadata_app",
+    "loni_receipt_metadata_test",
     "metadata_app",
     "metrics",
     "nacc_common",

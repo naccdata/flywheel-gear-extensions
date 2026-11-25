@@ -1,0 +1,42 @@
+{
+  "name": "loni-receipt-metadata",
+  "label": "LONI Receipt Metadata",
+  "description": "Records LONI UIDs, upload dates and status from a loni-upload receipt as acquisition custom info, and attaches a receipt copy to each acquisition",
+  "version": "0.0.1",
+  "author": "NACC",
+  "maintainer": "NACC <nacchelp@uw.edu>",
+  "cite": "",
+  "license": "MPL-2.0",
+  "url": "",
+  "source": "https://github.com/naccdata/flywheel-gear-extensions/tree/main/gear/loni_receipt_metadata",
+  "environment": {
+    "FLYWHEEL": "/flywheel/v0"
+  },
+  "custom": {
+    "gear-builder": {
+      "category": "utility",
+      "image": "naccdata/loni-receipt-metadata:0.0.1"
+    },
+    "flywheel": {
+      "suite": "NACC Data Gears",
+      "show-job": true
+    }
+  },
+  "inputs": {
+    "api-key": {
+      "base": "api-key"
+    },
+    "input_file": {
+      "description": "Receipt CSV (upload_data_<timestamp>.csv) written by the loni-upload gear",
+      "base": "file"
+    }
+  },
+  "config": {
+    "dry_run": {
+      "description": "Log what would be written without writing",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "command": "/bin/run"
+}
