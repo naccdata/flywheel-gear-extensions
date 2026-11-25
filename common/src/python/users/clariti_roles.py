@@ -28,7 +28,7 @@ def map_clariti_roles_to_activities(
 
     Mapping rules:
     - Payment roles (7) → payment-tracker dashboard view access
-    - All organizational roles (14) → enrollment dashboard view access
+    - All organizational roles (15) → enrollment dashboard view access
     - Admin core member → both payment-tracker and enrollment view access
     - cl_pay_access_level="ViewAccess" → payment-tracker view access
 
@@ -73,7 +73,7 @@ def map_clariti_roles_to_activities(
             )
         )
 
-    # Organizational roles (14 fields)
+    # Organizational roles (15 fields)
     organizational_role_fields = [
         "loc_clariti_role___u01copi",
         "loc_clariti_role___pi",
@@ -89,6 +89,7 @@ def map_clariti_roles_to_activities(
         "loc_clariti_role___physicist",
         "loc_clariti_role___addlimaging",
         "loc_clariti_role___reg",
+        "loc_clariti_role___addlcont",
     ]
 
     # Check if any organizational role is set

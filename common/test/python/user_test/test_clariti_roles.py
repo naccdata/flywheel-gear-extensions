@@ -79,6 +79,17 @@ class TestCLARiTIRoleMapping:
         assert len(activities) == 1
         assert str(activities[0]) == "view-dashboard-enrollment"
 
+    def test_additional_contact_role_grants_enrollment_not_payment(
+        self, base_directory_auth
+    ):
+        """Test that Additional Contacts grants enrollment but not payment."""
+        base_directory_auth.loc_clariti_role___addlcont = True
+        activities = map_clariti_roles_to_activities(base_directory_auth)
+
+        activity_strs = {str(a) for a in activities}
+        assert "view-dashboard-enrollment" in activity_strs
+        assert "view-dashboard-payment-tracker" not in activity_strs
+
     def test_multiple_organizational_roles(self, base_directory_auth):
         """Test mapping with multiple organizational roles."""
         base_directory_auth.loc_clariti_role___mpi = True
@@ -169,6 +180,7 @@ class TestCLARiTIRoleMapping:
         base_directory_auth.loc_clariti_role___physicist = True
         base_directory_auth.loc_clariti_role___addlimaging = True
         base_directory_auth.loc_clariti_role___reg = True
+        base_directory_auth.loc_clariti_role___addlcont = True
 
         # Set admin role
         base_directory_auth.ind_clar_core_role___admin = True
@@ -281,6 +293,7 @@ class TestCLARiTIRoleMapping:
             "loc_clariti_role___physicist",
             "loc_clariti_role___addlimaging",
             "loc_clariti_role___reg",
+            "loc_clariti_role___addlcont",
         ]
 
         for role_field in org_roles:

@@ -227,7 +227,7 @@ class DirectoryAuthorizations(BaseModel):
     adrc_datatype_scan_analysis_access_level: AuthorizationAccessLevel = Field(
         alias="scan_dashboard_access_level"
     )
-    # CLARiTI organizational roles (14 fields)
+    # CLARiTI organizational roles (15 fields)
     loc_clariti_role___u01copi: Optional[bool] = Field(
         default=None, alias="loc_clariti_role___u01copi"
     )
@@ -269,6 +269,9 @@ class DirectoryAuthorizations(BaseModel):
     )
     loc_clariti_role___reg: Optional[bool] = Field(
         default=None, alias="loc_clariti_role___reg"
+    )
+    loc_clariti_role___addlcont: Optional[bool] = Field(
+        default=None, alias="loc_clariti_role___addlcont"
     )
     # CLARiTI individual role (1 field)
     ind_clar_core_role___admin: Optional[bool] = Field(
@@ -329,6 +332,7 @@ class DirectoryAuthorizations(BaseModel):
         "loc_clariti_role___physicist",
         "loc_clariti_role___addlimaging",
         "loc_clariti_role___reg",
+        "loc_clariti_role___addlcont",
         "ind_clar_core_role___admin",
         mode="before",
     )
