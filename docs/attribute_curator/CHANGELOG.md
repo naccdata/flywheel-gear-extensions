@@ -2,9 +2,9 @@
 
 All notable changes to this gear are documented in this file.
 
-## 1.5.0 (unreleased)
+## 1.5.0
 
-* Updates `nacc-attribute-deriver` to `2.6.0` - adds BDS derived demographics (`NACCSEX`, `NACCLANG`, `NACCLANGX`, `NACCHISP`, `NACCNIHR`, written only for subjects with no UDS visits), DS A1D/B1D informative missingness, and `NACCDS`
+* Updates `nacc-attribute-deriver` to `2.6.0` - adds BDS derived demographics (`NACCSEX`, `NACCLANG`, `NACCLANGX`, `NACCHISP`, `NACCNIHR`, written only for subjects with no UDS visits), DS module informative missingness, and `NACCDS`
 * Curates BDS files after UDS (moved from `pass1` to `pass0`), since the BDS demographics depend on whether the subject has UDS visits
 * Skips BDS files of participants with UDS visits (UDS always wins), checked before the curation tag so it also applies when not force curating
     * No curation is written, and any curated metadata (`derived`, `resolved`, `affiliate`) and the curation tag left from an earlier run are removed, so the files are not passed on downstream
@@ -12,10 +12,10 @@ All notable changes to this gear are documented in this file.
 * Back-propagates the subject-level BDS demographics onto BDS files (participants without UDS visits only, per the above)
 * Back-propagates `NACCDS` onto UDS files, alongside `NACCFTD` and `NACCLBDM`
 * Applies the V1-3 values for quasi-cross-sectional variables to UDS files only; other modules have their own `FORMVER` numbering (e.g. BDS 1.0) and are no longer treated as UDS V1-3
-* BDS files of participants without UDS visits now fail curation when the subject has no NP form (2.6.0 raises an error for `NACCDAGE` instead of setting 999)
+* BDS files now fail curation when the subject has no NP form (2.6.0 raises an error for `NACCDAGE` instead of setting 999)
     * The failure is reported in `curation-failures.csv` and the file's curation tag is removed, so it is curated again on the next run (e.g. once the NP form has been submitted)
     * NP (`pass2`) is curated before BDS (`pass0`), so an NP form already on the subject is always found
-* BDS needs to be recurated for all subjects, and every subject with DS forms needs to be recurated so the A1D carry-forward chains through all of their visits
+* BDS needs to be re-curated for all subjects, and every subject with DS forms needs to be re-curated so the A1D carry-forward chains through all of their visits
 
 ## 1.4.4
 
