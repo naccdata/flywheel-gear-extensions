@@ -103,9 +103,10 @@ class TestFileModel:
         # pass1
         assert fm("NACCXXX_FORMS-VISIT-5_UDS.json").visit_pass == "pass1"
 
-        # pass 0; covid and cls
+        # pass 0; bds, covid and cls
+        assert fm("NACCXXX_BDS-RECORD-2001-01-01_BDS.json").visit_pass == "pass0"
         assert fm("NACCXXX_CLS-RECORD-2012-02-10_CLS.json").visit_pass == "pass0"
-        assert fm("NACCXXX_CLS-RECORD-2021-01-29_COVID.json").visit_pass == "pass0"
+        assert fm("NACCXXX_COVID-RECORD-2021-01-29_COVID.json").visit_pass == "pass0"
 
         # pass 0 - lots of different filenames for dicom/niftis
         assert fm("NACCXXX_MR-20250101_2-MPRAGE.dicom.zip").visit_pass == "pass0"
@@ -124,6 +125,14 @@ class TestFileModel:
 
         # invalid/unknown pass
         assert fm("invalid.json").visit_pass is None
+
+    def test_bds_curated_after_uds(self):
+        """BDS demographics depend on whether the subject has UDS visits, so
+        BDS must be curated after all UDS files."""
+        uds = fm("NACCXXX_FORMS-VISIT-5_UDS.json", visitdate="2020-01-01")
+        bds = fm("NACCXXX_BDS-RECORD-2001-01-01_BDS.json", visitdate="2001-01-01")
+
+        assert sorted([bds, uds]) == [uds, bds]
 
 
 # pylint: disable=(no-self-use)
@@ -242,13 +251,15 @@ class TestViewResponseModel:
             raw_fm("NACCXXX_FORMS-VISIT-1_MEDS.json", visitdate="2001-01-01"),
             raw_fm("NACCXXX_FORMS-VISIT-1_LBD.json", visitdate="2001-01-01"),
             raw_fm("NACCXXX_FORMS-VISIT-1_FTLD.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_CLS.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_MDS.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_NP.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_CSF.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_BDS.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_MLST.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_COVID.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_CLS-RECORD-2001-01-01_CLS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_MDS-RECORD-2001-01-01_MDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_NP-RECORD-2001-01-01_NP.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_CSF-RECORD-2001-01-01_CSF.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_BDS-RECORD-2001-01-01_BDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_MILESTONE-2001-01-01_MLST.json", visitdate="2001-01-01"),
+            raw_fm(
+                "NACCXXX_COVID-RECORD-2001-01-01_COVID.json", visitdate="2001-01-01"
+            ),
         ]
 
         response_model = ViewResponseModel(data=file_models)
@@ -289,13 +300,15 @@ class TestViewResponseModel:
                 session_id="uds-session",
             ),
             # files not expected to be associated with an UDS session
-            raw_fm("NACCXXX_FORMS-VISIT-1_CLS.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_MDS.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_NP.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_CSF.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_BDS.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_MLST.json", visitdate="2001-01-01"),
-            raw_fm("NACCXXX_FORMS-VISIT-1_COVID.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_CLS-RECORD-2001-01-01_CLS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_MDS-RECORD-2001-01-01_MDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_NP-RECORD-2001-01-01_NP.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_CSF-RECORD-2001-01-01_CSF.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_BDS-RECORD-2001-01-01_BDS.json", visitdate="2001-01-01"),
+            raw_fm("NACCXXX_MILESTONE-2001-01-01_MLST.json", visitdate="2001-01-01"),
+            raw_fm(
+                "NACCXXX_COVID-RECORD-2001-01-01_COVID.json", visitdate="2001-01-01"
+            ),
         ]
 
         response_model = ViewResponseModel(data=file_models)

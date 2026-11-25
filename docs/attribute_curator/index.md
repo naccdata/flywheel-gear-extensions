@@ -12,7 +12,7 @@ At a high-level, this gear does the following:
 2. For each subject
     1. Execute a data view to pull all acquisition files and relevant metadata
     2. Process the acquisition files based in a specific curation order (see below), and run the Attribute Deriver on each file
-    3. Run a back-propogation pass on the subject to compute cross-module variables (e.g. reliant on multiple scopes and their chronological order) and update cross-sectional values for all files
+    3. Run a back-propagation pass on the subject to compute cross-module variables (e.g. reliant on multiple scopes and their chronological order) and update cross-sectional values for all files
     4. Push final curated metadata back to Flywheel
 
 
@@ -57,4 +57,4 @@ Data then gets written to:
 | Subject | `subject.info.working` | Temporary/working metadata for attribute curation |
 | Subject | `subject.info.*` | Anything else is either for MQT or unrelated metadata |
 
-Note that data is globally written to `subject.info`, and once written can be accessed by future file curations. As such, it is extremely important the files are curated in the correct curation order.
+Note that data is globally written to `subject.info`, and once written can be accessed by future file curation. As such, it is extremely important the files are curated in the correct curation order.

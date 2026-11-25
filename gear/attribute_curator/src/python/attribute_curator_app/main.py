@@ -38,3 +38,8 @@ def run(
             writer.writerows(failed_files)
 
         log.error(f"{len(failed_files)} curation errors, see logs")
+
+    if curator.skipped_files:
+        log.warning(
+            f"{len(curator.skipped_files)} files skipped (not curated), see logs"
+        )

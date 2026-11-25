@@ -147,3 +147,106 @@ def test_missing_formver_keeps_subject_level_value(
 
     assert no_formver.file_info["derived"]["naccnihr"] == 7
     assert unreadable.file_info["derived"]["naccnihr"] == 7
+
+
+def test_v1v3_values_not_applied_to_non_uds_files() -> None:
+    """Non-UDS files with FORMVER < 4 (e.g. BDS 1.0) are not UDS V1-3, so they
+    keep the subject-level value even if their scope has era variables."""
+    instance = object.__new__(FormCurator)
+    instance._FormCurator__scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: {"naccnihr"},
+        FormScope.BDS: {"naccnihr"},
+    }
+    instance._FormCurator__era_scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: {"naccnihr"},
+        FormScope.BDS: {"naccnihr"},
+    }
+
+    uds_v3 = _uds_form("3.0", "v3_UDS.json")
+    bds = _uds_form("1.0", "sub_BDS.json")
+
+    instance.back_propagate_scopes(
+        SimpleNamespace(label="NACC000006"),  # type: ignore[arg-type]
+        {
+            FormScope.UDS: [uds_v3],  # type: ignore[list-item]
+            FormScope.BDS: [bds],  # type: ignore[list-item]
+        },
+        "derived",
+        {"naccnihr": 7},
+        {"naccnihr": 1},
+    )
+
+    assert uds_v3.file_info["derived"]["naccnihr"] == 1
+    assert bds.file_info["derived"]["naccnihr"] == 7
+
+
+def _form(filename: str, formver: Any = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        filename=filename,
+        file_info={"forms": {"json": {"formver": formver}}, "derived": {}},
+    )
+
+
+def test_bds_and_ds_backprop() -> None:
+    """Back-propagation applies each scope's reference variables to its files.
+
+    The scope references are set by hand here; see
+    test_backprop_scope_reference for the real references built from
+    BACKPROP_SCOPES.
+    """
+    instance = object.__new__(FormCurator)
+    instance._FormCurator__scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: {"naccsex", "naccds"},
+        FormScope.BDS: {"naccsex", "nacclang", "nacchisp"},
+    }
+    instance._FormCurator__era_scope_reference = {  # type: ignore[attr-defined]  # noqa: SLF001
+        FormScope.UDS: set(),
+        FormScope.BDS: set(),
+    }
+
+    uds = _form("sub_UDS.json", 4.0)
+    bds = _form("sub_BDS.json", 1.0)
+    ds = _form("sub_DS.json")
+
+    instance.back_propagate_scopes(
+        SimpleNamespace(label="NACC000005"),  # type: ignore[arg-type]
+        {
+            FormScope.UDS: [uds],  # type: ignore[list-item]
+            FormScope.BDS: [bds],  # type: ignore[list-item]
+            FormScope.DS: [ds],  # type: ignore[list-item]
+        },
+        "derived",
+        {"naccsex": 2, "nacclang": 1, "nacchisp": 0, "naccds": 1},
+        None,
+    )
+
+    assert uds.file_info["derived"] == {"naccsex": 2, "naccds": 1}
+    assert bds.file_info["derived"] == {"naccsex": 2, "nacclang": 1, "nacchisp": 0}
+    # DS is not a back-propagation target itself
+    assert ds.file_info["derived"] == {}
+
+
+def test_backprop_scope_reference() -> None:
+    """The real scope references, built from BACKPROP_SCOPES and the deriver's
+    curation rules, put the BDS demographics on BDS files and NACCDS on UDS
+    files.
+
+    Builds a FormCurator through __init__, so this also fails if any
+    BACKPROP_SCOPES scope has no curation rules in the pinned deriver.
+    """
+    curator = FormCurator(
+        dataview=None,  # type: ignore[arg-type]
+        curation_tag="test",
+        active_center=True,
+        rxclass_concepts={},
+    )
+    scope_reference = curator._FormCurator__scope_reference  # type: ignore[attr-defined]  # noqa: SLF001
+
+    assert scope_reference[FormScope.BDS] >= {
+        "naccsex",
+        "nacclang",
+        "nacclangx",
+        "nacchisp",
+        "naccnihr",
+    }
+    assert "naccds" in scope_reference[FormScope.UDS]
