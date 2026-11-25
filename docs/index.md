@@ -27,6 +27,7 @@ Home for documentation of Flywheel extensions for the National Alzheimer's Coord
     - Enrollment pipelines
     - Form pipeline
     - SCAN metadata pipeline
+    - [Retrospective imaging pipeline](./processes/retrospective-imaging-pipeline.md)
     - [Event Capture](./processes/event-capture.md)
 
 - Gears:
