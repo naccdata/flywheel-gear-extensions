@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from flywheel.file_spec import FileSpec
 from flywheel.models.file_entry import FileEntry
+from flywheel.rest import ApiException
 from pydantic import BaseModel, field_validator
 
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy, ProjectAdaptor
@@ -27,9 +28,16 @@ class MockFile(FileEntry):
         contents: str = "",
         created: Optional[datetime] = None,
         modified: Optional[datetime] = None,
+        file_id: str = "",
+        acquisition_id: str = "",
     ) -> None:
         info = info if info else {}
-        super().__init__(name=name, info=info)
+        super().__init__(
+            name=name,
+            info=info,
+            file_id=file_id or None,
+            parents=MockParents(acquisition=acquisition_id or None),  # type: ignore
+        )
         self.contents = contents
         self.created = created if created is not None else datetime.now()
         self.__modified = modified if modified is not None else datetime.now()
@@ -221,9 +229,24 @@ class MockAcquisition(BaseModel):
     label: str
     parents: MockParents
     files: List[FileEntry] = []
+    info: Dict[str, Any] = {}
+    uploads: List[Any] = []
 
     def reload(self, *args, **kwargs):
-        return self
+        """Returns a detached copy, like the Flywheel SDK."""
+        return self.model_copy(deep=True)
+
+    def update_info(self, info: Dict[str, Any], **kwargs) -> None:
+        """Replaces each top-level key of info."""
+        self.info.update(info)
+
+    def upload_file(self, file_spec: Any) -> None:
+        """Records the upload.
+
+        A same-name upload adds a new version, so every upload is kept
+        in order and the last one with a name is its latest version.
+        """
+        self.uploads.append(file_spec)
 
 
 class MockFlywheelProxy(FlywheelProxy):
@@ -232,6 +255,31 @@ class MockFlywheelProxy(FlywheelProxy):
     def __init__(self):
         """Initialize mock proxy."""
         self._containers: Dict[str, Any] = {}
+        self._files: Dict[str, Any] = {}
+
+    def add_file(self, file: Any) -> None:
+        """Registers a file so that get_file can find it by file ID."""
+        self._files[file.file_id] = file
+
+    def get_file(self, file_id: str) -> Any:
+        """Gets a registered file.
+
+        Raises:
+            ApiException: with status 404 if the file ID is unknown
+        """
+        if file_id not in self._files:
+            raise ApiException(status=404, reason="Not Found")
+        return self._files[file_id]
+
+    def get_acquisition(self, acquisition_id: str) -> Any:
+        """Gets a registered acquisition.
+
+        Raises:
+            ApiException: with status 404 if the acquisition is unknown
+        """
+        if acquisition_id not in self._containers:
+            raise ApiException(status=404, reason="Not Found")
+        return self._containers[acquisition_id]
 
     def add_container(self, container_id: str, container: Any) -> None:
         """Add a container to the mock proxy.
@@ -284,6 +332,22 @@ def create_mock_file_with_parent(
     )
     file.parent_ref = MockParentRef(id=parent_id)  # type: ignore[assignment]
     return file
+
+
+def create_mock_acquisition_file(
+    name: str, file_id: str, acquisition_id: str
+) -> MockFile:
+    """Create a mock file that has a file ID and an acquisition parent.
+
+    Args:
+        name: File name
+        file_id: Flywheel file ID
+        acquisition_id: ID of the acquisition containing the file
+
+    Returns:
+        MockFile with file_id and parents.acquisition set
+    """
+    return MockFile(name=name, file_id=file_id, acquisition_id=acquisition_id)
 
 
 def create_mock_project_adaptor(

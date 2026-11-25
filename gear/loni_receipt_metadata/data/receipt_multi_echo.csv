@@ -1,0 +1,4 @@
+"Upload ID","Subject ID","Directory","Files Skipped","LONI UID","Upload Date","Number Of Files","Modality","Description","Format","Status"
+"CLARITI_ADC00-1790000000001","ptid0001+NACC000001","/flywheel/v0/work/tmpabc123/a1b2c3d4e5f6a1b2c3d4e501_00003-Fake_Multi_Echo.dicom","0","I10000001","2026-09-21 09:14:51","100","MRI","Fake description","DCM","ARCHIVED"
+"CLARITI_ADC00-1790000000001","ptid0001+NACC000001","/flywheel/v0/work/tmpabc123/a1b2c3d4e5f6a1b2c3d4e501_00003-Fake_Multi_Echo.dicom","0","I10000002","2026-09-21 09:14:54","100","MRI","Fake description","DCM","ARCHIVED"
+"CLARITI_ADC00-1790000000001","ptid0001+NACC000001","/flywheel/v0/work/tmpabc123/a1b2c3d4e5f6a1b2c3d4e501_00003-Fake_Multi_Echo.dicom","0","I10000003","2026-09-21 09:14:57","100","MRI","Fake description","DCM","ARCHIVED"

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Tuple
 
 from flywheel.models.file_entry import FileEntry
 from pydantic import (
@@ -195,6 +195,29 @@ class GearTags:
         tags.append(self.get_status_tag(status=status))
 
         return tags
+
+    def tag_changes(
+        self, tags: Optional[List[str]], status: str
+    ) -> Tuple[List[str], List[str]]:
+        """Determines the tags to add and remove for the status.
+
+        Args:
+            tags: current tags, or None if they are unknown
+            status: gear job status (PASS/FAIL)
+
+        Returns:
+            tuple of (tags to add, tags to remove); the input is not modified.
+            If tags is None, both the new and opposite tags are returned
+            unconditionally.
+        """
+        new = self.get_status_tag(status)
+        opposite = self.fail_tag if status == "PASS" else self.pass_tag
+        if tags is None:
+            return [new], [opposite]
+
+        to_add = [] if new in tags else [new]
+        to_remove = [opposite] if opposite in tags else []
+        return to_add, to_remove
 
 
 class ClearedAlertProvenance(BaseModel):

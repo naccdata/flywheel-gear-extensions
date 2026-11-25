@@ -1,0 +1,9 @@
+python_test_utils(
+    name="test_utils",
+    sources=["conftest.py"],
+)
+python_tests(
+    name="tests",
+    sources=["test_*.py"],
+    dependencies=["gear/loni_receipt_metadata/data:receipts"],
+)

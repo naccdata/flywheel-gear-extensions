@@ -1,0 +1,10 @@
+# ignore everything
+*
+# except for
+!.gitignore
+!BUILD
+!receipt_failed.csv
+!receipt_mixed.csv
+!receipt_multi_acquisition.csv
+!receipt_multi_echo.csv
+!receipt_successful.csv
