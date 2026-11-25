@@ -129,6 +129,12 @@ class TestAcquisitionTarget:
 
         assert set(acquisition.info["upload_loni"]) == {"x", "y"}
 
+    def test_reloaded_info_none_handled(self):
+        acquisition = Mock()
+        acquisition.reload.return_value = Mock(info=None)
+        target_for(acquisition).write_upload_loni({"x": ENTRY})
+        acquisition.update_info.assert_called_once_with({"upload_loni": {"x": ENTRY}})
+
     def test_write_error_converted(self):
         acquisition = Mock()
         acquisition.reload.return_value = Mock(info={})

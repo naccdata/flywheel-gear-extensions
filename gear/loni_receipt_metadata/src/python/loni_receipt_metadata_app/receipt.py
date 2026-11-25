@@ -15,8 +15,9 @@ log = logging.getLogger(__name__)
 
 REQUIRED_COLUMNS = ("Upload ID", "Directory", "Status")
 
-# Keep in sync with LONI_PROGRESS_SUCCESS_STATUS in
-# fw-loni-export/fw_gear_loni_upload/constants.py
+# LONI_PROGRESS_SUCCESS_STATUS in fw-loni-export/fw_gear_loni_upload/constants.py
+# is a list (currently ["ARCHIVED"]). Statuses are compared case-sensitively
+# after stripping whitespace. This constant must be kept in sync by hand.
 SUCCESS_STATUSES = frozenset({"ARCHIVED"})
 
 _FILE_ID_PATTERN = re.compile(r"^[0-9a-f]{24}(?=_)")

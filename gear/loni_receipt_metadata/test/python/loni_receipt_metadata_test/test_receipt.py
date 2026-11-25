@@ -7,6 +7,7 @@ import logging
 import pytest
 
 from loni_receipt_metadata_app.receipt import (
+    SUCCESS_STATUSES,
     ReceiptError,
     ReceiptRow,
     parse_receipt,
@@ -138,6 +139,12 @@ class TestRowStatus:
         for values in (blank, absent):
             assert row(**values).is_successful
             assert row(**values).is_failed
+
+    def test_success_statuses_pinned(self):
+        assert frozenset({"ARCHIVED"}) == SUCCESS_STATUSES
+
+    def test_lowercase_status_not_successful(self):
+        assert not row(**{**GOOD, "Status": "archived"}).is_successful
 
     def test_values_stripped(self):
         assert row(Status=" ARCHIVED ", **{"Upload ID": " u "}).is_successful

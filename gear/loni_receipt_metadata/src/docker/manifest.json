@@ -33,7 +33,7 @@
   },
   "config": {
     "dry_run": {
-      "description": "Log what would be written without writing",
+      "description": "Log what would be written without writing. Flywheel is still read to resolve file IDs.",
       "type": "boolean",
       "default": false
     }

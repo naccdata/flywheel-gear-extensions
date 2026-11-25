@@ -142,6 +142,10 @@ def replace_in_acquisition(acquisition: Acquisition, file_spec: FileSpec) -> Non
     If the upload conflicts (409) with an existing file, deletes the file and
     uploads again. Other errors propagate unchanged.
 
+    The replace is not atomic. After a 409 the existing file is deleted before
+    the new upload, so if the second upload fails the acquisition is left
+    without that file until the caller retries.
+
     Args:
       acquisition: the acquisition
       file_spec: the file to upload

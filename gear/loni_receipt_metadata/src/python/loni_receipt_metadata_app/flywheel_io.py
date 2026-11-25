@@ -65,7 +65,10 @@ class FlywheelAcquisitionTarget:
         """
         try:
             current = _reload(self.__acquisition)
-            merged = dict(current.info.get(UPLOAD_LONI_KEY, {}))
+            # update_info replaces the whole upload_loni object, so a
+            # concurrent writer between this reload and the write could lose
+            # entries. The gear is the only writer of this key.
+            merged = dict((current.info or {}).get(UPLOAD_LONI_KEY, {}))
             merged.update(entries)
             _update_info(self.__acquisition, {UPLOAD_LONI_KEY: merged})
         except ApiException as error:
