@@ -63,7 +63,7 @@ Source: Card 1819, "Record the upload LONI UID in Flywheel metadata after LONI u
 1. FOR each acquisition that received at least one Upload_LONI_Entry, THE gear SHALL attach a Receipt_Copy to the acquisition.
 2. THE Receipt_Copy SHALL have the same header as the Input_Receipt and SHALL contain every Receipt_Row, including Failed_Rows, whose Directory_File_ID belongs to a file of that acquisition.
 3. THE Receipt_Copy SHALL have the same file name as the Input_Receipt.
-4. WHEN a file with that name already exists on the acquisition, THE gear SHALL replace it.
+4. WHEN a file with that name already exists on the acquisition, THE existing file SHALL gain a new version with the copy's content.
 5. THE gear SHALL NOT attach a Receipt_Copy to an acquisition that received no Upload_LONI_Entry.
 
 ### Requirement 5: Failure Handling
@@ -111,11 +111,11 @@ Source: Card 1819, "Record the upload LONI UID in Flywheel metadata after LONI u
 - A set of rows sharing a file ID is one uploaded file split into partitions, each with its own LONI UID.
 - `acquisition.info` is keyed by file ID, not by file name, because file names contain dots and one acquisition may hold more than one file.
 - Nothing is written for failed rows; the job fails after all rows are processed.
-- Test mocks: extend the shared mocks in `common/src/python/test_mocks/mock_flywheel.py` (add `get_file`/`get_acquisition` to `MockFlywheelProxy`, and `info`, `update_info`, `upload_file`, `delete_file` to `MockAcquisition`) instead of building gear-local `Mock(spec=...)` fixtures. The design names the extension as required work and keeps existing tests passing.
+- Test mocks: extend the shared mocks in `common/src/python/test_mocks/mock_flywheel.py` (add `get_file`/`get_acquisition` to `MockFlywheelProxy`, and `info`, `update_info`, `upload_file` to `MockAcquisition`) instead of building gear-local `Mock(spec=...)` fixtures. The design names the extension as required work and keeps existing tests passing.
 - Write order per acquisition: write the `upload_loni` entries first, then attach the Receipt_Copy. If attaching the copy fails after the entries were written, the entries stay (a rerun replaces them with identical content), the rows of that acquisition count as failed, the job fails and the Input_Receipt is tagged `-FAIL`. Requirement 3.7 therefore applies to row-level failures only. A test covers this case.
-- Reuse: `flywheel_io.py` keeps only the protocol implementations with no repo equivalent (file resolver, acquisition target, receipt tagger, and their dry-run versions). Two generic pieces are added as new, additive code with no change to existing callers: (1) a replace-upload function in `common/src/python/uploads/acquisition.py`, built on `_upload_file`, that falls back to delete-then-upload on a 409, and (2) a method on `GearTags` in `nacc-common` that returns the tags to add and remove for a status. Existing gears (`phi_image_removal`, the four gears with their own PASS/FAIL tag swap, `SubjectAdaptor`) are NOT refactored in this task. Refactoring them to use the shared code is a follow-up after this gear exists.
+- Reuse: `flywheel_io.py` keeps only the protocol implementations with no repo equivalent (file resolver, acquisition target, receipt tagger, and their dry-run versions). One generic piece is added as new, additive code with no change to existing callers: a method on `GearTags` in `nacc-common` that returns the tags to add and remove for a status. Existing gears (`phi_image_removal`, the four gears with their own PASS/FAIL tag swap, `SubjectAdaptor`) are NOT refactored in this task. Refactoring them to use the shared code is a follow-up after this gear exists.
 - Permissions: assume the gear runs with sufficient permission to tag the Input_Receipt. This is a stated assumption, not a probed result; the design records it as an assumption and needs no probe.
-- Flywheel versions files, and the user believes tags are associated with a file version (unverified). Uploading a file with an existing name to an acquisition is therefore expected to create a new version, which is the replacement behavior Requirement 4.4 relies on. The design records this as an expectation to check during implementation, not as a blocker.
+- Flywheel versions files: uploading a file with an existing name to an acquisition creates a new version of that file (settled by the user). Requirement 4.4 relies on this, and no delete or conflict handling is needed.
 
 ## Open Items
 

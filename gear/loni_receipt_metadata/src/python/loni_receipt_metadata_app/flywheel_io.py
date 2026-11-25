@@ -13,7 +13,6 @@ from flywheel.rest import ApiException
 from flywheel_adaptor.flywheel_proxy import FlywheelProxy
 from gear_execution.gear_execution import GearExecutionError
 from nacc_common.error_models import GearTags
-from uploads.acquisition import replace_in_acquisition
 from utils.decorators import api_retry
 
 from .main import AcquisitionTarget, ResolvedFile, TargetWriteError
@@ -43,8 +42,18 @@ def _update_info(acquisition: Acquisition, info: Dict[str, Any]) -> None:
     acquisition.update_info(info)
 
 
+@api_retry
+def _upload_file(acquisition: Acquisition, file_spec: FileSpec) -> None:
+    acquisition.upload_file(file_spec)
+
+
 class FlywheelAcquisitionTarget:
-    """Writes receipt data to a Flywheel acquisition."""
+    """Writes receipt data to a Flywheel acquisition.
+
+    Uploading a file with a name that already exists in the acquisition
+    creates a new version of that file, so rerunning does not delete
+    anything.
+    """
 
     def __init__(self, acquisition: Acquisition) -> None:
         self.__acquisition = acquisition
@@ -77,15 +86,17 @@ class FlywheelAcquisitionTarget:
             ) from error
 
     def attach_receipt_copy(self, name: str, contents: str) -> None:
-        """Attaches the file to the acquisition, replacing a file of the same
-        name.
+        """Uploads the file to the acquisition under the given name.
+
+        If the acquisition already has a file with that name, the upload
+        creates a new version of it.
 
         Raises:
           TargetWriteError: if the Flywheel calls fail
         """
         file_spec = FileSpec(name=name, contents=contents, content_type="text/csv")
         try:
-            replace_in_acquisition(self.__acquisition, file_spec)
+            _upload_file(self.__acquisition, file_spec)
         except ApiException as error:
             raise TargetWriteError(
                 f"Failed to upload {name} to acquisition {self.label}: {error}"

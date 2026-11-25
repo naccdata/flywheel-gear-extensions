@@ -130,38 +130,6 @@ def _upload_file(acquisition: Acquisition, file_spec: FileSpec):
     acquisition.upload_file(file_spec)
 
 
-@api_retry
-def _delete_file(acquisition: Acquisition, name: str):
-    acquisition.delete_file(name)
-
-
-def replace_in_acquisition(acquisition: Acquisition, file_spec: FileSpec) -> None:
-    """Uploads the file to the acquisition, replacing any file of the same
-    name.
-
-    If the upload conflicts (409) with an existing file, deletes the file and
-    uploads again. Other errors propagate unchanged.
-
-    The replace is not atomic. After a 409 the existing file is deleted before
-    the new upload, so if the second upload fails the acquisition is left
-    without that file until the caller retries.
-
-    Args:
-      acquisition: the acquisition
-      file_spec: the file to upload
-
-    Raises:
-      ApiException: if the upload, delete or second upload fails
-    """
-    try:
-        _upload_file(acquisition=acquisition, file_spec=file_spec)
-    except ApiException as error:
-        if error.status != 409:
-            raise
-        _delete_file(acquisition=acquisition, name=file_spec.name)
-        _upload_file(acquisition=acquisition, file_spec=file_spec)
-
-
 def upload_to_acquisition(
     acquisition: Acquisition,
     filename: str,

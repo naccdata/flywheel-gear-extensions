@@ -35,7 +35,8 @@ class AcquisitionTarget(Protocol):
         ...
 
     def attach_receipt_copy(self, name: str, contents: str) -> None:
-        """Attaches a file with the name, replacing any with the same name."""
+        """Uploads a file with the name; a same-name file gains a new
+        version."""
         ...
 
 

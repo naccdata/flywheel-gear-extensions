@@ -231,8 +231,6 @@ class MockAcquisition(BaseModel):
     files: List[FileEntry] = []
     info: Dict[str, Any] = {}
     uploads: List[Any] = []
-    deleted: List[str] = []
-    conflict_on_upload: bool = False
 
     def reload(self, *args, **kwargs):
         """Returns a detached copy, like the Flywheel SDK."""
@@ -243,18 +241,12 @@ class MockAcquisition(BaseModel):
         self.info.update(info)
 
     def upload_file(self, file_spec: Any) -> None:
-        """Records the upload; conflicts when configured and name exists."""
-        if self.conflict_on_upload and any(
-            file.name == file_spec.name for file in self.files
-        ):
-            raise ApiException(status=409, reason="Conflict")
-        self.uploads.append(file_spec)
+        """Records the upload.
 
-    def delete_file(self, name: str) -> None:
-        """Deletes the named file and clears the conflict."""
-        self.files = [file for file in self.files if file.name != name]
-        self.deleted.append(name)
-        self.conflict_on_upload = False
+        A same-name upload adds a new version, so every upload is kept
+        in order and the last one with a name is its latest version.
+        """
+        self.uploads.append(file_spec)
 
 
 class MockFlywheelProxy(FlywheelProxy):

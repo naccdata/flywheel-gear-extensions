@@ -150,17 +150,18 @@ class TestAcquisitionTarget:
 
         (spec,) = acquisition.uploads
         assert spec.name == "r.csv"
+        assert spec.contents == "a,b"
         assert spec.content_type == "text/csv"
 
-    def test_attach_replaces_existing(self):
+    def test_attach_same_name_adds_version(self):
         existing = create_mock_acquisition_file("r.csv", file_id(1), "acq1")
         acquisition = make_target(files=[existing])
-        acquisition.conflict_on_upload = True
 
         target_for(acquisition).attach_receipt_copy("r.csv", "a,b")
 
-        assert acquisition.deleted == ["r.csv"]
         assert len(acquisition.uploads) == 1
+        assert acquisition.uploads[0].name == "r.csv"
+        assert [file.name for file in acquisition.files] == ["r.csv"]
 
     def test_attach_error_converted(self):
         acquisition = Mock()
@@ -168,6 +169,17 @@ class TestAcquisitionTarget:
 
         with pytest.raises(TargetWriteError):
             target_for(acquisition).attach_receipt_copy("r.csv", "a")
+
+    def test_attach_retries_transient_failure(self):
+        acquisition = Mock()
+        acquisition.upload_file.side_effect = [
+            ApiException(status=500, reason="boom"),
+            None,
+        ]
+
+        target_for(acquisition).attach_receipt_copy("r.csv", "a")
+
+        assert acquisition.upload_file.call_count == 2
 
 
 class TestDryRunTarget:
